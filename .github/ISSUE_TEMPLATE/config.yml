@@ -1,0 +1,6 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Playbook (prayog-meta)
+    url: https://github.com/drivestream-lab/prayog-meta/blob/develop/playbook/README.md
+  - name: drivestream-lab Board
+    url: https://github.com/orgs/drivestream-lab/projects/1
