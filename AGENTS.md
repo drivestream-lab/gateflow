@@ -5,7 +5,7 @@
 
 Shared rules: **`.cursor/rules/*.mdc`** (git submodule, pinned at **v0.5.10**).
 
-Agent skills: **`prayog-skills/`** (git submodule at root, pinned at **v0.4.3**) — `/spec-draft`, `/initiative-feasibility`, `/spec-technical-review`, `/spec-implementation-plan`, `/board-seed`, `/pre-implement`, `/loop-spec`, `/ground-spec`, `/verify`.
+Agent skills: **`prayog-skills/`** (git submodule at root, pinned at **v0.5.0-rc.2**) — `/spec-draft`, `/initiative-feasibility`, `/spec-technical-review`, `/spec-implementation-plan`, `/board-seed`, `/pre-implement`, `/loop-spec`, `/ground-spec`, `/verify`.
 
 **Do not edit** `.cursor/rules/`. Skill changes go upstream in prayog-skills.
 Pin record: [`.harness-pin.yaml`](.harness-pin.yaml) (`profile: python-backend`).
