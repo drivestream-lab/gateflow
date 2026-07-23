@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app import create_app
 from src.configs.base_settings import BaseSettings
 from src.di.dependency_container import configure_container, reset_container
+from src.models.programme_config_models import ProgrammeConfig
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +28,7 @@ def reset_settings() -> None:
         "TelemetrySettings",
     ):
         BaseSettings._instances.pop(name, None)
+    ProgrammeConfig.reset_instance()
 
 
 @pytest.fixture

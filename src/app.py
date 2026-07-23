@@ -15,6 +15,7 @@ from src.common.auth.config import AuthConfig
 from src.common.auth.middleware import AuthMiddleware
 from src.configs.app_settings import AppSettings
 from src.configs.jwt_settings import JWTSettings
+from src.configs.programme_config_loader import load_programme_config
 from src.di.dependency_container import (
     close_all_services,
     configure_container,
@@ -33,6 +34,7 @@ async def lifespan(app: FastAPI):
     startup_correlation_id = str(uuid.uuid4())
     with LoggingContext(startup_correlation_id):
         logger.info("Starting gateflow application")
+        load_programme_config()
         container = configure_container()
         app.state.container = container
         try:
