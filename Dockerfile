@@ -20,7 +20,6 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --chown=app:app src/ ./src/
-COPY --chown=app:app postgres_alembic.ini ./
 COPY --chown=app:app postgres_migrations/ ./postgres_migrations/
 COPY --chown=app:app scripts/ ./scripts/
 COPY docker/gateflow/entrypoint.sh ./entrypoint.sh
