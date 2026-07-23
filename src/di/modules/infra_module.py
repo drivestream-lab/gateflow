@@ -4,6 +4,7 @@ from injector import Module, singleton
 
 from src.database.postgres.connection_manager import PostgresConnectionManager
 from src.database.redis.connection_manager import RedisConnectionManager
+from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.redis_service import RedisService
 from src.infra_services.telemetry_service import TelemetryService
@@ -22,4 +23,5 @@ class InfraModule(Module):
         binder.bind(PostgresService, to=PostgresService, scope=singleton)
         binder.bind(RedisService, to=RedisService, scope=singleton)
         binder.bind(TelemetryService, scope=singleton)
+        binder.bind(ForgeClient, to=ForgeClient, scope=singleton)
         logger.debug("Infrastructure services module configured")

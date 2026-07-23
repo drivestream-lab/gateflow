@@ -25,11 +25,15 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 
 
 def configure_container() -> Injector:
+    from src.business_services.handoff_reader import HandoffReader
+    from src.business_services.job_worker_service import JobWorkerService
     from src.business_services.webhook_ingress_service import WebhookIngressService
+    from src.business_services.workflow_engine import WorkflowEngine
     from src.di.modules.business_services_module import BusinessServicesModule
     from src.di.modules.config_module import ConfigModule
     from src.di.modules.infra_module import InfraModule
     from src.di.modules.repository_module import RepositoryModule
+    from src.infra_services.forge_client import ForgeClient
 
     settings = AppSettings.get_instance()
     global _injector
@@ -43,9 +47,19 @@ def configure_container() -> Injector:
                 BusinessServicesModule(),
             ]
         )
-        # Keep tuple in sync with BusinessServicesModule bindings for initialize/close.
-        global _BUSINESS_SERVICE_TYPES
-        _BUSINESS_SERVICE_TYPES = (WebhookIngressService,)
+        global _INFRA_SERVICE_TYPES, _BUSINESS_SERVICE_TYPES
+        _INFRA_SERVICE_TYPES = (
+            PostgresService,
+            RedisService,
+            TelemetryService,
+            ForgeClient,
+        )
+        _BUSINESS_SERVICE_TYPES = (
+            WebhookIngressService,
+            JobWorkerService,
+            HandoffReader,
+            WorkflowEngine,
+        )
         logger.info("DI container configured successfully")
     return _injector
 
