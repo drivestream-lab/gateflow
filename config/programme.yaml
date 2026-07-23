@@ -8,8 +8,8 @@ handoff:
   ref: pr_head
   ref_fallback: default_branch
   artifact_globs:
-    - docs/specification/reports/**
-    - prd/reports/**
+    - docs/specification/reports/**/*
+    - prd/reports/**/*
 
 retry:
   findings_budget: 3

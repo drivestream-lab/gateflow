@@ -31,8 +31,8 @@ class HandoffConfig(BaseModel):
     )
     artifact_globs: list[str] = Field(
         default_factory=lambda: [
-            "docs/specification/reports/**",
-            "prd/reports/**",
+            "docs/specification/reports/**/*",
+            "prd/reports/**/*",
         ],
         description="Globs scanned for the latest durable handoff YAML block",
     )
