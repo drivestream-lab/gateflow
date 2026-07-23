@@ -1,0 +1,139 @@
+"""Unit tests for TriggerRouter and PolicyEngine (W1 control plane)."""
+
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pytest
+
+from src.business_services.policy_engine import PolicyEngine
+from src.business_services.trigger_router import TriggerRouter
+from src.configs.programme_config_loader import load_programme_config
+from src.models.handoff_models import HandoffEnvelope
+from src.models.policy_types import PolicyDecisionType, WavePreconditionIdType
+from src.models.programme_config_models import ProgrammeConfig
+from src.models.run_store_models import RunModel
+from src.models.run_store_types import RunStatusType
+
+
+@pytest.fixture(autouse=True)
+def _programme_config() -> ProgrammeConfig:
+    ProgrammeConfig.reset_instance()
+    return load_programme_config(Path("config/programme.yaml"))
+
+
+def _labeled_payload(label: str = "gateflow:run-wave") -> dict[str, object]:
+    return {
+        "repository": {"full_name": "acme/widget", "name": "widget", "owner": {"login": "acme"}},
+        "pull_request": {"number": 42},
+        "label": {"name": label},
+    }
+
+
+@pytest.mark.asyncio
+async def test_wrong_label_fails_pc01() -> None:
+    run_repo = MagicMock()
+    run_repo.find_active_run = AsyncMock(return_value=None)
+    router = TriggerRouter(run_repository=run_repo)
+    session = MagicMock()
+    result = await router.authorize_and_check(
+        session,
+        event_type="pull_request",
+        delivery_id="d1",
+        payload=_labeled_payload("wrong-label"),
+    )
+    assert result.authorized is False
+    assert any(f.precondition_id == WavePreconditionIdType.TRIGGER_LABEL for f in result.failures)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_active_run_rejected() -> None:
+    active = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        pr_number=42,
+        retry_counter=0,
+        notify_pending=False,
+    )
+    run_repo = MagicMock()
+    run_repo.find_active_run = AsyncMock(return_value=active)
+    router = TriggerRouter(run_repository=run_repo)
+    result = await router.authorize_and_check(
+        MagicMock(),
+        event_type="pull_request",
+        delivery_id="d2",
+        payload=_labeled_payload(),
+    )
+    assert result.authorized is False
+    assert any(
+        f.precondition_id == WavePreconditionIdType.NO_CONCURRENT_RUN for f in result.failures
+    )
+
+
+def test_policy_dispatch_only_skill_orchestrated() -> None:
+    engine = MagicMock()
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    engine.resolve_next.return_value = ResolvedWorkflowNode(
+        node_id="pre-implement",
+        node_type="skill",
+        dispatch="orchestrated",
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="board-seed",
+        outcome="pass",
+    )
+    trigger = MagicMock()
+    decision = policy.evaluate_dispatch(handoff, trigger)
+    assert decision.decision == PolicyDecisionType.DISPATCH
+    assert decision.next_node is not None
+    assert decision.next_node.node_id == "pre-implement"
+
+
+def test_policy_stop_on_human_checkpoint() -> None:
+    policy = PolicyEngine(workflow_engine=MagicMock())
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="board-seed",
+        outcome="pass",
+        human_checkpoint=True,
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "human_checkpoint" in (decision.block_reason or "")
+
+
+def test_policy_block_on_contract_mismatch() -> None:
+    engine = MagicMock()
+    engine.resolve_next.side_effect = ValueError(
+        "Handoff contract 'other/v1' does not match installed 'sdd-delivery/v2'"
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="other/v1",
+        stage="board-seed",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.BLOCK
+
+
+def test_policy_findings_budget_stop() -> None:
+    config = ProgrammeConfig.get_instance()
+    config = config.model_copy(
+        update={"retry": config.retry.model_copy(update={"findings_budget": 2})}
+    )
+    ProgrammeConfig.set_instance(config)
+    policy = PolicyEngine(workflow_engine=MagicMock())
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="loop-spec",
+        outcome="findings",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock(), retry_counter=2)
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "Retry budget exhausted" in (decision.block_reason or "")

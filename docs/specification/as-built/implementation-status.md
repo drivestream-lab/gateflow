@@ -4,41 +4,41 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-23 |
-| Source | INIT-GATEFLOW-001 W0 on `feature/INIT-GATEFLOW-001-w0-control-plane` |
+| Source | INIT-GATEFLOW-001 W1 on `feature/INIT-GATEFLOW-001-w1-operational-control-plane` |
 
 ## Testing harness
 
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | Health, programme config, RunStore DTOs, webhook, worker, handoff/workflow, ForgeClient |
-| Live verify | `tests/verify/verify_all.py` | **pass** (health + webhook); needs API + migrated Postgres + `GITHUB_WEBHOOK_SECRET` |
-| CI | `.github/workflows/ci.yml` | Placeholder (does not run `make check`/`test`) |
+| Unit | `make test` → `tests/unit/` | W0 + W1 control-plane (38 tests) |
+| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave smoke |
+| CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Health liveness | scaffold | `GET /health` | `tests/unit/test_health.py` | `tests.verify.verify_health` | In `verify_all` |
-| JWT AuthMiddleware | scaffold | `src/common/auth/` | via TestClient fixture | — | `public_paths`: `/health`, `/internal`, `/webhooks` |
-| Postgres / Redis infra | scaffold | `PostgresService`, `RedisService` | mocked in unit | docker-compose + detailed health | Lifecycle |
-| GitHub App webhooks | INIT FR-1 | `POST /webhooks/github` + `WebhookIngressService` | `tests/unit/test_webhook_ingress.py` | `tests.verify.verify_webhook` | Org App `gateflow-dev`; live pass |
-| RunStore + job queue | INIT FR-5, FR-17 | ORM + repos + migration `36b36d3d4fc9` | `tests/unit/test_run_store_models.py` | via webhook enqueue | Create dumps include defaults |
-| HandoffReader / WorkflowEngine | INIT FR-6–7 (resolve) | `handoff_reader.py`, `workflow_engine.py` | `tests/unit/test_handoff_workflow.py` | — | Resolve only; no PolicyEngine dispatch |
-| PolicyEngine / AgentRunner | INIT FR-7–9 | — | — | — | W1 |
-| ForgeClient | INIT FR-12 | `forge_client.py` | `tests/unit/test_forge_client.py` | — | Comments + forbid gate labels/auto-merge |
-| Notifier / metrics / status API | INIT FR-11,13,15 | — | — | — | W1 |
-| Programme config | INIT FR-18 | `config/programme.yaml` + loader | `tests/unit/test_programme_config.py` | — | Fail-fast at API/worker startup |
-| W1 runbook | INIT FR-19 | — | — | — | W1 |
-| Async worker process | INIT FR-17 (partial) | `src/worker_main.py` stub | `tests/unit/test_job_worker.py` | deferred (D-W0-V2) | Stub handler only |
+| Health liveness | scaffold | `GET /health` | `test_health` | `verify_health` | In `verify_all` |
+| GitHub App webhooks | FR-1 | `POST /webhooks/github` | `test_webhook_ingress` | `verify_webhook` | Live pass (W0) |
+| RunStore + jobs | FR-5, FR-17 | ORM/repos + migration | `test_run_store_models` | via webhook | |
+| TriggerRouter + preconditions | FR-2–4 | `trigger_router.py` | `test_trigger_policy` | `verify_wave_smoke` (enqueue) | Concurrent = PC-06 |
+| PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
+| RunOrchestrator + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker manual | |
+| AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | — | Stub fail-closed |
+| Tools none | FR-14 | `stage_tool_resolver.py` | `test_stage_tools` | — | |
+| Status + metrics APIs | FR-13,15 | `runs_routes`, `metrics_routes` | `test_programme_token_api` | `verify_status_metrics` | Programme token |
+| Programme config | FR-18 | `config/programme.yaml` | `test_programme_config` | — | |
+| W1 runbook | FR-19 | `docs/runbooks/orchestrate-new-initiative-repo.md` | — | inspection | |
+| API + worker runtime | FR-17 | `src.main` + `src.worker_main` | `test_job_worker` | `docs/runbooks/w1-runtime-api-worker.md` | Clears D-W0-V2 docs path |
 
 ## Wave status
 
 | Wave | Plan | Ground report | as-built status |
 |------|------|---------------|-----------------|
-| W0 | Control-plane skeleton complete; live verify green | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
-| W1 | Not started | — | — |
+| W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
+| W1 | Operational control plane | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
 
 ## Verdict
 
-**W0 is human_approved.** Programme config, RunStore (migrated), webhook ingress, worker stub, handoff/workflow resolve, ForgeClient, unit tests, and live `verify_all` are in place. Org GitHub App credentials configured locally (secrets not in git). Next: merge W0 PR when ready, then `/pre-implement` for W1.
+**W0 and W1 are human_approved.** Gateflow now has a durable control plane: signed webhooks → jobs → trigger/policy/orchestrator (worker) → status/metrics under programme token, with runbooks and live `verify_all`. Deferred: real Cursor SDK (D-W1-A1) and full worker dogfood stop-comment soak (D-W1-V1). Next: merge W1 PR; Phase B dogfood / ops as product follow-on.

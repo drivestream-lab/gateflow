@@ -21,6 +21,8 @@ def reset_settings() -> None:
     os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
     os.environ.setdefault("JWT_ALGORITHM", "HS256")
     os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "test-webhook-secret")
+    # Force test token — do not inherit a different value from a sourced .env
+    os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
     for name in (
         "AppSettings",
         "JWTSettings",
@@ -28,6 +30,7 @@ def reset_settings() -> None:
         "RedisSettings",
         "TelemetrySettings",
         "GithubSettings",
+        "ProgrammeAuthSettings",
     ):
         BaseSettings._instances.pop(name, None)
     ProgrammeConfig.reset_instance()

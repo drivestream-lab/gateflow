@@ -27,13 +27,21 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 def configure_container() -> Injector:
     from src.business_services.handoff_reader import HandoffReader
     from src.business_services.job_worker_service import JobWorkerService
+    from src.business_services.metrics_emitter import MetricsEmitter
+    from src.business_services.notifier import Notifier
+    from src.business_services.policy_engine import PolicyEngine
+    from src.business_services.run_orchestrator import RunOrchestrator
+    from src.business_services.stage_tool_resolver import StageToolResolver
+    from src.business_services.trigger_router import TriggerRouter
     from src.business_services.webhook_ingress_service import WebhookIngressService
     from src.business_services.workflow_engine import WorkflowEngine
     from src.di.modules.business_services_module import BusinessServicesModule
     from src.di.modules.config_module import ConfigModule
     from src.di.modules.infra_module import InfraModule
     from src.di.modules.repository_module import RepositoryModule
+    from src.infra_services.cursor_agent_runner import CursorAgentRunner
     from src.infra_services.forge_client import ForgeClient
+    from src.infra_services.launchpad_client import LaunchpadClient
 
     settings = AppSettings.get_instance()
     global _injector
@@ -53,12 +61,20 @@ def configure_container() -> Injector:
             RedisService,
             TelemetryService,
             ForgeClient,
+            LaunchpadClient,
+            CursorAgentRunner,
         )
         _BUSINESS_SERVICE_TYPES = (
             WebhookIngressService,
             JobWorkerService,
             HandoffReader,
             WorkflowEngine,
+            TriggerRouter,
+            PolicyEngine,
+            Notifier,
+            MetricsEmitter,
+            StageToolResolver,
+            RunOrchestrator,
         )
         logger.info("DI container configured successfully")
     return _injector

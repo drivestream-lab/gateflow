@@ -4,6 +4,12 @@ from injector import Binder, Module, singleton
 
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.job_worker_service import JobWorkerService
+from src.business_services.metrics_emitter import MetricsEmitter
+from src.business_services.notifier import Notifier
+from src.business_services.policy_engine import PolicyEngine
+from src.business_services.run_orchestrator import RunOrchestrator
+from src.business_services.stage_tool_resolver import StageToolResolver
+from src.business_services.trigger_router import TriggerRouter
 from src.business_services.webhook_ingress_service import WebhookIngressService
 from src.business_services.workflow_engine import WorkflowEngine
 
@@ -14,3 +20,9 @@ class BusinessServicesModule(Module):
         binder.bind(JobWorkerService, scope=singleton)
         binder.bind(HandoffReader, scope=singleton)
         binder.bind(WorkflowEngine, scope=singleton)
+        binder.bind(TriggerRouter, scope=singleton)
+        binder.bind(PolicyEngine, scope=singleton)
+        binder.bind(Notifier, scope=singleton)
+        binder.bind(MetricsEmitter, scope=singleton)
+        binder.bind(StageToolResolver, scope=singleton)
+        binder.bind(RunOrchestrator, scope=singleton)

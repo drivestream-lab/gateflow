@@ -27,12 +27,13 @@ from src.models.run_store_models import (
     RunEventCreate,
     RunEventModel,
     RunModel,
+    RunUpdate,
     StageCreate,
     StageModel,
     WebhookDeliveryCreate,
     WebhookDeliveryModel,
 )
-from src.models.run_store_types import JobStatusType
+from src.models.run_store_types import JobStatusType, RunStatusType
 
 
 class WebhookDeliveryRepository(BasePostgresRepository[WebhookDeliverySchema]):
@@ -186,6 +187,36 @@ class RunRepository(BasePostgresRepository[RunSchema]):
 
     async def get_run(self, session: AsyncSession, run_id: UUID) -> Optional[RunModel]:
         row = await self.get(session, run_id)
+        return self._to_model(row) if row is not None else None
+
+    async def update_run(
+        self, session: AsyncSession, run_id: UUID, obj_in: RunUpdate
+    ) -> Optional[RunModel]:
+        row = await self.update(session, run_id, obj_in)
+        return self._to_model(row) if row is not None else None
+
+    async def find_active_run(
+        self,
+        session: AsyncSession,
+        org: str,
+        repo: str,
+        pr_number: Optional[int] = None,
+        issue_number: Optional[int] = None,
+    ) -> Optional[RunModel]:
+        """Return an ACTIVE run for the same org/repo and PR or issue (FR-2)."""
+        stmt = select(RunSchema).where(
+            RunSchema.org == org,
+            RunSchema.repo == repo,
+            RunSchema.status_type == RunStatusType.ACTIVE.value,
+        )
+        if pr_number is not None:
+            stmt = stmt.where(RunSchema.pr_number == pr_number)
+        elif issue_number is not None:
+            stmt = stmt.where(RunSchema.issue_number == issue_number)
+        else:
+            return None
+        result = await session.execute(stmt.limit(1))
+        row = result.scalar_one_or_none()
         return self._to_model(row) if row is not None else None
 
 
