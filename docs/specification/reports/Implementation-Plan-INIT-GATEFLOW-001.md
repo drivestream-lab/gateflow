@@ -265,7 +265,7 @@ effects** until PE completes the unlock.
 |------|-------|
 | Verdict | GATE OPEN REQUEST |
 | Spec PR | https://github.com/drivestream-lab/gateflow/pull/4 |
-| Spec PR head SHA | `{FILL_AFTER_COMMIT}` |
+| Spec PR head SHA | `fc6321d5f8eabc144e1e63aee3d962076e57fb59` |
 | Gate label (current) | `spec-pending` |
 | Gate label (target) | `spec-lgtm` |
 | Blocking items | none |
@@ -288,12 +288,12 @@ PE actions (all on **exact current head**):
 ```text
 Spec package approved
 initiative: INIT-GATEFLOW-001
-spec_pr_head_sha: {FILL_AFTER_COMMIT}
+spec_pr_head_sha: fc6321d5f8eabc144e1e63aee3d962076e57fb59
 meta_pr_head_sha: d62a9bbcf5960c50c4429dd33bb206208dbbf246
 impact_map_revision: 3
 prd_digest: sha256:9fa343f11f9497cd278c18ba4b87391b15cab566f285e88a7f4cda9bf700802d
 scope_digest: sha256:f81fd7c11c9b438524032898b31b028b376bcf766cb5ef675f0ecb81f326e9a0
-plan_digest: sha256:{FILL_PLAN_DIGEST}
+plan_digest: sha256:5fb54bf3e2d51ee4d66e787fe7691c500deb7ec76b9c1f3c583a10715d99bfbb
 artifacts:
   - docs/specification/product/INIT-GATEFLOW-001-gateflow.md
   - docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-001.md
@@ -453,7 +453,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-001.md
-    digest: sha256:4169cf0d9a2a478876c9166927daef68da76df4fe58b4d644d0eee88becd4be5
+    digest: sha256:9a8e229732c9bb8c2954e873c8fc32e01bfca949e31047b1f99148981078f2e7
   blockers: []
   signals:
     gate2_unlock: requested
