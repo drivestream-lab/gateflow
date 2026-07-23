@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-001 |
 | Feasibility finding | F-01, F-03 |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-001.md` |
-| Decision owner | PE |
-| Approval evidence | Pending |
-| Approved head | Pending |
+| Decision owner | @nikd10x |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-23 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/4); architecture package tip `ca74d77949046b8d91357c37bb2ea864dad60c26` |
+| Approved head | `ca74d77949046b8d91357c37bb2ea864dad60c26` |
 
 ## Context
 

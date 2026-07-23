@@ -16,7 +16,7 @@
 | Date | 2026-07-23 |
 | Branch | `chore/INIT-GATEFLOW-001-spec-gateflow` (Draft spec PR #4) |
 | Initiative segment | `INIT-GATEFLOW-001` |
-| Status | Draft — ADR set consolidated 6→4 (architecture-only; product detail in TDD) |
+| Status | Accepted — PE @nikd10x 2026-07-23; ADR set consolidated 6→4 |
 | Review deadline | 2026-07-30 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
 
@@ -187,10 +187,10 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| F-01, F-03 | ADR_REQUIRED | `docs/specification/adr/adr-001-runtime-and-durable-store.md` | Dual process + Postgres jobs/runs; repo boundary; human Alembic | Draft | `sha256:4c5a4470cadc56aa9f130393b82aa8a1b2cef0a97e3706bafefa1813d57dd502` |
-| F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Draft | `sha256:0f5090f2848877cf1f32c170e4b433444517ea362030e21a8d4f700ca681d9cb` |
-| F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Draft | `sha256:58abd9c0ad3391afeae7e27165ddb8a78001f640b89f37a3337f10d607c0ba3d` |
-| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Draft | `sha256:de9afb6dadae1487e53200c17b0419d2076793335a7132a2337076d72ea4bb8b` |
+| F-01, F-03 | ADR_REQUIRED | `docs/specification/adr/adr-001-runtime-and-durable-store.md` | Dual process + Postgres jobs/runs; repo boundary; human Alembic | Accepted | `sha256:4e8667361cfa2b6e0d67a953032a8fe97f4102fb26a3815f1e502de700d20ca3` |
+| F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Accepted | `sha256:e888b11e99a9b3f12b8a9b2c5a356783ab5b8da8f533467066f98beaf2e1a1a3` |
+| F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Accepted | `sha256:60d188c92f6f99cd632c209bd91d52555ec00f35396476486bf3443c4e24ebd6` |
+| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Accepted | `sha256:523a5097470bc77e570b620d1c69dc2c5abbc00513df5f68b37bd899c2a80acc` |
 | Q-3 | TDD_ONLY | §3.6 mounts | Exact paths listed under interface contracts | Resolved | N/A |
 | F-07 | TDD_ONLY | §3.6 / §8 | Models in `src/models/`; no inline router models | Resolved | N/A |
 | F-08 | TDD_ONLY | §5 / §6 | Pin unavailable → block + comment; unit assert never silent | Resolved | N/A |
@@ -202,7 +202,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 - ADR_REQUIRED: 4
 - TDD_ONLY: 3
 - DEFERRED_WITH_DEFAULT: 2
-- Draft ADR files created: 4
+- Accepted ADR files on branch: 4
 - Missing/broken ADR files: 0
 
 **Existing Accepted ADR constraint set:** none (adr_dir empty at first draft) — independent of prior ADRs.
@@ -328,11 +328,11 @@ migration review — not in ADRs.
 |------|--------|
 | All T1–T11 checks | PASS |
 | Engineering decisions resolved | 10 resolved, 2 deferred with defaults |
-| Draft ADR files written | 4 / 4 required |
+| Accepted ADR files written | 4 / 4 required |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
 | Ready for PE review | YES |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE approval required** (`Draft` → `Accepted` on TDD + ADRs) |
+| **Ready for /spec-implementation-plan** | **YES — PE Accepted TDD + ADRs; Gate 2 `spec-lgtm` still after plan on head** |
 
 ---
 
@@ -349,8 +349,8 @@ migration review — not in ADRs.
 | T7 Data contract ownership | PASS | §8 |
 | T8 Dependency graph | PASS | api→business→repo→schema; infra clients upward only via business |
 | T9 Engineering questions zero | PASS | §9 all resolved/deferred |
-| T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan false |
-| T11 ADR artifact integrity | PASS | 4 Draft files linked with digests |
+| T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan true (artifacts Accepted) |
+| T11 ADR artifact integrity | PASS | 4 Accepted files linked with digests |
 
 ---
 
@@ -398,11 +398,14 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-001.md
-    digest: sha256:18d3ae939beb35189f5a028f1af1a3e3875e20244fa4a0442a5a6adff6eadbb9
+    digest: sha256:97ce2a8afde4734af5dc22e50b2bb64f14ef8450f83355bcda6c46a207291fd6
   blockers: []
   signals:
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
+    artifacts_accepted: true
+    accepted_by: nikd10x
+    accepted_at: 2026-07-23T11:47:42Z
     draft_spec_pr: https://github.com/drivestream-lab/gateflow/pull/4
     gate2_label: spec-pending
     source_freshness: CURRENT
@@ -411,17 +414,17 @@ handoff:
     adr_consolidation: 6_to_4
     adr_draft_files:
       - path: docs/specification/adr/adr-001-runtime-and-durable-store.md
-        digest: sha256:4c5a4470cadc56aa9f130393b82aa8a1b2cef0a97e3706bafefa1813d57dd502
+        digest: sha256:4e8667361cfa2b6e0d67a953032a8fe97f4102fb26a3815f1e502de700d20ca3
       - path: docs/specification/adr/adr-002-edge-trust-model.md
-        digest: sha256:0f5090f2848877cf1f32c170e4b433444517ea362030e21a8d4f700ca681d9cb
+        digest: sha256:e888b11e99a9b3f12b8a9b2c5a356783ab5b8da8f533467066f98beaf2e1a1a3
       - path: docs/specification/adr/adr-003-slot-layer-ownership.md
-        digest: sha256:58abd9c0ad3391afeae7e27165ddb8a78001f640b89f37a3337f10d607c0ba3d
+        digest: sha256:60d188c92f6f99cd632c209bd91d52555ec00f35396476486bf3443c4e24ebd6
       - path: docs/specification/adr/adr-004-programme-config-authority.md
-        digest: sha256:de9afb6dadae1487e53200c17b0419d2076793335a7132a2337076d72ea4bb8b
+        digest: sha256:523a5097470bc77e570b620d1c69dc2c5abbc00513df5f68b37bd899c2a80acc
     deferred_with_default: [Q-2, F-10]
     tdd_only: [Q-3, F-07, F-08]
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
 ```
