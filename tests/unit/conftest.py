@@ -20,12 +20,14 @@ def reset_settings() -> None:
     """Clear settings singletons and set minimal JWT env for in-process tests."""
     os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
     os.environ.setdefault("JWT_ALGORITHM", "HS256")
+    os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "test-webhook-secret")
     for name in (
         "AppSettings",
         "JWTSettings",
         "PostgresSettings",
         "RedisSettings",
         "TelemetrySettings",
+        "GithubSettings",
     ):
         BaseSettings._instances.pop(name, None)
     ProgrammeConfig.reset_instance()

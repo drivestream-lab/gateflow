@@ -1,9 +1,10 @@
 """Business services DI module for gateflow."""
 
-from injector import Module, Binder
+from injector import Binder, Module, singleton
+
+from src.business_services.webhook_ingress_service import WebhookIngressService
 
 
 class BusinessServicesModule(Module):
     def configure(self, binder: Binder) -> None:
-        # Add business service bindings as waves deliver them
-        pass
+        binder.bind(WebhookIngressService, scope=singleton)

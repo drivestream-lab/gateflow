@@ -25,6 +25,7 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 
 
 def configure_container() -> Injector:
+    from src.business_services.webhook_ingress_service import WebhookIngressService
     from src.di.modules.business_services_module import BusinessServicesModule
     from src.di.modules.config_module import ConfigModule
     from src.di.modules.infra_module import InfraModule
@@ -42,6 +43,9 @@ def configure_container() -> Injector:
                 BusinessServicesModule(),
             ]
         )
+        # Keep tuple in sync with BusinessServicesModule bindings for initialize/close.
+        global _BUSINESS_SERVICE_TYPES
+        _BUSINESS_SERVICE_TYPES = (WebhookIngressService,)
         logger.info("DI container configured successfully")
     return _injector
 
