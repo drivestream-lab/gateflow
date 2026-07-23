@@ -16,7 +16,7 @@
 | Date | 2026-07-23 |
 | Branch | `chore/INIT-GATEFLOW-001-spec-gateflow` (Draft spec PR #4) |
 | Initiative segment | `INIT-GATEFLOW-001` |
-| Status | Draft |
+| Status | Draft — ADR set consolidated 6→4 (architecture-only; product detail in TDD) |
 | Review deadline | 2026-07-30 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
 
@@ -162,7 +162,7 @@ PE ──Bearer programme token──► GET /api/v1/runs/{id}
 
 **Method / entry point:** `get_run` / `aggregate_run_metrics`
 **Arguments:**
-- Auth: programme service token (ADR-002)
+- Auth: programme service token (ADR-002 edge trust model)
 - `run_id` or metrics query filters
 
 **Return:**
@@ -173,18 +173,25 @@ PE ──Bearer programme token──► GET /api/v1/runs/{id}
 - Read-only; no user JWT required
 - Models from `src/models/` only in routers
 
+**Illustrative mounts (product/TDD — not ADR decisions):**
+- `POST /webhooks/github` — forge signature zone
+- `GET /api/v1/runs/{run_id}` — programme-token zone
+- `GET /api/v1/metrics/runs` — programme-token zone
+
 ---
 
 ## 4. ADR resolutions
 
+Consolidated from six Drafts to four architecture ADRs (product routes/schema/keys
+moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
+
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| F-01 | ADR_REQUIRED | `docs/specification/adr/adr-001-api-worker-job-queue.md` | API + worker; Postgres SKIP LOCKED jobs | Draft | `sha256:4baa93df625feb80964676821bde3de4c7268059d718f624e11c3dd2b1d0997a` |
-| F-02 / Q-3 | ADR_REQUIRED | `docs/specification/adr/adr-002-auth-programme-token.md` | public_paths + programme-token Depends; mounts `/api/v1/runs`, `/api/v1/metrics` | Draft | `sha256:38ef02ff1f09dbca7b7cafdaacbc59544ff29817bfb6573c24a1403462b5e78d` |
-| F-03 | ADR_REQUIRED | `docs/specification/adr/adr-003-runstore-postgres.md` | Postgres RunStore + jobs; repo boundary; human Alembic | Draft | `sha256:90dd4376456096b71d5f7420e5b480860ad8df53d3f2c10449ba442f1c16110d` |
-| F-04 | ADR_REQUIRED | `docs/specification/adr/adr-004-github-webhook-ingress.md` | `POST /webhooks/github` signature + idempotency + 202 enqueue | Draft | `sha256:e4a51dbaa2cedbb52ea35ed95a6731e6bab3aa955b1badca2280ad3b868c70c6` |
-| F-05 / Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-005-slot-ownership.md` | Forge/Cursor/Launchpad=infra; Policy/Orchestrator=business; App token prod, PAT non-prod only | Draft | `sha256:11418aac7aa52d563c1a59beb0a47eee561afbb763c6e7414a9b4bd24e85fb81` |
-| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-006-programme-config.md` | `config/programme.yaml` + Pydantic; fail-fast startup | Draft | `sha256:96ae806e2fbc96f0f69ed298324e2c25405914b1ff08048d2adfaca4c064ae95` |
+| F-01, F-03 | ADR_REQUIRED | `docs/specification/adr/adr-001-runtime-and-durable-store.md` | Dual process + Postgres jobs/runs; repo boundary; human Alembic | Draft | `sha256:4c5a4470cadc56aa9f130393b82aa8a1b2cef0a97e3706bafefa1813d57dd502` |
+| F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Draft | `sha256:0f5090f2848877cf1f32c170e4b433444517ea362030e21a8d4f700ca681d9cb` |
+| F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Draft | `sha256:58abd9c0ad3391afeae7e27165ddb8a78001f640b89f37a3337f10d607c0ba3d` |
+| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Draft | `sha256:de9afb6dadae1487e53200c17b0419d2076793335a7132a2337076d72ea4bb8b` |
+| Q-3 | TDD_ONLY | §3.6 mounts | Exact paths listed under interface contracts | Resolved | N/A |
 | F-07 | TDD_ONLY | §3.6 / §8 | Models in `src/models/`; no inline router models | Resolved | N/A |
 | F-08 | TDD_ONLY | §5 / §6 | Pin unavailable → block + comment; unit assert never silent | Resolved | N/A |
 | Q-2 | DEFERRED_WITH_DEFAULT | §9 | GitHub retries + operator watch on 503; no dedicated alert channel in W1 | Deferred | N/A |
@@ -192,13 +199,13 @@ PE ──Bearer programme token──► GET /api/v1/runs/{id}
 
 **Derived counts:**
 
-- ADR_REQUIRED: 6
-- TDD_ONLY: 2
+- ADR_REQUIRED: 4
+- TDD_ONLY: 3
 - DEFERRED_WITH_DEFAULT: 2
-- Draft ADR files created: 6
+- Draft ADR files created: 4
 - Missing/broken ADR files: 0
 
-**Existing Accepted ADR constraint set:** none (adr_dir was empty) — independent of prior ADRs.
+**Existing Accepted ADR constraint set:** none (adr_dir empty at first draft) — independent of prior ADRs.
 
 ---
 
@@ -266,20 +273,23 @@ Align with `logging-loguru.mdc`: static messages + structured kwargs; correlatio
 | Webhook payload | GitHub + gateflow models | webhook edge | ignore unknown keys |
 | Run event comment schema | gateflow Notifier | before ForgeClient | stable for H2 |
 
+**Logical persistence groups (illustrative — exact DDL in human migrations):**
+webhook delivery idempotency; run headers; per-node stages; append-only events;
+async jobs. Column-level product fields stay in INIT/FR metrics schema and
+migration review — not in ADRs.
+
 ---
 
 ## 9. Resolved engineering decisions
 
 | Finding ID | Owner | Status | Question | Resolution | Required by | Default if deferred | Evidence / reference |
 |------------|-------|--------|----------|------------|-------------|---------------------|----------------------|
-| F-01 | PE | resolved | Dual API+worker+queue? | ADR-001 Option B | plan | — | adr-001 |
-| F-02 | PE | resolved | Programme token vs JWT? | ADR-002 Option C | plan | — | adr-002 |
-| Q-3 | PE | resolved | Exact status/metrics paths? | `GET /api/v1/runs/{run_id}`, `GET /api/v1/metrics/runs` | plan | — | adr-002 |
-| F-03 | PE | resolved | RunStore design? | ADR-003 Option B | plan | — | adr-003 |
-| F-04 | PE | resolved | Webhook mount/auth? | ADR-004 Option B `POST /webhooks/github` | plan | — | adr-004 |
-| F-05 | PE | resolved | Slot layer ownership? | ADR-005 Option B | plan | — | adr-005 |
-| Q-1 | PE | resolved | ForgeClient App vs PAT? | App prod; scoped PAT non-prod only | W0 ForgeClient | — | adr-005 |
-| F-06 | PE | resolved | Programme config format? | ADR-006 YAML + Pydantic | plan | — | adr-006 |
+| F-01, F-03 | PE | resolved | Runtime + durable store? | ADR-001 Option B | plan | — | adr-001-runtime-and-durable-store |
+| F-02, F-04 | PE | resolved | Edge trust zones? | ADR-002 Option C | plan | — | adr-002-edge-trust-model |
+| Q-3 | PE | resolved | Exact status/metrics/webhook paths? | TDD §3.6 illustrative mounts | plan | — | TDD_ONLY (not ADR) |
+| F-05 | PE | resolved | Slot layer ownership? | ADR-003 Option B | plan | — | adr-003-slot-layer-ownership |
+| Q-1 | PE | resolved | ForgeClient App vs PAT? | App prod; scoped PAT non-prod only | W0 ForgeClient | — | adr-003 |
+| F-06 | PE | resolved | Programme config authority? | ADR-004 Option B | plan | — | adr-004-programme-config-authority |
 | F-07 | PE | resolved | Model placement? | `src/models/` only | plan | — | TDD §3/§8 |
 | F-08 | PE | resolved | Silent pin failure? | Forbidden; block+comment | plan | — | TDD §6 |
 | Q-2 | PE | deferred | Postgres alert channel? | No dedicated alert in W1 | ops runbook | GitHub retry + operator watch | §4 DEFERRED |
@@ -318,7 +328,7 @@ Align with `logging-loguru.mdc`: static messages + structured kwargs; correlatio
 |------|--------|
 | All T1–T11 checks | PASS |
 | Engineering decisions resolved | 10 resolved, 2 deferred with defaults |
-| Draft ADR files written | 6 / 6 required |
+| Draft ADR files written | 4 / 4 required |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
 | Ready for PE review | YES |
@@ -332,7 +342,7 @@ Align with `logging-loguru.mdc`: static messages + structured kwargs; correlatio
 |-------|--------|-------|
 | T1 Module boundaries | PASS | §2 table + diagram |
 | T2 Interface contracts | PASS | §3.1–3.6 |
-| T3 NEW-ADR dispositions | PASS | F-01…F-06 → ADR_REQUIRED files; F-07/08 TDD_ONLY; Q-2/F-10 deferred |
+| T3 NEW-ADR dispositions | PASS | F-01+F-03→ADR-001; F-02+F-04→ADR-002; F-05→ADR-003; F-06→ADR-004; Q-3/F-07/08 TDD_ONLY; Q-2/F-10 deferred |
 | T4 Test policy | PASS | §5 |
 | T5 Error handling | PASS | §6 |
 | T6 Observability | PASS | §7 |
@@ -340,7 +350,7 @@ Align with `logging-loguru.mdc`: static messages + structured kwargs; correlatio
 | T8 Dependency graph | PASS | api→business→repo→schema; infra clients upward only via business |
 | T9 Engineering questions zero | PASS | §9 all resolved/deferred |
 | T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan false |
-| T11 ADR artifact integrity | PASS | 6 Draft files linked with digests |
+| T11 ADR artifact integrity | PASS | 4 Draft files linked with digests |
 
 ---
 
@@ -363,7 +373,7 @@ Review deadline: 2026-07-30
 PE review checklist:
   [ ] T1 Module boundaries
   [ ] T2 Interface contracts
-  [ ] T3 ADR dispositions — 6 Draft files
+  [ ] T3 ADR dispositions — 4 Draft files (consolidated)
   [ ] T4 Test policy
   [ ] T9 Zero unresolved PE items
   [ ] T11 ADR artifact integrity
@@ -388,7 +398,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-001.md
-    digest: sha256:095fd4b79be290bd2d33f011b8536d4e166beff3f82bc65e7da6fb127618a899
+    digest: sha256:18d3ae939beb35189f5a028f1af1a3e3875e20244fa4a0442a5a6adff6eadbb9
   blockers: []
   signals:
     ready_for_pe_review: true
@@ -397,22 +407,19 @@ handoff:
     gate2_label: spec-pending
     source_freshness: CURRENT
     map_revision: 3
-    adr_required: 6
+    adr_required: 4
+    adr_consolidation: 6_to_4
     adr_draft_files:
-      - path: docs/specification/adr/adr-001-api-worker-job-queue.md
-        digest: sha256:4baa93df625feb80964676821bde3de4c7268059d718f624e11c3dd2b1d0997a
-      - path: docs/specification/adr/adr-002-auth-programme-token.md
-        digest: sha256:38ef02ff1f09dbca7b7cafdaacbc59544ff29817bfb6573c24a1403462b5e78d
-      - path: docs/specification/adr/adr-003-runstore-postgres.md
-        digest: sha256:90dd4376456096b71d5f7420e5b480860ad8df53d3f2c10449ba442f1c16110d
-      - path: docs/specification/adr/adr-004-github-webhook-ingress.md
-        digest: sha256:e4a51dbaa2cedbb52ea35ed95a6731e6bab3aa955b1badca2280ad3b868c70c6
-      - path: docs/specification/adr/adr-005-slot-ownership.md
-        digest: sha256:11418aac7aa52d563c1a59beb0a47eee561afbb763c6e7414a9b4bd24e85fb81
-      - path: docs/specification/adr/adr-006-programme-config.md
-        digest: sha256:96ae806e2fbc96f0f69ed298324e2c25405914b1ff08048d2adfaca4c064ae95
+      - path: docs/specification/adr/adr-001-runtime-and-durable-store.md
+        digest: sha256:4c5a4470cadc56aa9f130393b82aa8a1b2cef0a97e3706bafefa1813d57dd502
+      - path: docs/specification/adr/adr-002-edge-trust-model.md
+        digest: sha256:0f5090f2848877cf1f32c170e4b433444517ea362030e21a8d4f700ca681d9cb
+      - path: docs/specification/adr/adr-003-slot-layer-ownership.md
+        digest: sha256:58abd9c0ad3391afeae7e27165ddb8a78001f640b89f37a3337f10d607c0ba3d
+      - path: docs/specification/adr/adr-004-programme-config-authority.md
+        digest: sha256:de9afb6dadae1487e53200c17b0419d2076793335a7132a2337076d72ea4bb8b
     deferred_with_default: [Q-2, F-10]
-    tdd_only: [F-07, F-08]
+    tdd_only: [Q-3, F-07, F-08]
   next_candidates:
     - technical-review-approval
   human_checkpoint: true
