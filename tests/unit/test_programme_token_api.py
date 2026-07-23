@@ -1,5 +1,6 @@
 """Unit tests for programme-token status/metrics API routes."""
 
+import os
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -8,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.app import create_app
+from src.configs.base_settings import BaseSettings
 from src.configs.programme_config_loader import load_programme_config
 from src.di.dependency_container import configure_container, reset_container
 from src.models.control_plane_models import RunMetricsResponse, RunStatusResponse
@@ -20,6 +22,9 @@ def programme_client(
     mock_redis_service: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> TestClient:
+    os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
+    BaseSettings._instances.pop("ProgrammeAuthSettings", None)
+
     ProgrammeConfig.reset_instance()
     load_programme_config()
     reset_container()

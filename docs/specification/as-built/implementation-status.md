@@ -37,8 +37,8 @@
 | Wave | Plan | Ground report | as-built status |
 |------|------|---------------|-----------------|
 | W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
-| W1 | Operational control plane | pending `/ground-spec` | **in_progress** — code + unit green; live verify pending human stack |
+| W1 | Operational control plane | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` | **grounded — awaiting human_approved** |
 
 ## Verdict
 
-**W1 implementation is code-complete on the feature branch** (trigger, policy, orchestrator, notifier, tools, AgentRunner/launchpad stubs, status/metrics, verify scripts, runbooks). Do **not** mark `human_approved` until `/ground-spec` and human checkpoint.
+**W1 is grounded (Draft).** Code + unit (38) + live `verify_all` green. Ground report lists Medium deferrals D-W1-A1 (AgentRunner stub) and D-W1-V1 (full worker dogfood). Do **not** mark `human_approved` until PE LGTM.
