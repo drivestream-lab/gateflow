@@ -37,8 +37,8 @@
 | Wave | Plan | Ground report | as-built status |
 |------|------|---------------|-----------------|
 | W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
-| W1 | Operational control plane | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` | **grounded — awaiting human_approved** |
+| W1 | Operational control plane | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
 
 ## Verdict
 
-**W1 is grounded (Draft).** Code + unit (38) + live `verify_all` green. Ground report lists Medium deferrals D-W1-A1 (AgentRunner stub) and D-W1-V1 (full worker dogfood). Do **not** mark `human_approved` until PE LGTM.
+**W0 and W1 are human_approved.** Gateflow now has a durable control plane: signed webhooks → jobs → trigger/policy/orchestrator (worker) → status/metrics under programme token, with runbooks and live `verify_all`. Deferred: real Cursor SDK (D-W1-A1) and full worker dogfood stop-comment soak (D-W1-V1). Next: merge W1 PR; Phase B dogfood / ops as product follow-on.

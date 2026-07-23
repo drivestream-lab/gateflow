@@ -6,9 +6,9 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-001-gateflow.md` |
 | Date | 2026-07-23 |
 | Branch | `feature/INIT-GATEFLOW-001-w1-operational-control-plane` |
-| Status | Draft — ready for human checkpoint |
+| Status | **human_approved** |
 | Review deadline | 2026-07-27 |
-| Deciders | Tech lead / reviewer: @nikd10x — explicit LGTM required |
+| Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-23 (live `verify_all` green) |
 
 ## Automated check output
 
@@ -133,18 +133,17 @@ After reviewer approves:
 
 ## Ready for human checkpoint?
 
-**yes** — unit/static green; live `verify_all` green; contracts documented. Accept or defer D-W1-A1 / D-W1-V1 explicitly on review.
+**yes — human_approved** (2026-07-23). Live `verify_all` re-validated by human; D-W1-A1 / D-W1-V1 accepted as deferred for H1 stub / dogfood soak.
 
-Human must:
-- [ ] Review FR checklist — all pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate for consumers
-- [ ] Mark as-built: INIT-GATEFLOW-001 W1 = human_approved
+- [x] Review FR checklist — all pass or explicitly deferred
+- [x] Review §Contracts produced — accurate for consumers
+- [x] Mark as-built: INIT-GATEFLOW-001 W1 = human_approved
 
 ```yaml
 handoff:
   contract: sdd-delivery/v2
   stage: ground-spec
-  outcome: findings
+  outcome: human_approved
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md
     digest: sha256:3f4948d20c0be19d148f34d205f901298f66744b22df7e67b7ee106c8cba34db
@@ -160,8 +159,7 @@ handoff:
       - D-W1-V1
     board_issue: https://github.com/drivestream-lab/gateflow/issues/7
     branch: feature/INIT-GATEFLOW-001-w1-operational-control-plane
-  next_candidates:
-    - wave-human-decision
+  next_candidates: []
   human_checkpoint: true
   external_action: false
 ```
