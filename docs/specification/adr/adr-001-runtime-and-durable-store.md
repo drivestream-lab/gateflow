@@ -8,7 +8,7 @@
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-001.md` |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-23 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/4); architecture package tip `ca74d77949046b8d91357c37bb2ea864dad60c26` |
-| Approved head | `ca74d77949046b8d91357c37bb2ea864dad60c26` |
+| Approved head | `6e81923fe2b1fad3dd818c0ca8a0b26a961448a4` |
 
 ## Context
 

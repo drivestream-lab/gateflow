@@ -187,10 +187,10 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| F-01, F-03 | ADR_REQUIRED | `docs/specification/adr/adr-001-runtime-and-durable-store.md` | Dual process + Postgres jobs/runs; repo boundary; human Alembic | Accepted | `sha256:4e8667361cfa2b6e0d67a953032a8fe97f4102fb26a3815f1e502de700d20ca3` |
-| F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Accepted | `sha256:e888b11e99a9b3f12b8a9b2c5a356783ab5b8da8f533467066f98beaf2e1a1a3` |
-| F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Accepted | `sha256:60d188c92f6f99cd632c209bd91d52555ec00f35396476486bf3443c4e24ebd6` |
-| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Accepted | `sha256:523a5097470bc77e570b620d1c69dc2c5abbc00513df5f68b37bd899c2a80acc` |
+| F-01, F-03 | ADR_REQUIRED | `docs/specification/adr/adr-001-runtime-and-durable-store.md` | Dual process + Postgres jobs/runs; repo boundary; human Alembic | Accepted | `sha256:2b57674fdd19dd9b70873a377470a3ea9b5b474b54f91077797cde5820372bbc` |
+| F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Accepted | `sha256:e9751d5c969a27dce82b7b3eebc0d4af6eed9cf5d3caeca0b74300ea9d137849` |
+| F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Accepted | `sha256:581236751ca755a6c26b4f0cbadf5adea010bfeeee20774fc6969013a3a8f632` |
+| F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Accepted | `sha256:64df031b81f3e70032f6c363373b5af98b02f50e0d3089eb8a25915d2da1f697` |
 | Q-3 | TDD_ONLY | §3.6 mounts | Exact paths listed under interface contracts | Resolved | N/A |
 | F-07 | TDD_ONLY | §3.6 / §8 | Models in `src/models/`; no inline router models | Resolved | N/A |
 | F-08 | TDD_ONLY | §5 / §6 | Pin unavailable → block + comment; unit assert never silent | Resolved | N/A |
@@ -398,7 +398,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-001.md
-    digest: sha256:97ce2a8afde4734af5dc22e50b2bb64f14ef8450f83355bcda6c46a207291fd6
+    digest: sha256:97e0194ac118dae2a187af3c852a4836d577e1a49f25dbfa9d5d6c9e40e0781d
   blockers: []
   signals:
     ready_for_pe_review: true
@@ -414,13 +414,13 @@ handoff:
     adr_consolidation: 6_to_4
     adr_draft_files:
       - path: docs/specification/adr/adr-001-runtime-and-durable-store.md
-        digest: sha256:4e8667361cfa2b6e0d67a953032a8fe97f4102fb26a3815f1e502de700d20ca3
+        digest: sha256:2b57674fdd19dd9b70873a377470a3ea9b5b474b54f91077797cde5820372bbc
       - path: docs/specification/adr/adr-002-edge-trust-model.md
-        digest: sha256:e888b11e99a9b3f12b8a9b2c5a356783ab5b8da8f533467066f98beaf2e1a1a3
+        digest: sha256:e9751d5c969a27dce82b7b3eebc0d4af6eed9cf5d3caeca0b74300ea9d137849
       - path: docs/specification/adr/adr-003-slot-layer-ownership.md
-        digest: sha256:60d188c92f6f99cd632c209bd91d52555ec00f35396476486bf3443c4e24ebd6
+        digest: sha256:581236751ca755a6c26b4f0cbadf5adea010bfeeee20774fc6969013a3a8f632
       - path: docs/specification/adr/adr-004-programme-config-authority.md
-        digest: sha256:523a5097470bc77e570b620d1c69dc2c5abbc00513df5f68b37bd899c2a80acc
+        digest: sha256:64df031b81f3e70032f6c363373b5af98b02f50e0d3089eb8a25915d2da1f697
     deferred_with_default: [Q-2, F-10]
     tdd_only: [Q-3, F-07, F-08]
   next_candidates:
