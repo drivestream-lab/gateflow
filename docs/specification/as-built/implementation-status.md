@@ -36,9 +36,9 @@
 
 | Wave | Plan | Ground report | as-built status |
 |------|------|---------------|-----------------|
-| W0 | Code complete pending human Alembic + live verify | Re-run `/ground-spec` after verify | **not** human_approved |
+| W0 | Code complete; migration + live verify outstanding | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` (findings) | **not** human_approved |
 | W1 | Not started | — | — |
 
 ## Verdict
 
-**W0 control-plane skeleton implemented in code** (config, RunStore schemas/repos, webhook, worker stub, handoff/workflow resolve, ForgeClient, unit tests, verify_webhook script). **Human must author/apply Alembic revision** before live verify can pass. Do not mark `human_approved` until `/ground-spec` passes and PE signs off.
+**W0 code skeleton is in place** (programme config, RunStore ORM/repos, webhook, worker stub, handoff/workflow resolve, ForgeClient, unit tests, verify script). Ground-spec **findings**: human Alembic revision and live `verify_webhook` still required before wave sign-off. Do not mark `human_approved` yet.
