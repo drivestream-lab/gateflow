@@ -47,9 +47,16 @@ class BasePostgresRepository(Generic[ModelType]):
         self._session_factory = session_factory
         logger.info("Created repository", repository=self.__class__.__name__)
 
-    def _serialize_pydantic_for_db(self, obj: Any) -> Dict[str, Any]:
-        """Convert Pydantic model to database-compatible dictionary."""
-        obj_dict = obj.model_dump(exclude_unset=True, mode="json")
+    def _serialize_pydantic_for_db(
+        self, obj: Any, *, exclude_unset: bool = False
+    ) -> Dict[str, Any]:
+        """Convert Pydantic model to database-compatible dictionary.
+
+        Creates must include field defaults (exclude_unset=False); otherwise NOT NULL
+        columns like status_type are omitted and Postgres rejects the insert.
+        Updates keep exclude_unset=True so omitted optional fields are left unchanged.
+        """
+        obj_dict = obj.model_dump(exclude_unset=exclude_unset, mode="json")
         for key, value in obj_dict.items():
             if isinstance(value, str) and value.endswith("Z"):
                 try:
@@ -60,7 +67,7 @@ class BasePostgresRepository(Generic[ModelType]):
 
     async def create(self, session: AsyncSession, obj_in: BaseCreateModel) -> ModelType:
         """Create a new record in the database."""
-        clean_data = self._serialize_pydantic_for_db(obj_in)
+        clean_data = self._serialize_pydantic_for_db(obj_in, exclude_unset=False)
         if "id" not in clean_data or clean_data["id"] is None:
             clean_data["id"] = uuid.uuid4()
         clean_data["created_at"] = datetime.now(UTC)
@@ -84,7 +91,7 @@ class BasePostgresRepository(Generic[ModelType]):
         db_obj = await self.get(session, record_id)
         if db_obj is None:
             return None
-        update_data = self._serialize_pydantic_for_db(obj_in)
+        update_data = self._serialize_pydantic_for_db(obj_in, exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db_obj.updated_at = datetime.now(UTC)

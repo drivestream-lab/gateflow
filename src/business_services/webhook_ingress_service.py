@@ -13,6 +13,7 @@ from src.database.postgres.repository.run_store_repository import (
 from src.exceptions.app_exceptions import ServiceUnavailableError, UnauthorizedError
 from src.infra_services.postgres_service import PostgresService
 from src.models.run_store_models import JobCreate, JobPayloadDocument, WebhookDeliveryCreate
+from src.models.run_store_types import JobStatusType
 
 
 class WebhookIngressService(BaseBusinessService):
@@ -72,6 +73,7 @@ class WebhookIngressService(BaseBusinessService):
                 job = await self._job_repository.enqueue(
                     session,
                     JobCreate(
+                        status_type=JobStatusType.PENDING,
                         delivery_id=delivery_id,
                         webhook_delivery_id=delivery.id,
                         payload=JobPayloadDocument.model_validate(

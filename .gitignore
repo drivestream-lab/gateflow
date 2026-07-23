@@ -12,6 +12,9 @@
 .env.*
 !.env.example
 !.env.*.example
+github-secrets/
+*.pem
+!tests/fixtures/*.pem
 
 # Python
 .venv/
