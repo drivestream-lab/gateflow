@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter
 
-api_router = APIRouter()
+from src.api.v1.metrics_routes import router as metrics_router
+from src.api.v1.runs_routes import router as runs_router
 
-# Example:
-# from src.api.v1.example_routes import router as example_router
-# api_router.include_router(example_router, prefix="/example", tags=["Example"])
+api_router = APIRouter()
+api_router.include_router(runs_router, tags=["Runs"])
+api_router.include_router(metrics_router, tags=["Metrics"])

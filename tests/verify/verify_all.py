@@ -9,13 +9,14 @@ Usage:
 """
 
 import sys
+from typing import Callable
 
 from tests.verify import verify_health, verify_webhook
 
 # Order: cheap liveness first, then signed webhook enqueue/idempotency.
-_VERIFY_STEPS: tuple[tuple[str, object], ...] = (
-    ("verify_health", verify_health),
-    ("verify_webhook", verify_webhook),
+_VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
+    ("verify_health", verify_health.main),
+    ("verify_webhook", verify_webhook.main),
 )
 
 
@@ -23,7 +24,7 @@ def main() -> int:
     failed: list[str] = []
     for name, module in _VERIFY_STEPS:
         print(f"[INFO] --- {name} ---")
-        code = int(module.main())
+        code = int(module())
         if code != 0:
             print(f"[ERROR] {name} failed with exit {code}")
             failed.append(name)
