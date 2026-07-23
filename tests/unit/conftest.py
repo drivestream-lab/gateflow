@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app import create_app
 from src.configs.base_settings import BaseSettings
 from src.di.dependency_container import configure_container, reset_container
+from src.models.programme_config_models import ProgrammeConfig
 
 
 @pytest.fixture(autouse=True)
@@ -19,14 +20,17 @@ def reset_settings() -> None:
     """Clear settings singletons and set minimal JWT env for in-process tests."""
     os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
     os.environ.setdefault("JWT_ALGORITHM", "HS256")
+    os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "test-webhook-secret")
     for name in (
         "AppSettings",
         "JWTSettings",
         "PostgresSettings",
         "RedisSettings",
         "TelemetrySettings",
+        "GithubSettings",
     ):
         BaseSettings._instances.pop(name, None)
+    ProgrammeConfig.reset_instance()
 
 
 @pytest.fixture

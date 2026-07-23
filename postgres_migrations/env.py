@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.configs.postgres_settings import PostgresSettings
 from src.database.postgres.schema.base_postgres_schema import postgres_metadata
+import src.database.postgres.schema.run_store_schema  # noqa: F401 — register ORM tables
 
 target_metadata = postgres_metadata
 

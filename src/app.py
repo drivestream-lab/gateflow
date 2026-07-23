@@ -11,10 +11,13 @@ from fastapi.responses import JSONResponse
 from src.api.health.health_router import router as health_router
 from src.api.internal import internal_router
 from src.api.v1 import api_router
+from src.api.webhooks import webhook_router
 from src.common.auth.config import AuthConfig
 from src.common.auth.middleware import AuthMiddleware
 from src.configs.app_settings import AppSettings
+from src.configs.github_settings import GithubSettings
 from src.configs.jwt_settings import JWTSettings
+from src.configs.programme_config_loader import load_programme_config
 from src.di.dependency_container import (
     close_all_services,
     configure_container,
@@ -33,6 +36,8 @@ async def lifespan(app: FastAPI):
     startup_correlation_id = str(uuid.uuid4())
     with LoggingContext(startup_correlation_id):
         logger.info("Starting gateflow application")
+        load_programme_config()
+        GithubSettings.get_instance()
         container = configure_container()
         app.state.container = container
         try:
@@ -70,7 +75,7 @@ def create_app() -> FastAPI:
         secret_key=jwt_settings.secret_key,
         issuer=jwt_settings.issuer,
         audience=jwt_settings.audience,
-        public_paths=["/health", "/internal"],
+        public_paths=["/health", "/internal", "/webhooks"],
         algorithm=jwt_settings.algorithm,
         private_key_path=jwt_settings.private_key_path,
         public_key_path=jwt_settings.public_key_path,
@@ -107,6 +112,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(internal_router)
+    app.include_router(webhook_router)
     app.include_router(api_router, prefix="/api/v1")
     logger.info("FastAPI application configured")
     return app

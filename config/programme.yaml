@@ -1,0 +1,29 @@
+# Gateflow programme config (non-secret). Secrets stay in env / secret store.
+# Override path with PROGRAMME_CONFIG_PATH.
+
+trigger:
+  label: gateflow:run-wave
+
+handoff:
+  ref: pr_head
+  ref_fallback: default_branch
+  artifact_globs:
+    - docs/specification/reports/**/*
+    - prd/reports/**/*
+
+retry:
+  findings_budget: 3
+
+metrics:
+  retention_days: 90
+
+runner:
+  default: cursor
+
+model:
+  profiles:
+    default: cursor/auto
+  overrides: {}
+
+tools:
+  slots: {}

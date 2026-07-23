@@ -1,0 +1,29 @@
+# Example programme config — copy to config/programme.yaml for local runs.
+# Secrets (webhook secret, App key, programme token, DB URLs) must NOT appear here.
+
+trigger:
+  label: gateflow:run-wave
+
+handoff:
+  ref: pr_head
+  ref_fallback: default_branch
+  artifact_globs:
+    - docs/specification/reports/**/*
+    - prd/reports/**/*
+
+retry:
+  findings_budget: 3
+
+metrics:
+  retention_days: 90
+
+runner:
+  default: cursor
+
+model:
+  profiles:
+    default: cursor/auto
+  overrides: {}
+
+tools:
+  slots: {}
