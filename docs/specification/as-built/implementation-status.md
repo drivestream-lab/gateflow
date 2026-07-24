@@ -70,10 +70,11 @@
 | INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
 | INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **human_approved** |
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
-| INIT-002 W2 | Board APIs + gh-free deploy path | pending `/ground-spec` | **in_progress** |
+| INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **Draft** (awaiting human LGTM) |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** and **W1** are
-**human_approved**. **W2** is **in_progress** on `feature/INIT-GATEFLOW-002-w2-board`
-(board Issues MVP; Q-4 narrowed — Projects not required for exit).
+**human_approved**. **W2** Ground Report is **Draft** on `feature/INIT-GATEFLOW-002-w2-board`
+— review FR checklist + contracts, then mark **human_approved** and merge. No W3 in plan
+(initiative complete after W2 merge).
