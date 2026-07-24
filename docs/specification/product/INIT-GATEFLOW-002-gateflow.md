@@ -283,7 +283,7 @@ launchpad apply-gates --repo gateflow --apply
 
 - PRD: `prayog-meta/prd/INIT-GATEFLOW-002.md`
 - Meta PRD PR: https://github.com/drivestream-lab/prayog-meta/pull/10
-- Spec PR: pending
+- Spec PR: https://github.com/drivestream-lab/gateflow/pull/10
 - Service profile: not present (`docs/specification/product/00-service-profile.md`)
 - Predecessor spec: `docs/specification/product/INIT-GATEFLOW-001-gateflow.md`
 - As-built: `docs/specification/as-built/implementation-status.md`
