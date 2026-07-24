@@ -18,7 +18,7 @@
 | Initiative segment | `INIT-GATEFLOW-003` |
 | Status | **Accepted** — PE @nikd10x 2026-07-24 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/18); posture A1+B1+C1; ADR-001…006 reused (already Accepted); no new ADR for 003 |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-24 via Cursor chat on Draft spec PR #18 |
-| Approved head | `PENDING_ACCEPTANCE_SHA` |
+| Approved head | `7072533b71a1061b740c4b4be36e6fcb12d2cf93` |
 | Review deadline | 2026-07-31 |
 | Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team |
 | ADR posture (PE) | **A1:** no new ADR for 003 — reuse ADR-001…006 (Accepted); Draft ADR-007 withdrawn |
@@ -388,7 +388,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md
-    digest: sha256:1be1c3b090bfd834381a249b1b1f0109e5281f60811f10c1fd1eb2bcf21fb3eb
+    digest: sha256:fb9ee7c73d4e780b2bc4a94ea340255c19e5c8fb83a2cacfda1088c6ef275a6c
   blockers: []
   signals:
     ready_for_pe_review: true
