@@ -149,7 +149,7 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 |----|------|----------|-------|----------|-------------|---------------------|--------|-----------------|
 | Q-1 | PE | Exact Cursor credential / secret injection shape for the worker (env var names, file path, SDK auth object) — PRD OQ #1 / IM-01 | PE | no | W0/W1 | `CURSOR_API_KEY` via `CursorAgentSettings` (TDD §3.1); fail-fast if absent | resolved | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md` §3.1 / §9 |
 | Q-2 | PE | Exact RunStore field names for wave cycle time if not already present (`wave_duration_ms` vs derived from accept→stop timestamps) — PRD OQ #2 / IM-02 | PE | no | W1 | Explicit `runs.wave_duration_ms` + run detail (TDD §3.4) | resolved | TDD §3.4 / §9 |
-| Q-3 | PE | Whether leftover stand-in code (`GATEFLOW_AGENT_STUB` / `mock-*`) is deleted vs unreachable when `runner=cursor` — PRD OQ #3 / IM-03 | PE | no | W1 exit | Quarantine — test doubles only; not REQ-27 evidence (ADR-007) | resolved | `docs/specification/adr/adr-007-agent-runner-live-readiness.md` |
+| Q-3 | PE | Whether leftover stand-in code (`GATEFLOW_AGENT_STUB` / `mock-*`) is deleted vs unreachable when `runner=cursor` — PRD OQ #3 / IM-03 | PE | no | W1 exit | Quarantine — test doubles only; not REQ-27 evidence (TDD §3.2 / §3.4) | resolved | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md` |
 | Q-4 | PE | Confirm gateflow runtime delivery of INIT-002 is complete for A-1 given meta PR [#10](https://github.com/drivestream-lab/prayog-meta/pull/10) still open — IM-04 | PE | no | W0 start | Proceed per PRD A1 User-confirmed + as-built human_approved W2; reconcile meta PR separately | open | pending — IM-04 |
 
 ## Draft check summary (D1–D12)
@@ -216,7 +216,7 @@ INIT-GATEFLOW-003 — Live Cursor AgentRunner (gateflow only)
 ## Summary
 
 - 5 REQs (REQ-27…REQ-31) for live Cursor AgentRunner, fail-fast unsupported runners + Cursor auth/crash, stage/wave cycle-time + p50/p95, reuse 001/002 control plane, Scenario A/B prove-it
-- Open engineering questions (non-blocking): Q-4 (INIT-002 meta #10 reconcile); Q-1…Q-3 resolved in TDD/ADR-007
+- Open engineering questions (non-blocking): Q-4 (INIT-002 meta #10 reconcile); Q-1…Q-3 resolved in TDD (A1: no new ADR)
 
 ## Gate 2 — spec package readiness
 
