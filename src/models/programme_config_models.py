@@ -1,18 +1,22 @@
-"""Programme configuration models (non-secret W1 knobs)."""
+"""Programme configuration models (non-secret knobs)."""
 
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class TriggerConfig(BaseModel):
-    """Wave-run trigger configuration."""
+    """Wave-run trigger configuration.
+
+    For INIT-GATEFLOW-002 programmes, ``label`` is retained for migration docs
+    only — label-based wave start is disabled (FR-15 / TDD §3.7).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     label: str = Field(
         default="gateflow:run-wave",
-        description="Programme-configured label that authorizes a wave run",
+        description="Legacy label (not a start mechanism for 002 programmes)",
     )
 
 
@@ -73,6 +77,21 @@ class RunnerConfig(BaseModel):
     )
 
 
+class NodeOverride(BaseModel):
+    """Per-workflow_node runner/model override (FR-16)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    profile: Optional[str] = Field(
+        default=None,
+        description="Named model profile key under model.profiles",
+    )
+    runner: Optional[str] = Field(
+        default=None,
+        description="AgentRunner adapter id override for this node",
+    )
+
+
 class ModelConfig(BaseModel):
     """Named model profiles and optional per-node overrides."""
 
@@ -82,10 +101,26 @@ class ModelConfig(BaseModel):
         default_factory=lambda: {"default": "cursor/auto"},
         description="Named profile → runner model mapping",
     )
-    overrides: dict[str, str] = Field(
+    overrides: dict[str, NodeOverride] = Field(
         default_factory=dict,
-        description="Optional per-workflow_node profile overrides (H1 empty)",
+        description="Optional per-workflow_node overrides (profile and/or runner)",
     )
+
+    @field_validator("overrides", mode="before")
+    @classmethod
+    def _coerce_legacy_override_strings(cls, value: Any) -> Any:
+        """Accept legacy profile-only strings; coerce to NodeOverride objects."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            return value
+        coerced: dict[str, Any] = {}
+        for node_id, raw in value.items():
+            if isinstance(raw, str):
+                coerced[node_id] = {"profile": raw}
+            else:
+                coerced[node_id] = raw
+        return coerced
 
 
 class ToolsConfig(BaseModel):
@@ -96,6 +131,16 @@ class ToolsConfig(BaseModel):
     slots: dict[str, str] = Field(
         default_factory=dict,
         description="Optional node → tool slot mapping",
+    )
+
+
+class NotifierConfig(BaseModel):
+    """Notifier adapter selection (FR-23). Required — missing section fails at load."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default: str = Field(
+        description="Default notifier adapter id (e.g. github_comment)",
     )
 
 
@@ -116,6 +161,7 @@ class ProgrammeConfig(BaseModel):
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     model: ModelConfig = Field(default_factory=ModelConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
+    notifier: NotifierConfig
 
     @classmethod
     def get_instance(cls) -> "ProgrammeConfig":
@@ -132,3 +178,7 @@ class ProgrammeConfig(BaseModel):
     @classmethod
     def reset_instance(cls) -> None:
         cls._instance = None
+
+
+# Re-export for callers that type overrides loosely during migration
+NodeOverrideValue = Union[NodeOverride, str]

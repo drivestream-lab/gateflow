@@ -186,7 +186,12 @@ class RunOrchestrator(BaseBusinessService):
             )
             _ = _tool_context
 
-            model_profile = programme_config.model.overrides.get(next_node.node_id, "default")
+            node_override = programme_config.model.overrides.get(next_node.node_id)
+            model_profile = (
+                node_override.profile
+                if node_override is not None and node_override.profile
+                else "default"
+            )
             prompt_context: dict[str, Any] = {
                 "initiative_id": context.initiative_id,
                 "handoff_stage": handoff.stage,
