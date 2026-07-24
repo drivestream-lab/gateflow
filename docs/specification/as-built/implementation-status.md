@@ -91,12 +91,12 @@
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
-| INIT-003 W1 | Scenario B + cycle-time + Docker spike | *(pending `/ground-spec`)* | **in_progress** |
+| INIT-003 W1 | Scenario B + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **Draft** — awaiting human_approved |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
 **human_approved** (2026-07-24). INIT-GATEFLOW-003 **W0** is **human_approved** (2026-07-24).
-INIT-GATEFLOW-003 **W1** is **in_progress** on `feature/INIT-GATEFLOW-003-w1-scenario-b`
-(awaiting ground report + human approval). Human must apply `wave_duration_ms` Alembic
-before live Scenario B asserts that field.
+INIT-GATEFLOW-003 **W1** Ground Report is **Draft** on `feature/INIT-GATEFLOW-003-w1-scenario-b`
+(awaiting PE wave-signoff). Human Alembic `7e79269bd50b` applied locally; live Scenario B
+opt-in still open (D-W1-L1). Do **not** set W1 `human_approved` until PE LGTM.
