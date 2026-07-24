@@ -12,7 +12,7 @@
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
 | Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 W0 (52 tests) |
-| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, **wave-start** |
+| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, **wave-start** — live pass |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -20,7 +20,7 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Health liveness | scaffold | `GET /health` | `test_health` | `verify_health` | In `verify_all` |
-| GitHub App webhooks | FR-1 | `POST /webhooks/github` | `test_webhook_ingress` | `verify_webhook` | Live pass (W0) |
+| GitHub App webhooks | FR-1 | `POST /webhooks/github` | `test_webhook_ingress` | `verify_webhook` | Live pass |
 | RunStore + jobs | FR-5, FR-17 | ORM/repos + migration | `test_run_store_models` | via webhook | |
 | TriggerRouter + preconditions | FR-2–4 | `trigger_router.py` | `test_trigger_policy` | label start disabled in 002 | |
 | PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
@@ -40,8 +40,8 @@
 | Adapter registry + SlotValidator | FR-17/18 | `adapter_registry.py`, `slot_validator.py` | `test_slot_validator` | — | ADR-006 |
 | API wave-start | FR-15 | `POST /api/v1/waves/start` | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005 |
 | Label start disabled | FR-15 | `trigger_router.py` | `test_trigger_policy` | note in wave-start | Webhook may still 202 |
-| Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | |
-| `runs.wave_id` column | FR-15/20 | ORM/repo | — | needs human Alembic | See DDL-NOTE-002-W0 |
+| Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | Live pass |
+| `runs.wave_id` column | FR-15/20 | ORM/repo + Alembic `bc8abad9a701` | — | via wave-start | Human migration applied |
 
 ## Wave status
 
@@ -49,8 +49,8 @@
 |-------------------|------|---------------|-----------------|
 | INIT-001 W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
 | INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
-| INIT-002 W0 | API trigger + run list/detail + stubs | pending `/ground-spec` | **in_progress** (code complete; live verify pending migration) |
+| INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **complete** (pending human_approved) |
 
 ## Verdict
 
-INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** implements API wave-start, fail-closed adapter registry, label-start disable, and run list/timeline under programme token. **Human Alembic** for `runs.wave_id` is required before live `verify_wave_start` / `verify_all` (see `DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md`). Next: apply migration → live verify → `/ground-spec`.
+INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** is implementation-complete with live `verify_all` green after human Alembic for `runs.wave_id`. Ground report is Draft — PE LGTM → mark **human_approved** → merge → `/pre-implement` W1.
