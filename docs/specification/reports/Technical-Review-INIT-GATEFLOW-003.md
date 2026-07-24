@@ -4,7 +4,7 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-003 |
 | Spec | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` |
-| Spec digest | `sha256:2fa921bec645e0f60f7e9917cb0977a880374dff8d376d3829c98d5fc702bc43` |
+| Spec digest | `sha256:f2c194b700b5fcdb63df281639ffefab095fc94f346db2c03a7287e92ce9cdcd` |
 | Feasibility report | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-003.md` |
 | Feasibility digest | `sha256:7fa2b2b011e5079b689c15c09071ffa5cc56f5bc7e85bea8687db3f577fd1c59` |
 | PRD digest | `sha256:6062fa11d136e9a49dd6546377ec5d907789ef388108b477b846f6299673f9ad` |
@@ -374,7 +374,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md
-    digest: sha256:4fa543ff62fd9d5e08031552d6f11e8281f54310f8b45cf37af956e8d3296b8b
+    digest: sha256:950754d526093f243cdeb36dfbdd4f1a0044aa67cb3024fd4f0be01e1001f8a8
   blockers: []
   signals:
     ready_for_pe_review: true
