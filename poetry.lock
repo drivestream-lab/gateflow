@@ -504,6 +504,28 @@ cffi = {version = ">=2.0.0", markers = "platform_python_implementation != \"PyPy
 ssh = ["bcrypt (>=3.1.5)"]
 
 [[package]]
+name = "cursor-sdk"
+version = "1.0.24"
+description = "Python client for the Cursor SDK bridge."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "cursor_sdk-1.0.24-py3-none-macosx_11_0_arm64.whl", hash = "sha256:519ecf37fd346d95cfae364bbe0018201953c2830a5e768bb0dadb92c25cf8a3"},
+    {file = "cursor_sdk-1.0.24-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:74f25d80d12ed2b72a2a089f9a92f7a052e17008b46d899e52fa234a874b1c31"},
+    {file = "cursor_sdk-1.0.24-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:8b75ccbb47445da7b13df706f219a724c09416a52006017d9c6bc16d27e791ad"},
+    {file = "cursor_sdk-1.0.24-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:c9d8c7af5d9cb86ec1b009deebe9b90dd01823f768a3a3a38329a8e7a92f5751"},
+    {file = "cursor_sdk-1.0.24-py3-none-win_amd64.whl", hash = "sha256:f680de0a68e2100ad353feed4fae989fb7e060dc72f0fa970da27ae3a025a847"},
+    {file = "cursor_sdk-1.0.24.tar.gz", hash = "sha256:5ed3d95adfdb68365ee2cec3ac242d80441eb84b6f4a7f1d3b358a6adbf91004"},
+]
+
+[package.dependencies]
+httpx = ">=0.27,<1"
+
+[package.extras]
+test = ["packaging (>=24)", "pytest (>=8)", "pytest-asyncio (>=0.23)"]
+
+[[package]]
 name = "distlib"
 version = "0.4.3"
 description = "Distribution utilities"
@@ -2785,4 +2807,4 @@ dev = ["pytest", "setuptools"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "92d76bd1cdc6a6c53cad77f0081b34bdbc43b8f78dc47a8fb6b449214018815d"
+content-hash = "bf21428f0fd93f081c17bcb27b0b92d5f50d6ce460a5fda2c0ba95b99337e30d"

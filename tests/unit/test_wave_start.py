@@ -1,5 +1,6 @@
 """Unit tests for WaveStartService identity and slot gates (FR-15/18)."""
 
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -10,6 +11,7 @@ import pytest
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.wave_start_service import WaveStartService
+from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.configs.programme_config_loader import load_programme_config
 from src.exceptions.app_exceptions import (
     ConflictError,
@@ -26,6 +28,14 @@ from src.models.run_store_types import JobStatusType, RunStatusType
 def _programme_config() -> ProgrammeConfig:
     ProgrammeConfig.reset_instance()
     return load_programme_config(Path("config/programme.yaml"))
+
+
+@pytest.fixture(autouse=True)
+def _cursor_api_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    CursorAgentSettings.reset_instance()
+    monkeypatch.setenv("CURSOR_API_KEY", "test-key-for-wave-start")
+    yield
+    CursorAgentSettings.reset_instance()
 
 
 def _service(
@@ -164,6 +174,26 @@ async def test_wave_start_stub_notifier_422() -> None:
                 wave_id="W0",
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_wave_start_missing_cursor_api_key_422(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CURSOR_API_KEY", "")
+    CursorAgentSettings.reset_instance()
+    service = _service()
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_wave(
+            WaveStartRequest(
+                org="acme",
+                repo="widget",
+                initiative_id="INIT-X",
+                wave_id="W0",
+            )
+        )
+    failures = exc_info.value.details.get("failures", [])
+    assert any(f.get("config_key") == "CURSOR_API_KEY" for f in failures)
 
 
 @pytest.mark.asyncio

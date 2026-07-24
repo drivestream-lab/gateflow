@@ -1,10 +1,21 @@
-"""Unit tests for AdapterRegistry + SlotValidator (FR-17/18, ADR-006)."""
+"""Unit tests for AdapterRegistry + SlotValidator (FR-17/18, ADR-006 + INIT-003)."""
+
+from collections.abc import Iterator
 
 import pytest
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.slot_validator import SlotValidator
+from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.models.adapter_models import AdapterSlotKindType
+
+
+@pytest.fixture(autouse=True)
+def _cursor_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    CursorAgentSettings.reset_instance()
+    monkeypatch.setenv("CURSOR_API_KEY", "test-key-for-slot-validator")
+    yield
+    CursorAgentSettings.reset_instance()
 
 
 @pytest.fixture
@@ -65,6 +76,20 @@ def test_unknown_adapter_fails(validator: SlotValidator) -> None:
     )
     assert result.ok is False
     assert "Unknown" in result.failures[0].reason
+
+
+def test_cursor_missing_api_key_fails(
+    monkeypatch: pytest.MonkeyPatch, validator: SlotValidator
+) -> None:
+    monkeypatch.setenv("CURSOR_API_KEY", "")
+    CursorAgentSettings.reset_instance()
+    result = validator.validate_for_run(
+        runner_ids=["cursor"],
+        notifier_id="github_comment",
+    )
+    assert result.ok is False
+    assert result.failures[0].adapter_id == "cursor"
+    assert result.failures[0].config_key == "CURSOR_API_KEY"
 
 
 @pytest.mark.asyncio
