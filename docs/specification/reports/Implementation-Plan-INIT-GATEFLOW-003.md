@@ -298,12 +298,12 @@ PE on **exact current head**:
 ```text
 Spec package approved
 initiative: INIT-GATEFLOW-003
-spec_pr_head_sha: PENDING_TIP
+spec_pr_head_sha: 8b4b97494f887f83cc9934725bbd9e35fd4e1a5d
 meta_pr_head_sha: 4c9cacb8b7aa5aeac50ef902c9d8fc400bb2ece5
 impact_map_revision: 2
 prd_digest: sha256:6062fa11d136e9a49dd6546377ec5d907789ef388108b477b846f6299673f9ad
 scope_digest: sha256:aaf398dc53a4606b34e9e24fa7513cd3a3b7e64ea677047faf5d2e90c64eba85
-plan_digest: sha256:65be58b83f925ac4c00fcccac88a8bdeb288aaea1d67816bb7b5b60e8484769f
+plan_digest: sha256:3d070510d3fa731e472c11960f21483b6e50331f89c5911b46b76d132cc805ff
 artifacts:
   - docs/specification/product/INIT-GATEFLOW-003-gateflow.md
   - docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-003.md
@@ -537,7 +537,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-003.md
-    digest: sha256:65be58b83f925ac4c00fcccac88a8bdeb288aaea1d67816bb7b5b60e8484769f
+    digest: sha256:3d070510d3fa731e472c11960f21483b6e50331f89c5911b46b76d132cc805ff
   blockers: []
   signals:
     gate2_label: spec-pending
