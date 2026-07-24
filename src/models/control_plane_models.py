@@ -125,6 +125,10 @@ class RunStatusResponse(BaseModel):
     issue_number: Optional[int] = Field(default=None)
     initiative_id: Optional[str] = Field(default=None)
     wave_id: Optional[str] = Field(default=None)
+    wave_duration_ms: Optional[int] = Field(
+        default=None,
+        description="Wave cycle time accept→stop/fail (REQ-30)",
+    )
     retry_counter: int
     notify_pending: bool
     created_at: Optional[datetime] = Field(default=None)

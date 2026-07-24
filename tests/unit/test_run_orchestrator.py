@@ -1,6 +1,7 @@
 """Unit tests for RunOrchestrator branches (W1)."""
 
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -72,6 +73,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             pr_number=7,
             retry_counter=0,
             notify_pending=False,
+            created_at=datetime.now(UTC),
         )
     )
     run_repo.update_run = AsyncMock(
@@ -82,9 +84,11 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             status_type=update.status_type or RunStatusType.ACTIVE,
             outcome_type=update.outcome_type,
             workflow_node=update.workflow_node,
-            pr_number=7,
+            pr_number=update.pr_number if update.pr_number is not None else 7,
+            wave_duration_ms=update.wave_duration_ms,
             retry_counter=0,
-            notify_pending=update.notify_pending or False,
+            notify_pending=(update.notify_pending if update.notify_pending is not None else False),
+            created_at=datetime.now(UTC),
         )
     )
 
@@ -265,10 +269,46 @@ async def test_agent_failure_marks_run_failed() -> None:
             error_message="forced",
         )
     )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_stage_duration = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    run_repo = MagicMock()
+    run_id = uuid4()
+    run_repo.create_run = AsyncMock(
+        return_value=RunModel(
+            id=run_id,
+            org="acme",
+            repo="widget",
+            status_type=RunStatusType.ACTIVE,
+            pr_number=7,
+            retry_counter=0,
+            notify_pending=False,
+            created_at=datetime.now(UTC),
+        )
+    )
+    run_repo.update_run = AsyncMock(
+        side_effect=lambda _s, _id, update: RunModel(
+            id=run_id,
+            org="acme",
+            repo="widget",
+            status_type=update.status_type or RunStatusType.ACTIVE,
+            outcome_type=update.outcome_type,
+            workflow_node=update.workflow_node,
+            pr_number=update.pr_number if update.pr_number is not None else 7,
+            wave_duration_ms=update.wave_duration_ms,
+            retry_counter=0,
+            notify_pending=(update.notify_pending if update.notify_pending is not None else False),
+            created_at=datetime.now(UTC),
+        )
+    )
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
         policy_engine=policy_engine,
         cursor_agent_runner=cursor_agent_runner,
+        metrics_emitter=metrics_emitter,
+        stage_repository=stage_repo,
+        run_repository=run_repo,
     )
     summary = await orchestrator.process_job(
         JobModel(
@@ -281,6 +321,18 @@ async def test_agent_failure_marks_run_failed() -> None:
     assert summary.dispatched is True
     assert summary.terminal_status == RunStatusType.FAILED.value
     assert summary.stop_reason == "forced"
+    metrics_emitter.record_stage_duration.assert_awaited()
+    assert metrics_emitter.record_stage_duration.await_args.kwargs["outcome"] == "failed"
+    stage_repo.create_stage.assert_awaited()
+    stage_create = stage_repo.create_stage.await_args.args[1]
+    from src.models.run_store_types import RunOutcomeType
+
+    assert stage_create.outcome_type == RunOutcomeType.FAILED
+    assert stage_create.runner == "cursor"
+    assert stage_create.workflow_node == "pre-implement"
+    update = run_repo.update_run.await_args.args[2]
+    assert isinstance(update.wave_duration_ms, int)
+    assert update.wave_duration_ms >= 0
 
 
 @pytest.mark.asyncio

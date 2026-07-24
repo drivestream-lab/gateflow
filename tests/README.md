@@ -99,5 +99,31 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
 | Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
 
+## Feature map (INIT-GATEFLOW-003 — W1)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Docker/image cursor-sdk bridge spike | inspection | `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` |
+| Failure-path stage + duration_ms | — | `test_run_orchestrator`, `test_metrics_emitter` |
+| `runs.wave_duration_ms` + run detail | Scenario B verify (opt-in) | `test_run_orchestrator` |
+| Scenario B live Cursor prove-it | `python -m tests.verify.verify_scenario_b` (opt-in; in `verify_all`) | — |
+
+### Scenario B live verify prereqs
+
+```bash
+# Human Alembic first (see DDL-NOTE-INIT-GATEFLOW-003-W1-wave-duration-ms.md):
+# ./scripts/create_postgres_migration.sh "add_runs_wave_duration_ms"
+# ./scripts/run_postgres_migration.sh head
+
+unset GATEFLOW_AGENT_STUB
+export GATEFLOW_VERIFY_SCENARIO_B=1 GATEFLOW_VERIFY_WORKER=1
+# CURSOR_API_KEY + PROGRAMME_SERVICE_TOKEN already in .env
+# API + worker running; workspace has Scenario B handoff
+.venv/bin/python -m tests.verify.verify_scenario_b
+```
+
+Without `GATEFLOW_VERIFY_SCENARIO_B=1`, `verify_scenario_b` exits 0 (skip) so
+`verify_all` stays green for CI/local smoke without live Cursor.
+
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

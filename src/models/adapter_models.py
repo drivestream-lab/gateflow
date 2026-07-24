@@ -86,6 +86,7 @@ class RunListItem(BaseModel):
     outcome_type: Optional[str] = Field(default=None)
     initiative_id: Optional[str] = Field(default=None)
     wave_id: Optional[str] = Field(default=None)
+    wave_duration_ms: Optional[int] = Field(default=None)
     pr_number: Optional[int] = Field(default=None)
     issue_number: Optional[int] = Field(default=None)
     created_at: Optional[str] = Field(default=None)

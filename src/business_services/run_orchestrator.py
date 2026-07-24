@@ -274,7 +274,51 @@ class RunOrchestrator(BaseBusinessService):
             )
             duration_ms = int((time.monotonic() - t0) * 1000)
 
-            if agent_result.outcome.value != "success":
+            stage_outcome = (
+                RunOutcomeType.SUCCESS
+                if agent_result.outcome.value == "success"
+                else RunOutcomeType.FAILED
+            )
+            metrics_outcome = "success" if stage_outcome == RunOutcomeType.SUCCESS else "failed"
+            ended_at = datetime.now(UTC)
+            await self._metrics_emitter.record_stage_duration(
+                session,
+                run_id,
+                next_node.node_id,
+                duration_ms,
+                outcome=metrics_outcome,
+                runner=resolved.runner,
+                model_id=resolved.model_id,
+                model_profile=resolved.model_profile,
+            )
+            await self._stage_repository.create_stage(
+                session,
+                StageCreate(
+                    run_id=run_id,
+                    workflow_node=next_node.node_id,
+                    outcome_type=stage_outcome,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    runner=resolved.runner,
+                    model_profile=resolved.model_profile,
+                    model_id=resolved.model_id,
+                    model_provider=resolved.model_provider,
+                ),
+            )
+            completed_notify = await self._post_run_event(
+                context.org,
+                context.repo,
+                issue_ref,
+                run_id,
+                next_node.node_id,
+                RunEventNameType.STAGE_COMPLETED,
+                outcome=stage_outcome.value,
+                duration_ms=duration_ms,
+                timestamp=ended_at,
+            )
+            notify_pending = notify_pending or completed_notify
+
+            if stage_outcome != RunOutcomeType.SUCCESS:
                 return await self._finalize_run(
                     session,
                     run,
@@ -289,43 +333,7 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                 )
 
-            await self._metrics_emitter.record_stage_duration(
-                session,
-                run_id,
-                next_node.node_id,
-                duration_ms,
-                outcome="success",
-                runner=resolved.runner,
-                model_id=resolved.model_id,
-                model_profile=resolved.model_profile,
-            )
-            await self._stage_repository.create_stage(
-                session,
-                StageCreate(
-                    run_id=run_id,
-                    workflow_node=next_node.node_id,
-                    outcome_type=RunOutcomeType.SUCCESS,
-                    started_at=started_at,
-                    ended_at=datetime.now(UTC),
-                    runner=resolved.runner,
-                    model_profile=resolved.model_profile,
-                    model_id=resolved.model_id,
-                    model_provider=resolved.model_provider,
-                ),
-            )
-            completed_notify = await self._post_run_event(
-                context.org,
-                context.repo,
-                issue_ref,
-                run_id,
-                next_node.node_id,
-                RunEventNameType.STAGE_COMPLETED,
-                outcome=RunOutcomeType.SUCCESS.value,
-                duration_ms=duration_ms,
-                timestamp=datetime.now(UTC),
-            )
-            notify_pending = notify_pending or completed_notify
-
+            wave_duration_ms = self._compute_wave_duration_ms(run, ended_at)
             updated = await self._run_repository.update_run(
                 session,
                 run_id,
@@ -333,6 +341,7 @@ class RunOrchestrator(BaseBusinessService):
                     status_type=RunStatusType.COMPLETED,
                     outcome_type=RunOutcomeType.SUCCESS,
                     workflow_node=next_node.node_id,
+                    wave_duration_ms=wave_duration_ms,
                     notify_pending=notify_pending,
                 ),
             )
@@ -346,6 +355,7 @@ class RunOrchestrator(BaseBusinessService):
                 runner=resolved.runner,
                 model_profile=resolved.model_profile,
                 duration_ms=duration_ms,
+                wave_duration_ms=wave_duration_ms,
             )
             return RunProcessSummary(
                 run_id=run_id,
@@ -460,6 +470,17 @@ class RunOrchestrator(BaseBusinessService):
         )
         return await self._notifier.post_run_event_comment(org, repo, issue_ref, comment)
 
+    @staticmethod
+    def _compute_wave_duration_ms(run: RunModel, ended_at: datetime) -> Optional[int]:
+        """Accept/enqueue anchor (run.created_at) → stop/fail/complete (REQ-30)."""
+        if run.created_at is None:
+            return None
+        started = run.created_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=UTC)
+        end = ended_at if ended_at.tzinfo is not None else ended_at.replace(tzinfo=UTC)
+        return max(0, int((end - started).total_seconds() * 1000))
+
     async def _finalize_run(
         self,
         session: AsyncSession,
@@ -478,6 +499,9 @@ class RunOrchestrator(BaseBusinessService):
         if run.id is None:
             raise RuntimeError("Run missing id during finalize")
 
+        ended_at = datetime.now(UTC)
+        wave_duration_ms = self._compute_wave_duration_ms(run, ended_at)
+
         await self._run_event_repository.append_event(
             session,
             RunEventCreate(
@@ -485,7 +509,11 @@ class RunOrchestrator(BaseBusinessService):
                 event_type="run_stopped",
                 workflow_node=workflow_node,
                 outcome_type=outcome_type,
-                payload={"stop_reason": stop_reason, "event_type": "run_stopped"},
+                payload={
+                    "stop_reason": stop_reason,
+                    "event_type": "run_stopped",
+                    "wave_duration_ms": wave_duration_ms,
+                },
             ),
         )
 
@@ -501,8 +529,8 @@ class RunOrchestrator(BaseBusinessService):
                 workflow_node,
                 RunEventNameType.RUN_STOPPED,
                 outcome=outcome_type.value,
-                duration_ms=None,
-                timestamp=datetime.now(UTC),
+                duration_ms=wave_duration_ms,
+                timestamp=ended_at,
             )
             notify_pending = notify_pending or stopped_notify
 
@@ -513,6 +541,7 @@ class RunOrchestrator(BaseBusinessService):
                 status_type=status_type,
                 outcome_type=outcome_type,
                 workflow_node=workflow_node,
+                wave_duration_ms=wave_duration_ms,
                 notify_pending=notify_pending,
             ),
         )
@@ -523,6 +552,7 @@ class RunOrchestrator(BaseBusinessService):
             outcome_type=outcome_type.value,
             stop_reason=stop_reason,
             dispatched=dispatched,
+            wave_duration_ms=wave_duration_ms,
         )
         return RunProcessSummary(
             run_id=run.id,

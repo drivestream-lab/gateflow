@@ -4,15 +4,15 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-24 |
-| Source | INIT-GATEFLOW-003 W0 on `feature/INIT-GATEFLOW-003-w0-cursor-skeleton` |
+| Source | INIT-GATEFLOW-003 W1 on `feature/INIT-GATEFLOW-003-w1-scenario-b` |
 
 ## Testing harness
 
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0 |
-| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave-start, pr_thread, **board** (Scenario B/A = INIT-003 W1/W2) |
+| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0/W1 |
+| Live verify | `tests/verify/verify_all.py` | health…board + **scenario_b** (opt-in) |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -72,6 +72,15 @@
 | Unit doubles quarantine | REQ-28 | stub/`mock-*` paths | unit only | not live exit | Documented in README + spike |
 | Laptop SDK spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
 
+## Capability matrix (INIT-GATEFLOW-003 W1)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Docker cursor-sdk bridge spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` **pass** |
+| Failure-path stage + duration | REQ-29/30 | `run_orchestrator.py`, `metrics_emitter.py` | `test_run_orchestrator`, `test_metrics_emitter` | — | FF-05 |
+| `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_scenario_b` | Human Alembic — `DDL-NOTE-INIT-GATEFLOW-003-W1-wave-duration-ms.md` |
+| Scenario B live prove-it | REQ-27/31 | `verify_scenario_b.py` | — | opt-in `GATEFLOW_VERIFY_SCENARIO_B=1` | stub unset; worker + key |
+
 ## Wave status
 
 | Initiative / Wave | Plan | Ground report | as-built status |
@@ -82,9 +91,12 @@
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
+| INIT-003 W1 | Scenario B + cycle-time + Docker spike | *(pending `/ground-spec`)* | **in_progress** |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
 **human_approved** (2026-07-24). INIT-GATEFLOW-003 **W0** is **human_approved** (2026-07-24).
-Scenario B/A prove-it = W1/W2. Live `finished` spike gap tracked as D-W0-L1 for W1.
+INIT-GATEFLOW-003 **W1** is **in_progress** on `feature/INIT-GATEFLOW-003-w1-scenario-b`
+(awaiting ground report + human approval). Human must apply `wave_duration_ms` Alembic
+before live Scenario B asserts that field.

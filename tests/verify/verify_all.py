@@ -15,6 +15,7 @@ from tests.verify import (
     verify_board,
     verify_health,
     verify_pr_thread,
+    verify_scenario_b,
     verify_status_metrics,
     verify_wave_start,
     verify_webhook,
@@ -27,6 +28,7 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_wave_start", verify_wave_start.main),
     ("verify_pr_thread", verify_pr_thread.main),
     ("verify_board", verify_board.main),
+    ("verify_scenario_b", verify_scenario_b.main),
 )
 
 
