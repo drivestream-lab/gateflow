@@ -82,6 +82,7 @@ def create_app() -> FastAPI:
             "/api/v1/waves",
             "/api/v1/runs",
             "/api/v1/metrics",
+            "/api/v1/board",
         ],
         algorithm=jwt_settings.algorithm,
         private_key_path=jwt_settings.private_key_path,

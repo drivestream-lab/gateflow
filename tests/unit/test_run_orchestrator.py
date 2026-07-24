@@ -475,3 +475,80 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
     assert summary.dispatched is True
     assert call_order == ["pr", "stage"]
     forge_client.create_or_update_pull_request.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_process_job_never_calls_board_forge_mutations() -> None:
+    """FR-24 worker isolation — completing a wave job must not mutate board tickets."""
+    from src.models.control_plane_models import (
+        PolicyDecision,
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    policy_engine = MagicMock()
+    policy_engine.evaluate_dispatch = MagicMock(
+        return_value=PolicyDecision(
+            decision=PolicyDecisionType.DISPATCH,
+            next_node=ResolvedWorkflowNode(
+                node_id="loop-spec",
+                node_type="skill",
+                dispatch="orchestrated",
+            ),
+        )
+    )
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="loop",
+            model_id="cursor/fast",
+            model_provider="cursor",
+        )
+    )
+    forge_client = MagicMock()
+    forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
+    forge_client.update_issue_status = AsyncMock()
+    forge_client.link_pull_request = AsyncMock()
+    forge_client.create_issue = AsyncMock()
+    forge_client.apply_issue_labels = AsyncMock()
+    forge_client.find_issues_by_labels = AsyncMock()
+
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        policy_engine=policy_engine,
+        cursor_agent_runner=cursor_agent_runner,
+        forge_client=forge_client,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=_job_payload(event_type="api_trigger"),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is True
+    forge_client.update_issue_status.assert_not_called()
+    forge_client.link_pull_request.assert_not_called()
+    forge_client.create_issue.assert_not_called()
+    forge_client.apply_issue_labels.assert_not_called()
+    forge_client.find_issues_by_labels.assert_not_called()

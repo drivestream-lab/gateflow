@@ -12,6 +12,7 @@ import sys
 from typing import Callable
 
 from tests.verify import (
+    verify_board,
     verify_health,
     verify_pr_thread,
     verify_status_metrics,
@@ -25,6 +26,7 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_status_metrics", verify_status_metrics.main),
     ("verify_wave_start", verify_wave_start.main),
     ("verify_pr_thread", verify_pr_thread.main),
+    ("verify_board", verify_board.main),
 )
 
 
