@@ -31,7 +31,7 @@ def _labeled_payload(label: str = "gateflow:run-wave") -> dict[str, object]:
 
 
 @pytest.mark.asyncio
-async def test_wrong_label_fails_pc01() -> None:
+async def test_label_wave_start_disabled() -> None:
     run_repo = MagicMock()
     run_repo.find_active_run = AsyncMock(return_value=None)
     router = TriggerRouter(run_repository=run_repo)
@@ -40,20 +40,22 @@ async def test_wrong_label_fails_pc01() -> None:
         session,
         event_type="pull_request",
         delivery_id="d1",
-        payload=_labeled_payload("wrong-label"),
+        payload=_labeled_payload("gateflow:run-wave"),
     )
     assert result.authorized is False
     assert any(f.precondition_id == WavePreconditionIdType.TRIGGER_LABEL for f in result.failures)
+    assert any("disabled" in f.reason for f in result.failures)
 
 
 @pytest.mark.asyncio
-async def test_concurrent_active_run_rejected() -> None:
+async def test_api_trigger_concurrent_active_run_rejected() -> None:
     active = RunModel(
         id=uuid4(),
         org="acme",
         repo="widget",
         status_type=RunStatusType.ACTIVE,
-        pr_number=42,
+        initiative_id="INIT-X",
+        wave_id="W0",
         retry_counter=0,
         notify_pending=False,
     )
@@ -62,14 +64,42 @@ async def test_concurrent_active_run_rejected() -> None:
     router = TriggerRouter(run_repository=run_repo)
     result = await router.authorize_and_check(
         MagicMock(),
-        event_type="pull_request",
+        event_type="api_trigger",
         delivery_id="d2",
-        payload=_labeled_payload(),
+        payload={
+            "org": "acme",
+            "repo": "widget",
+            "initiative_id": "INIT-X",
+            "wave_id": "W0",
+            "trigger_source": "api",
+        },
     )
     assert result.authorized is False
     assert any(
         f.precondition_id == WavePreconditionIdType.NO_CONCURRENT_RUN for f in result.failures
     )
+
+
+@pytest.mark.asyncio
+async def test_api_trigger_authorized() -> None:
+    run_repo = MagicMock()
+    run_repo.find_active_run = AsyncMock(return_value=None)
+    router = TriggerRouter(run_repository=run_repo)
+    result = await router.authorize_and_check(
+        MagicMock(),
+        event_type="api_trigger",
+        delivery_id="d3",
+        payload={
+            "org": "acme",
+            "repo": "widget",
+            "initiative_id": "INIT-X",
+            "wave_id": "W0",
+            "trigger_source": "api",
+        },
+    )
+    assert result.authorized is True
+    assert result.context is not None
+    assert result.context.org == "acme"
 
 
 def test_policy_dispatch_only_skill_orchestrated() -> None:

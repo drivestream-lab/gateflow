@@ -96,3 +96,35 @@ class ServiceUnavailableError(BaseAppException):
             status_code=503,
             details=error_details,
         )
+
+
+class ConflictError(BaseAppException):
+    """Exception raised for conflicting state (e.g. concurrent active run)."""
+
+    def __init__(
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            code="CONFLICT",
+            message=message,
+            status_code=409,
+            details=details or {},
+        )
+
+
+class UnprocessableEntityError(BaseAppException):
+    """Exception raised when the request is understood but cannot be processed."""
+
+    def __init__(
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            code="UNPROCESSABLE_ENTITY",
+            message=message,
+            status_code=422,
+            details=details or {},
+        )

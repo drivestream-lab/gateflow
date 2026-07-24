@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.models.adapter_models import TimelineEventItem, TimelineStageItem
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import (
     AgentRunOutcomeType,
@@ -110,7 +111,7 @@ class ToolContext(BaseModel):
 
 
 class RunStatusResponse(BaseModel):
-    """GET /api/v1/runs/{run_id} programme-token response."""
+    """GET /api/v1/runs/{run_id} programme-token response with timeline."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -122,10 +123,14 @@ class RunStatusResponse(BaseModel):
     workflow_node: Optional[str] = Field(default=None)
     pr_number: Optional[int] = Field(default=None)
     issue_number: Optional[int] = Field(default=None)
+    initiative_id: Optional[str] = Field(default=None)
+    wave_id: Optional[str] = Field(default=None)
     retry_counter: int
     notify_pending: bool
     created_at: Optional[datetime] = Field(default=None)
     updated_at: Optional[datetime] = Field(default=None)
+    stages: list[TimelineStageItem] = Field(default_factory=list)
+    events: list[TimelineEventItem] = Field(default_factory=list)
 
 
 class NodeMetricsAggregate(BaseModel):

@@ -9,9 +9,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.business_services.base_business_service import BaseBusinessService
-from src.database.postgres.repository.run_store_repository import RunEventRepository, RunRepository
+from src.database.postgres.repository.run_store_repository import (
+    RunEventRepository,
+    RunRepository,
+    StageRepository,
+)
 from src.database.postgres.schema.run_store_schema import RunEventSchema
-from src.exceptions.app_exceptions import NotFoundError
+from src.exceptions.app_exceptions import NotFoundError, ValidationError
+from src.models.adapter_models import (
+    RunListItem,
+    RunListResponse,
+    TimelineEventItem,
+    TimelineStageItem,
+)
 from src.models.control_plane_models import (
     NodeMetricsAggregate,
     RunMetricsResponse,
@@ -45,10 +55,12 @@ class MetricsEmitter(BaseBusinessService):
         self,
         run_repository: RunRepository,
         run_event_repository: RunEventRepository,
+        stage_repository: StageRepository,
     ) -> None:
         super().__init__()
         self._run_repository = run_repository
         self._run_event_repository = run_event_repository
+        self._stage_repository = stage_repository
 
     async def record_stage_duration(
         self,
@@ -85,10 +97,12 @@ class MetricsEmitter(BaseBusinessService):
         session: AsyncSession,
         run_id: UUID,
     ) -> RunStatusResponse:
-        """Load run header for programme-token status API."""
+        """Load run header + stage/event timeline for programme-token status API."""
         run = await self._run_repository.get_run(session, run_id)
         if run is None or run.id is None:
             raise NotFoundError(resource_type="run", resource_id=run_id)
+        stages = await self._stage_repository.list_stages_for_run(session, run.id)
+        events = await self._run_event_repository.list_events_for_run(session, run.id)
         return RunStatusResponse(
             run_id=run.id,
             org=run.org,
@@ -98,11 +112,92 @@ class MetricsEmitter(BaseBusinessService):
             workflow_node=run.workflow_node,
             pr_number=run.pr_number,
             issue_number=run.issue_number,
+            initiative_id=run.initiative_id,
+            wave_id=run.wave_id,
             retry_counter=run.retry_counter,
             notify_pending=run.notify_pending,
             created_at=run.created_at,
             updated_at=run.updated_at,
+            stages=[
+                TimelineStageItem(
+                    stage_id=str(stage.id),
+                    workflow_node=stage.workflow_node,
+                    outcome_type=stage.outcome_type.value if stage.outcome_type else None,
+                    started_at=stage.started_at.isoformat() if stage.started_at else None,
+                    ended_at=stage.ended_at.isoformat() if stage.ended_at else None,
+                    runner=stage.runner,
+                    model_profile=stage.model_profile,
+                    model_id=stage.model_id,
+                    model_provider=stage.model_provider,
+                )
+                for stage in stages
+                if stage.id is not None
+            ],
+            events=[
+                TimelineEventItem(
+                    event_id=str(event.id),
+                    event_type=event.event_type,
+                    workflow_node=event.workflow_node,
+                    outcome_type=event.outcome_type.value if event.outcome_type else None,
+                    payload=event.payload,
+                    created_at=event.created_at.isoformat() if event.created_at else None,
+                )
+                for event in events
+                if event.id is not None
+            ],
         )
+
+    async def list_runs(
+        self,
+        session: AsyncSession,
+        *,
+        initiative_id: Optional[str] = None,
+        wave_id: Optional[str] = None,
+        status_type: Optional[str] = None,
+        org: Optional[str] = None,
+        repo: Optional[str] = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> RunListResponse:
+        """List/filter runs for programme-token ops API (FR-20)."""
+        if limit < 1 or limit > 200:
+            raise ValidationError(
+                message="limit must be between 1 and 200",
+                field_errors={"limit": "out of range"},
+            )
+        if skip < 0:
+            raise ValidationError(
+                message="skip must be >= 0",
+                field_errors={"skip": "must be non-negative"},
+            )
+        runs = await self._run_repository.list_runs(
+            session,
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+            status_type=status_type,
+            org=org,
+            repo=repo,
+            limit=limit,
+            skip=skip,
+        )
+        items = [
+            RunListItem(
+                run_id=str(run.id),
+                org=run.org,
+                repo=run.repo,
+                status_type=run.status_type.value,
+                outcome_type=run.outcome_type.value if run.outcome_type else None,
+                initiative_id=run.initiative_id,
+                wave_id=run.wave_id,
+                pr_number=run.pr_number,
+                issue_number=run.issue_number,
+                created_at=run.created_at.isoformat() if run.created_at else None,
+                updated_at=run.updated_at.isoformat() if run.updated_at else None,
+            )
+            for run in runs
+            if run.id is not None
+        ]
+        return RunListResponse(items=items, limit=limit, skip=skip)
 
     async def aggregate_run_metrics(
         self,

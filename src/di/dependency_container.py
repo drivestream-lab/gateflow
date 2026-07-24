@@ -25,14 +25,17 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 
 
 def configure_container() -> Injector:
+    from src.business_services.adapter_registry import AdapterRegistry
     from src.business_services.handoff_reader import HandoffReader
     from src.business_services.job_worker_service import JobWorkerService
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.policy_engine import PolicyEngine
     from src.business_services.run_orchestrator import RunOrchestrator
+    from src.business_services.slot_validator import SlotValidator
     from src.business_services.stage_tool_resolver import StageToolResolver
     from src.business_services.trigger_router import TriggerRouter
+    from src.business_services.wave_start_service import WaveStartService
     from src.business_services.webhook_ingress_service import WebhookIngressService
     from src.business_services.workflow_engine import WorkflowEngine
     from src.di.modules.business_services_module import BusinessServicesModule
@@ -42,6 +45,8 @@ def configure_container() -> Injector:
     from src.infra_services.cursor_agent_runner import CursorAgentRunner
     from src.infra_services.forge_client import ForgeClient
     from src.infra_services.launchpad_client import LaunchpadClient
+    from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
+    from src.infra_services.stub_notifiers import SlackNotifierStub, TeamsNotifierStub
 
     settings = AppSettings.get_instance()
     global _injector
@@ -63,6 +68,10 @@ def configure_container() -> Injector:
             ForgeClient,
             LaunchpadClient,
             CursorAgentRunner,
+            OpenCodeAgentRunner,
+            ClaudeCodeAgentRunner,
+            SlackNotifierStub,
+            TeamsNotifierStub,
         )
         _BUSINESS_SERVICE_TYPES = (
             WebhookIngressService,
@@ -74,6 +83,9 @@ def configure_container() -> Injector:
             Notifier,
             MetricsEmitter,
             StageToolResolver,
+            AdapterRegistry,
+            SlotValidator,
+            WaveStartService,
             RunOrchestrator,
         )
         logger.info("DI container configured successfully")

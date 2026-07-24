@@ -1,5 +1,8 @@
 # Example programme config — copy to config/programme.yaml for local runs.
 # Secrets (webhook secret, App key, programme token, DB URLs) must NOT appear here.
+#
+# INIT-GATEFLOW-002: trigger.label is retained for docs/migration only.
+# Label-based wave start is disabled — use POST /api/v1/waves/start.
 
 trigger:
   label: gateflow:run-wave
@@ -23,7 +26,18 @@ runner:
 model:
   profiles:
     default: cursor/auto
+  # Legacy string form still accepted (coerced to {profile: "..."}):
+  #   overrides:
+  #     some_node: my-profile
+  # Prefer object form:
+  #   overrides:
+  #     some_node:
+  #       profile: my-profile
+  #       runner: cursor
   overrides: {}
 
 tools:
   slots: {}
+
+notifier:
+  default: github_comment

@@ -202,14 +202,21 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         repo: str,
         pr_number: Optional[int] = None,
         issue_number: Optional[int] = None,
+        initiative_id: Optional[str] = None,
+        wave_id: Optional[str] = None,
     ) -> Optional[RunModel]:
-        """Return an ACTIVE run for the same org/repo and PR or issue (FR-2)."""
+        """Return an ACTIVE run for the same scope (PR/issue or wave identity)."""
         stmt = select(RunSchema).where(
             RunSchema.org == org,
             RunSchema.repo == repo,
             RunSchema.status_type == RunStatusType.ACTIVE.value,
         )
-        if pr_number is not None:
+        if initiative_id is not None and wave_id is not None:
+            stmt = stmt.where(
+                RunSchema.initiative_id == initiative_id,
+                RunSchema.wave_id == wave_id,
+            )
+        elif pr_number is not None:
             stmt = stmt.where(RunSchema.pr_number == pr_number)
         elif issue_number is not None:
             stmt = stmt.where(RunSchema.issue_number == issue_number)
@@ -218,6 +225,35 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         result = await session.execute(stmt.limit(1))
         row = result.scalar_one_or_none()
         return self._to_model(row) if row is not None else None
+
+    async def list_runs(
+        self,
+        session: AsyncSession,
+        *,
+        initiative_id: Optional[str] = None,
+        wave_id: Optional[str] = None,
+        status_type: Optional[str] = None,
+        org: Optional[str] = None,
+        repo: Optional[str] = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> list[RunModel]:
+        """List runs with optional filters (FR-20)."""
+        stmt = select(RunSchema).order_by(RunSchema.created_at.desc())
+        if initiative_id is not None:
+            stmt = stmt.where(RunSchema.initiative_id == initiative_id)
+        if wave_id is not None:
+            stmt = stmt.where(RunSchema.wave_id == wave_id)
+        if status_type is not None:
+            stmt = stmt.where(RunSchema.status_type == status_type)
+        if org is not None:
+            stmt = stmt.where(RunSchema.org == org)
+        if repo is not None:
+            stmt = stmt.where(RunSchema.repo == repo)
+        stmt = stmt.offset(skip).limit(limit)
+        result = await session.execute(stmt)
+        rows = result.scalars().all()
+        return [self._to_model(row) for row in rows]
 
 
 class StageRepository(BasePostgresRepository[StageSchema]):
@@ -231,6 +267,15 @@ class StageRepository(BasePostgresRepository[StageSchema]):
         row = await self.create(session, obj_in)
         return self._to_model(row)
 
+    async def list_stages_for_run(self, session: AsyncSession, run_id: UUID) -> list[StageModel]:
+        stmt = (
+            select(StageSchema)
+            .where(StageSchema.run_id == run_id)
+            .order_by(StageSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        return [self._to_model(row) for row in result.scalars().all()]
+
 
 class RunEventRepository(BasePostgresRepository[RunEventSchema]):
     def __init__(self, session_factory: PostgresSessionFactory) -> None:
@@ -242,3 +287,12 @@ class RunEventRepository(BasePostgresRepository[RunEventSchema]):
     async def append_event(self, session: AsyncSession, obj_in: RunEventCreate) -> RunEventModel:
         row = await self.create(session, obj_in)
         return self._to_model(row)
+
+    async def list_events_for_run(self, session: AsyncSession, run_id: UUID) -> list[RunEventModel]:
+        stmt = (
+            select(RunEventSchema)
+            .where(RunEventSchema.run_id == run_id)
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        return [self._to_model(row) for row in result.scalars().all()]
