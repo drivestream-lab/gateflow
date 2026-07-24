@@ -144,6 +144,29 @@ class NotifierConfig(BaseModel):
     )
 
 
+class PrConfig(BaseModel):
+    """PR naming templates for run-start forge writes (FR-19 / Q-2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    branch_prefix: str = Field(
+        default="gateflow/run-",
+        description="Branch name prefix; run id short suffix appended",
+    )
+    title_template: str = Field(
+        default="[gateflow] {initiative_id} {wave_id} {run_id_short}",
+        description="PR title template — same keys for success and failure",
+    )
+    body_template: str = Field(
+        default="Run `{run_id}` — status API supplementary.",
+        description="PR body template — same keys for success and failure",
+    )
+    base_branch: str = Field(
+        default="develop",
+        description="Base branch for opened/updated PRs",
+    )
+
+
 class ProgrammeConfig(BaseModel):
     """Validated gateflow programme config loaded from YAML at startup.
 
@@ -162,6 +185,7 @@ class ProgrammeConfig(BaseModel):
     model: ModelConfig = Field(default_factory=ModelConfig)
     tools: ToolsConfig = Field(default_factory=ToolsConfig)
     notifier: NotifierConfig
+    pr: PrConfig = Field(default_factory=PrConfig)
 
     @classmethod
     def get_instance(cls) -> "ProgrammeConfig":

@@ -26,18 +26,28 @@ runner:
 model:
   profiles:
     default: cursor/auto
+    loop: cursor/fast
+    ground: cursor/auto
   # Legacy string form still accepted (coerced to {profile: "..."}):
   #   overrides:
   #     some_node: my-profile
-  # Prefer object form:
-  #   overrides:
-  #     some_node:
-  #       profile: my-profile
-  #       runner: cursor
-  overrides: {}
+  # Prefer object form with profile and/or runner:
+  overrides:
+    loop-spec:
+      profile: loop
+      runner: cursor
+    ground-spec:
+      profile: ground
+      runner: cursor
 
 tools:
   slots: {}
 
 notifier:
   default: github_comment
+
+pr:
+  branch_prefix: gateflow/run-
+  title_template: "[gateflow] {initiative_id} {wave_id} {run_id_short}"
+  body_template: "Run `{run_id}` — status API supplementary."
+  base_branch: develop

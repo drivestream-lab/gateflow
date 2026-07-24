@@ -26,10 +26,24 @@ runner:
 model:
   profiles:
     default: cursor/auto
-  overrides: {}
+    loop: cursor/fast
+    ground: cursor/auto
+  overrides:
+    loop-spec:
+      profile: loop
+      runner: cursor
+    ground-spec:
+      profile: ground
+      runner: cursor
 
 tools:
   slots: {}
 
 notifier:
   default: github_comment
+
+pr:
+  branch_prefix: gateflow/run-
+  title_template: "[gateflow] {initiative_id} {wave_id} {run_id_short}"
+  body_template: "Run `{run_id}` — status API supplementary."
+  base_branch: develop

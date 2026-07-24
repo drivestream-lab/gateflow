@@ -1,4 +1,4 @@
-"""MetricsEmitter — stage duration events and run metrics aggregates (FR-13)."""
+"""MetricsEmitter — stage duration events and run metrics aggregates (FR-21/22)."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Optional
@@ -23,6 +23,7 @@ from src.models.adapter_models import (
     TimelineStageItem,
 )
 from src.models.control_plane_models import (
+    DimensionMetricsAggregate,
     NodeMetricsAggregate,
     RunMetricsResponse,
     RunStatusResponse,
@@ -47,8 +48,34 @@ def _percentile(values: list[float], pct: float) -> float:
     return float(ordered[lower] + (ordered[upper] - ordered[lower]) * weight)
 
 
+def _bucket_durations(
+    rows: list[RunEventSchema],
+    *,
+    key_field: str,
+) -> list[DimensionMetricsAggregate]:
+    by_key: dict[str, list[float]] = {}
+    for row in rows:
+        payload = row.payload if isinstance(row.payload, dict) else {}
+        duration_raw = payload.get("duration_ms")
+        if duration_raw is None:
+            continue
+        key_val = payload.get(key_field)
+        if key_val is None or key_val == "":
+            continue
+        by_key.setdefault(str(key_val), []).append(float(duration_raw))
+    return [
+        DimensionMetricsAggregate(
+            key=key,
+            count=len(durations),
+            p50_ms=_percentile(durations, 50.0),
+            p95_ms=_percentile(durations, 95.0),
+        )
+        for key, durations in sorted(by_key.items())
+    ]
+
+
 class MetricsEmitter(BaseBusinessService):
-    """Record stage durations and aggregate p50/p95 by workflow_node."""
+    """Record metrics events and aggregate p50/p95 by node/runner/model_id."""
 
     @inject
     def __init__(
@@ -62,6 +89,34 @@ class MetricsEmitter(BaseBusinessService):
         self._run_event_repository = run_event_repository
         self._stage_repository = stage_repository
 
+    async def record_api_trigger(
+        self,
+        session: AsyncSession,
+        run_id: UUID,
+        *,
+        initiative_id: Optional[str] = None,
+        wave_id: Optional[str] = None,
+    ) -> None:
+        """Emit api_trigger event when a wave start is accepted (FR-22)."""
+        await self._run_event_repository.append_event(
+            session,
+            RunEventCreate(
+                run_id=run_id,
+                event_type="api_trigger",
+                payload={
+                    "event_type": "api_trigger",
+                    "initiative_id": initiative_id,
+                    "wave_id": wave_id,
+                },
+            ),
+        )
+        self.logger.info(
+            "API trigger metrics event recorded",
+            run_id=str(run_id),
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+        )
+
     async def record_stage_duration(
         self,
         session: AsyncSession,
@@ -69,6 +124,10 @@ class MetricsEmitter(BaseBusinessService):
         workflow_node: str,
         duration_ms: int,
         outcome: Optional[str] = None,
+        *,
+        runner: Optional[str] = None,
+        model_id: Optional[str] = None,
+        model_profile: Optional[str] = None,
     ) -> None:
         """Append a stage_completed duration event for metrics aggregation."""
         await self._run_event_repository.append_event(
@@ -82,6 +141,9 @@ class MetricsEmitter(BaseBusinessService):
                     "event_type": "stage_completed",
                     "duration_ms": duration_ms,
                     "outcome": outcome,
+                    "runner": runner,
+                    "model_id": model_id,
+                    "model_profile": model_profile,
                 },
             ),
         )
@@ -90,6 +152,8 @@ class MetricsEmitter(BaseBusinessService):
             run_id=str(run_id),
             workflow_node=workflow_node,
             duration_ms=duration_ms,
+            runner=runner,
+            model_id=model_id,
         )
 
     async def get_run_status(
@@ -204,7 +268,7 @@ class MetricsEmitter(BaseBusinessService):
         session: AsyncSession,
         programme_config: Optional[ProgrammeConfig] = None,
     ) -> RunMetricsResponse:
-        """Compute p50/p95 stage duration_ms by workflow_node within retention window."""
+        """Compute p50/p95 by workflow_node, runner, and model_id within retention."""
         config = programme_config or ProgrammeConfig.get_instance()
         cutoff = datetime.now(UTC) - timedelta(days=config.metrics.retention_days)
         stmt = (
@@ -236,6 +300,8 @@ class MetricsEmitter(BaseBusinessService):
         return RunMetricsResponse(
             retention_days=config.metrics.retention_days,
             by_workflow_node=aggregates,
+            by_runner=_bucket_durations(rows, key_field="runner"),
+            by_model_id=_bucket_durations(rows, key_field="model_id"),
         )
 
 

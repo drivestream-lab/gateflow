@@ -79,6 +79,7 @@ class RunUpdate(BaseUpdateModel):
     status_type: Optional[RunStatusType] = Field(default=None)
     outcome_type: Optional[RunOutcomeType] = Field(default=None)
     workflow_node: Optional[str] = Field(default=None)
+    pr_number: Optional[int] = Field(default=None)
     retry_counter: Optional[int] = Field(default=None)
     notify_pending: Optional[bool] = Field(default=None)
 

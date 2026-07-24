@@ -94,8 +94,64 @@ class ForgeClient(BaseInfraService):
             repo=repo,
             issue_number=issue_number,
             comment_id=comment_id,
+            operation="post_comment",
         )
         return comment_id
+
+    async def create_or_update_pull_request(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+    ) -> int:
+        """Open or update a PR by head branch. Returns PR number.
+
+        Does not auto-merge or write gate-approval labels (ADR-003).
+        """
+        client = self._require_client()
+        head_ref = f"{owner}:{head}"
+        list_path = f"/repos/{owner}/{repo}/pulls"
+        listed = await client.get(
+            list_path,
+            params={"state": "open", "head": head_ref, "base": base},
+        )
+        listed.raise_for_status()
+        existing = listed.json()
+        if isinstance(existing, list) and existing:
+            pr_number = int(existing[0]["number"])
+            patch = await client.patch(
+                f"/repos/{owner}/{repo}/pulls/{pr_number}",
+                json={"title": title, "body": body},
+            )
+            patch.raise_for_status()
+            logger.info(
+                "ForgeClient pull request updated",
+                owner=owner,
+                repo=repo,
+                pr_number=pr_number,
+                operation="create_or_update_pull_request",
+            )
+            return pr_number
+
+        created = await client.post(
+            list_path,
+            json={"title": title, "body": body, "head": head, "base": base},
+        )
+        created.raise_for_status()
+        data = created.json()
+        pr_number = int(data["number"])
+        logger.info(
+            "ForgeClient pull request created",
+            owner=owner,
+            repo=repo,
+            pr_number=pr_number,
+            operation="create_or_update_pull_request",
+        )
+        return pr_number
 
     def add_labels(self, labels: list[str]) -> None:
         """Forbidden for gate-approval labels — always raises."""
