@@ -3,26 +3,26 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-07-23 |
-| Source | INIT-GATEFLOW-001 W1 on `feature/INIT-GATEFLOW-001-w1-operational-control-plane` |
+| Updated | 2026-07-24 |
+| Source | INIT-GATEFLOW-002 W0 on `feature/INIT-GATEFLOW-002-w0-api-trigger-skeleton` |
 
 ## Testing harness
 
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | W0 + W1 control-plane (38 tests) |
-| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave smoke |
+| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 W0 (52 tests) |
+| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, **wave-start** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
-## Capability matrix
+## Capability matrix (INIT-GATEFLOW-001 — human_approved)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Health liveness | scaffold | `GET /health` | `test_health` | `verify_health` | In `verify_all` |
 | GitHub App webhooks | FR-1 | `POST /webhooks/github` | `test_webhook_ingress` | `verify_webhook` | Live pass (W0) |
 | RunStore + jobs | FR-5, FR-17 | ORM/repos + migration | `test_run_store_models` | via webhook | |
-| TriggerRouter + preconditions | FR-2–4 | `trigger_router.py` | `test_trigger_policy` | `verify_wave_smoke` (enqueue) | Concurrent = PC-06 |
+| TriggerRouter + preconditions | FR-2–4 | `trigger_router.py` | `test_trigger_policy` | label start disabled in 002 | |
 | PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
 | RunOrchestrator + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker manual | |
 | AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | — | Stub fail-closed |
@@ -30,15 +30,27 @@
 | Status + metrics APIs | FR-13,15 | `runs_routes`, `metrics_routes` | `test_programme_token_api` | `verify_status_metrics` | Programme token |
 | Programme config | FR-18 | `config/programme.yaml` | `test_programme_config` | — | |
 | W1 runbook | FR-19 | `docs/runbooks/orchestrate-new-initiative-repo.md` | — | inspection | |
-| API + worker runtime | FR-17 | `src.main` + `src.worker_main` | `test_job_worker` | `docs/runbooks/w1-runtime-api-worker.md` | Clears D-W0-V2 docs path |
+| API + worker runtime | FR-17 | `src.main` + `src.worker_main` | `test_job_worker` | `docs/runbooks/w1-runtime-api-worker.md` | |
+
+## Capability matrix (INIT-GATEFLOW-002 W0)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Programme notifier + override coerce | FR-16/23 | `programme_config_models.py` | `test_programme_config` | — | `notifier.default` required |
+| Adapter registry + SlotValidator | FR-17/18 | `adapter_registry.py`, `slot_validator.py` | `test_slot_validator` | — | ADR-006 |
+| API wave-start | FR-15 | `POST /api/v1/waves/start` | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005 |
+| Label start disabled | FR-15 | `trigger_router.py` | `test_trigger_policy` | note in wave-start | Webhook may still 202 |
+| Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | |
+| `runs.wave_id` column | FR-15/20 | ORM/repo | — | needs human Alembic | See DDL-NOTE-002-W0 |
 
 ## Wave status
 
-| Wave | Plan | Ground report | as-built status |
-|------|------|---------------|-----------------|
-| W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
-| W1 | Operational control plane | `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
+| Initiative / Wave | Plan | Ground report | as-built status |
+|-------------------|------|---------------|-----------------|
+| INIT-001 W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
+| INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
+| INIT-002 W0 | API trigger + run list/detail + stubs | pending `/ground-spec` | **in_progress** (code complete; live verify pending migration) |
 
 ## Verdict
 
-**W0 and W1 are human_approved.** Gateflow now has a durable control plane: signed webhooks → jobs → trigger/policy/orchestrator (worker) → status/metrics under programme token, with runbooks and live `verify_all`. Deferred: real Cursor SDK (D-W1-A1) and full worker dogfood stop-comment soak (D-W1-V1). Next: merge W1 PR; Phase B dogfood / ops as product follow-on.
+INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** implements API wave-start, fail-closed adapter registry, label-start disable, and run list/timeline under programme token. **Human Alembic** for `runs.wave_id` is required before live `verify_wave_start` / `verify_all` (see `DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md`). Next: apply migration → live verify → `/ground-spec`.

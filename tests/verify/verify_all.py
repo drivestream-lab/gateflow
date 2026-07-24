@@ -1,4 +1,4 @@
-"""Live verify aggregator for gateflow W0/W1 smoke.
+"""Live verify aggregator for gateflow smoke.
 
 Requires running API + migrated Postgres.
 Needs GITHUB_WEBHOOK_SECRET and PROGRAMME_SERVICE_TOKEN in the environment.
@@ -14,7 +14,7 @@ from typing import Callable
 from tests.verify import (
     verify_health,
     verify_status_metrics,
-    verify_wave_smoke,
+    verify_wave_start,
     verify_webhook,
 )
 
@@ -22,7 +22,7 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_health", verify_health.main),
     ("verify_webhook", verify_webhook.main),
     ("verify_status_metrics", verify_status_metrics.main),
-    ("verify_wave_smoke", verify_wave_smoke.main),
+    ("verify_wave_start", verify_wave_start.main),
 )
 
 

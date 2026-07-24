@@ -71,6 +71,27 @@ def main() -> int:
                 print(f"[ERROR] unexpected metrics body: {body}")
                 return 1
             print("[OK] GET /api/v1/metrics/runs → 200 aggregate shape")
+
+            list_bare = client.get(f"{base_url}/api/v1/runs")
+            if list_bare.status_code != 401:
+                print(
+                    f"[ERROR] expected 401 without token on run list, got {list_bare.status_code}"
+                )
+                return 1
+            print("[OK] GET /api/v1/runs without token → 401")
+
+            list_ok = client.get(f"{base_url}/api/v1/runs", headers=headers, params={"limit": 5})
+            if list_ok.status_code != 200:
+                print(
+                    f"[ERROR] expected 200 for run list with token, got {list_ok.status_code}: "
+                    f"{list_ok.text}"
+                )
+                return 1
+            list_body = list_ok.json()
+            if "items" not in list_body:
+                print(f"[ERROR] unexpected run list body: {list_body}")
+                return 1
+            print("[OK] GET /api/v1/runs → 200 list shape")
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure talking to {base_url}: {exc}")
         return 1

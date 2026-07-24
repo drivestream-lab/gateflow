@@ -1,8 +1,8 @@
-"""Live verify: labelled webhook enqueue smoke (TASK-W1-08 / FR-3 path).
+"""Live verify: labelled webhook ingress still acks (non-start for 002).
 
-Full label→PolicyEngine→stop requires API + worker + handoff workspace.
-This script proves the forge ingress accepts a programme-label webhook (202)
-and that programme-token metrics remain reachable.
+INIT-GATEFLOW-002 disables label-based wave start in TriggerRouter. This script
+only proves forge ingress still accepts a labelled delivery (202). Prefer
+`verify_wave_start` as the primary wave-start smoke.
 
 Usage:
   set -a && source .env && set +a
