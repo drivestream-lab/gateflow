@@ -4,15 +4,15 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-24 |
-| Source | INIT-GATEFLOW-002 W2 on `feature/INIT-GATEFLOW-002-w2-board` |
+| Source | INIT-GATEFLOW-003 W0 on `feature/INIT-GATEFLOW-003-w0-cursor-skeleton` |
 
 ## Testing harness
 
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 W0/W1/W2 |
-| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave-start, pr_thread, **board** |
+| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0 |
+| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave-start, pr_thread, **board** (Scenario B/A = INIT-003 W1/W2) |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -50,7 +50,7 @@
 | Per-node runner/model resolve + persist | FR-16 | `node_model_resolver.py`, orchestrator | `test_node_model_resolver`, orchestrator | — | ≥2 overrides in programme.yaml |
 | PR-at-start via ForgeClient | FR-19 | `forge_client.create_or_update_pull_request`, orchestrator | `test_forge_client`, orchestrator PR order | `verify_pr_thread` (optional worker) | Same `pr.*` naming; no auto-merge |
 | Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py` | `test_metrics_emitter` | `verify_pr_thread`, status/metrics | `by_runner`, `by_model_id` |
-| Cursor happy path (stub) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Stub/`mock-*`/`GATEFLOW_AGENT_STUB`; **real SDK deferred** |
+| Cursor happy path (stub) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Stub/`mock-*`/`GATEFLOW_AGENT_STUB`; live SDK = INIT-003 |
 
 ## Capability matrix (INIT-GATEFLOW-002 W2)
 
@@ -62,6 +62,16 @@
 | Laptop vs deploy transport | FR-26b | runbook | — | inspection | `docs/runbooks/laptop-gh-vs-deploy-forgeclient.md` |
 | Q-4 exit gate | A-4 | narrowed MVP doc | — | inspection | `docs/specification/reports/Q4-PERMISSION-MATRIX-INIT-GATEFLOW-002-W2.md` |
 
+## Capability matrix (INIT-GATEFLOW-003 W0)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| `cursor-sdk` + `CursorAgentSettings` | REQ-27/29 | Poetry + `cursor_agent_settings.py` | `test_cursor_agent_settings` | — | `CURSOR_API_KEY` env only |
+| Local CursorAgentRunner | REQ-27/31 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | W1 Scenario B | `LocalAgentOptions(cwd)`; no cloud |
+| Start-gate missing key | REQ-28/29 | `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | 422 before enqueue |
+| Unit doubles quarantine | REQ-28 | stub/`mock-*` paths | unit only | not live exit | Documented in README + spike |
+| Laptop SDK spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
+
 ## Wave status
 
 | Initiative / Wave | Plan | Ground report | as-built status |
@@ -71,8 +81,11 @@
 | INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **human_approved** |
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
+| INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **complete** — awaiting **human_approved** |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
-**human_approved** (2026-07-24). No W3 in plan — initiative complete after W2 PR merge.
+**human_approved** (2026-07-24). INIT-GATEFLOW-003 **W0** skeleton + start-gate is grounded
+(`Ground-Report-INIT-GATEFLOW-003-W0.md`, Draft) — **human_approved** pending PE LGTM.
+Scenario B/A prove-it = W1/W2. Live `finished` spike gap tracked as D-W0-L1 for W1.

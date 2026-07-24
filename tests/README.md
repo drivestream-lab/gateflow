@@ -90,4 +90,14 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Production gh-free path (FR-25/26a) | inspection checklist | `test_forge_client_source_has_no_gh_subprocess` |
 | Laptop gh vs deploy ForgeClient (FR-26b) | docs inspection | — |
 
-See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md`.
+## Feature map (INIT-GATEFLOW-003 — W0)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| CursorAgentSettings (`CURSOR_API_KEY`) | — | `test_cursor_agent_settings` |
+| Local cursor-sdk AgentRunner (mocked) | Scenario B = W1 | `test_cursor_agent_runner` |
+| Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
+| Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
+
+See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
+`docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

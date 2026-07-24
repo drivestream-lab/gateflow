@@ -28,6 +28,7 @@ opentelemetry-instrumentation-fastapi = "^0.63b0"
 opentelemetry-instrumentation-httpx = "^0.63b0"
 opentelemetry-instrumentation-sqlalchemy = "^0.63b0"
 opentelemetry-instrumentation-redis = "^0.63b0"
+cursor-sdk = "^1.0.24"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

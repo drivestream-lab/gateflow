@@ -4,6 +4,7 @@ from injector import inject
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.base_business_service import BaseBusinessService
+from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.models.adapter_models import (
     AdapterSlotKindType,
     SlotValidationFailure,
@@ -101,6 +102,22 @@ class SlotValidator(BaseBusinessService):
                     adapter_id=adapter_id,
                     config_key=config_key,
                     reason=f"Required adapter {adapter_id!r} is a stub (not implemented)",
+                )
+            ]
+        if (
+            expected_kind == AdapterSlotKindType.RUNNER
+            and adapter_id == "cursor"
+            and not CursorAgentSettings.get_instance().has_api_key()
+        ):
+            return [
+                SlotValidationFailure(
+                    slot_kind=expected_kind,
+                    adapter_id=adapter_id,
+                    config_key="CURSOR_API_KEY",
+                    reason=(
+                        "Required runner 'cursor' needs CURSOR_API_KEY "
+                        "(env-backed CursorAgentSettings; never programme.yaml)"
+                    ),
                 )
             ]
         return []
