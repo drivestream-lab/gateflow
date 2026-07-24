@@ -59,10 +59,12 @@
 | INIT-001 W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
 | INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
 | INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **human_approved** |
-| INIT-002 W1 | Per-node model + PR-at-start + metrics | (pending `/ground-spec`) | **in_progress** |
+| INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **Draft** — awaiting human LGTM |
 
 ## Verdict
 
-INIT-GATEFLOW-002 **W1** implementation is **in_progress** on
-`feature/INIT-GATEFLOW-002-w1-model-pr-metrics`. Unit/check green (65 tests).
-Next: live `verify_all` / `verify_pr_thread` → `/ground-spec` → human approval.
+INIT-GATEFLOW-002 **W1** Ground Report is **Draft** on
+`feature/INIT-GATEFLOW-002-w1-model-pr-metrics` (`ad3feb0` + ground commit).
+`make check` / `make test` (65) / live `verify_all` green on shared drivestream
+Postgres/Redis. Human must LGTM → mark **human_approved** → merge →
+`/pre-implement` W2.
