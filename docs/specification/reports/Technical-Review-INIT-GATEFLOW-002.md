@@ -16,7 +16,7 @@
 | Date | 2026-07-24 |
 | Branch | `chore/INIT-GATEFLOW-002-spec-gateflow` (Draft spec PR #10) |
 | Initiative segment | `INIT-GATEFLOW-002` |
-| Status | Draft |
+| Status | Accepted — PE @nikd10x 2026-07-24 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/10); ADR-005/006 Accepted |
 | Review deadline | 2026-07-31 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit acceptance required, not approval by silence |
 
@@ -165,8 +165,8 @@ still ack/idempotent-store non-start events. Programme config may retain
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| C-1 / F13-1 / Q-6 | ADR_REQUIRED | `docs/specification/adr/adr-005-programme-token-control-plane-mutations.md` | Widen programme-token zone to documented reads+writes (paths stay TDD) | Draft | `sha256:7591cf39fb78ecc2fb1f5e0c55f52456a0ac0fef5cf93936bb1e8a30c1f4427d` |
-| S-6 / F13-2 | ADR_REQUIRED | `docs/specification/adr/adr-006-adapter-registry-fail-closed.md` | Business registry + fail-closed before accept (adapter catalogue stays TDD) | Draft | `sha256:cfeb47a726ee66023f549bd08ebc3ca2b46c478100cf5caf7b81111238102230` |
+| C-1 / F13-1 / Q-6 | ADR_REQUIRED | `docs/specification/adr/adr-005-programme-token-control-plane-mutations.md` | Widen programme-token zone to documented reads+writes (paths stay TDD) | Accepted | `sha256:7591cf39fb78ecc2fb1f5e0c55f52456a0ac0fef5cf93936bb1e8a30c1f4427d` |
+| S-6 / F13-2 | ADR_REQUIRED | `docs/specification/adr/adr-006-adapter-registry-fail-closed.md` | Business registry + fail-closed before accept (adapter catalogue stays TDD) | Accepted | `sha256:cfeb47a726ee66023f549bd08ebc3ca2b46c478100cf5caf7b81111238102230` |
 | ForgeClient widen (S-3) | TDD_ONLY | §3.5–3.6 | Extend ForgeClient under ADR-003; no new ADR | Resolved | N/A |
 | Label removal (S-1) | TDD_ONLY | §3.7 | Disable label wave-start for 002 | Resolved | N/A |
 | Q-1 paths/schemas | TDD_ONLY | §3.1–3.3 | `/api/v1/waves|runs|metrics|board` | Resolved | N/A |
@@ -327,8 +327,8 @@ Same templates for success and failure paths.
 | Draft ADR files written | 2 / 2 required (ADR-005, ADR-006) |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
-| Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE acceptance of Draft→Accepted ADRs + TDD Status required** |
+| Ready for PE review | YES — **Accepted** |
+| **Ready for /spec-implementation-plan** | **YES — TDD + ADR-005/006 Accepted on branch; plan may run** |
 
 ---
 
@@ -345,7 +345,8 @@ Same templates for success and failure paths.
 | T7 Data contract ownership | PASS | §8 |
 | T8 Dependency graph | PASS | api→business→repo; infra injected; no worker→board |
 | T9 Engineering questions zero | PASS | All PE items resolved or deferred with defaults |
-| T10 PE review readiness | PASS | `ready_for_pe_review: true`; `ready_for_plan: false` |
+| T10 PE review readiness | PASS | `ready_for_pe_review: true
+    tdd_status: Accepted`; `ready_for_plan: true` |
 | T11 ADR artifact integrity | PASS | Draft ADR-005/006 exist with digests in §4 |
 
 ---
@@ -390,11 +391,12 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-002.md
-    digest: sha256:5c30e5c0040ccc581f9989bee41f8be2efaf60a95ae1a5cd3bc7ed5d0a88e8ff
+    digest: sha256:86968778121bf1dbac35bd406cd60c0d97bfae93a5813c5291a813037395bdab
   blockers: []
   signals:
     ready_for_pe_review: true
-    ready_for_plan: false
+    tdd_status: Accepted
+    ready_for_plan: true
     source_freshness: CURRENT
     draft_adrs:
       - path: docs/specification/adr/adr-005-programme-token-control-plane-mutations.md

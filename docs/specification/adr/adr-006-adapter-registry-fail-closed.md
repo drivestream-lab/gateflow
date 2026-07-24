@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-002 |
 | Feasibility finding | S-6, F13-2 |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-002.md` |
-| Decision owner | PE |
-| Approval evidence | Pending |
-| Approved head | Pending |
+| Decision owner | @nikd10x |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-24 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/10); architecture package tip after ADR hygiene `13a734dfa7a5fa8352e5d9f3ef939d49912ab07f` |
+| Approved head | Pending — set on final acceptance commit |
 | Relates to | Extends ADR-003 (slot ownership unchanged); does not move adapters into business |
 
 ## Context
