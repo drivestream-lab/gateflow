@@ -165,8 +165,8 @@ still ack/idempotent-store non-start events. Programme config may retain
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| C-1 / F13-1 / Q-6 | ADR_REQUIRED | `docs/specification/adr/adr-005-programme-token-control-plane-mutations.md` | Extend programme-token zone to documented writes | Draft | `sha256:f732226e3d0f6f30bdb562728207112e879c9869ef427c138f9818b0461d0f08` |
-| S-6 / F13-2 | ADR_REQUIRED | `docs/specification/adr/adr-006-adapter-registry-fail-closed.md` | Business registry + validate before enqueue | Draft | `sha256:c78b4f4a9133cfc607eb2d777adc933000e558be1fdc719949871242350445b1` |
+| C-1 / F13-1 / Q-6 | ADR_REQUIRED | `docs/specification/adr/adr-005-programme-token-control-plane-mutations.md` | Widen programme-token zone to documented reads+writes (paths stay TDD) | Draft | `sha256:7591cf39fb78ecc2fb1f5e0c55f52456a0ac0fef5cf93936bb1e8a30c1f4427d` |
+| S-6 / F13-2 | ADR_REQUIRED | `docs/specification/adr/adr-006-adapter-registry-fail-closed.md` | Business registry + fail-closed before accept (adapter catalogue stays TDD) | Draft | `sha256:cfeb47a726ee66023f549bd08ebc3ca2b46c478100cf5caf7b81111238102230` |
 | ForgeClient widen (S-3) | TDD_ONLY | §3.5–3.6 | Extend ForgeClient under ADR-003; no new ADR | Resolved | N/A |
 | Label removal (S-1) | TDD_ONLY | §3.7 | Disable label wave-start for 002 | Resolved | N/A |
 | Q-1 paths/schemas | TDD_ONLY | §3.1–3.3 | `/api/v1/waves|runs|metrics|board` | Resolved | N/A |
@@ -175,6 +175,11 @@ still ack/idempotent-store non-start events. Programme config may retain
 | Q-4 App permissions | DEFERRED_WITH_DEFAULT | §9 | Proceed W0/W1; **block W2 exit** until permission matrix confirmed | Deferred | N/A |
 | Q-5 PE alert channel | DEFERRED_WITH_DEFAULT | §9 | `notify_pending` + status API only until dedicated alert | Deferred | N/A |
 | V-3 Cursor SDK | DEFERRED_WITH_DEFAULT | §9 | W1 exit may use stub/`GATEFLOW_AGENT_STUB`/`mock-*`; real SDK follow-on | Deferred | N/A |
+
+**ADR product boundary (hygiene):** Draft ADR-005/006 state architectural
+trust-zone and registry/fail-closed rules only. Feature catalogues (wave-start,
+board ops, named runner/notifier ids, FR refs, HTTP paths) live in this TDD §3
+and the INIT spec — matching Accepted ADR-002/003 style.
 
 **Constraint table (Accepted ADRs):**
 
@@ -273,8 +278,8 @@ Same templates for success and failure paths.
 
 | Finding ID | Owner | Status | Question | Resolution | Required by | Default if deferred | Evidence / reference |
 |------------|-------|--------|----------|------------|-------------|---------------------|----------------------|
-| C-1 / Q-6 | PE | resolved | Programme-token writes vs ADR-002 | ADR-005 Option C — documented writes under same token | plan W0 | — | ADR-005 |
-| S-6 | PE | resolved | Adapter registry + fail-closed | ADR-006 Option B — validate before enqueue | plan W0 | — | ADR-006 |
+| C-1 / Q-6 | PE | resolved | Programme-token writes vs ADR-002 | ADR-005 Option C — programme token may mutate allowlisted control-plane routes; catalogue in TDD §3 | plan W0 | — | ADR-005 |
+| S-6 | PE | resolved | Adapter registry + fail-closed | ADR-006 Option B — business registry; validate before accept; ids/stubs in TDD/config | plan W0 | — | ADR-006 |
 | S-1 | PE | resolved | Label trigger | Disable label wave-start for 002; webhook non-start OK | plan W0 | — | §3.7 |
 | S-3 | PE | resolved | ForgeClient PR/board | Extend infra client; no NEW-ADR | plan W1/W2 | — | ADR-003 + §3.5–3.6 |
 | Q-1 | PE | resolved | HTTP paths/schemas | §3.1–3.3 catalog | plan W0 | — | this TDD |
@@ -385,7 +390,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-002.md
-    digest: sha256:7db1b742eaec903beb41a908bfa6899814a3d5f3e7d8d6c77f2669f944803175
+    digest: sha256:5c30e5c0040ccc581f9989bee41f8be2efaf60a95ae1a5cd3bc7ed5d0a88e8ff
   blockers: []
   signals:
     ready_for_pe_review: true
@@ -393,10 +398,10 @@ handoff:
     source_freshness: CURRENT
     draft_adrs:
       - path: docs/specification/adr/adr-005-programme-token-control-plane-mutations.md
-        digest: sha256:f732226e3d0f6f30bdb562728207112e879c9869ef427c138f9818b0461d0f08
+        digest: sha256:7591cf39fb78ecc2fb1f5e0c55f52456a0ac0fef5cf93936bb1e8a30c1f4427d
         finding: C-1
       - path: docs/specification/adr/adr-006-adapter-registry-fail-closed.md
-        digest: sha256:c78b4f4a9133cfc607eb2d777adc933000e558be1fdc719949871242350445b1
+        digest: sha256:cfeb47a726ee66023f549bd08ebc3ca2b46c478100cf5caf7b81111238102230
         finding: S-6
     adr_required_count: 2
     tdd_only_count: 5

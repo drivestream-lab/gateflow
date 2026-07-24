@@ -14,10 +14,15 @@
 ## Context
 
 Accepted **ADR-002** defines three trust zones and scopes the programme service
-token to **read-only** status/metrics APIs. INIT-GATEFLOW-002 requires the same
-shared programme token to authenticate **mutations**: wave-start (FR-15) and
-board operation APIs (FR-24), still without per-user RBAC. Leaving ADR-002
-unchanged blocks a lawful implementation of the approved product scope.
+token to **read-only** control-plane APIs. Later initiatives require the same
+shared programme token to authenticate **mutations** on programme control-plane
+routes, still without per-user RBAC. Leaving ADR-002 unchanged forces either a
+second secret or conflating programme mutations with JWT user identity.
+
+This ADR decides **how trust zones coexist when the programme token may mutate**.
+Which routes are reads vs writes, path strings, status codes, and which business
+operations are allowed remain **INIT / TDD contracts** — not this ADR
+(same boundary as ADR-002: “exact mounts … are product/TDD contracts”).
 
 Constraints that remain in force from ADR-002:
 - JWT `AuthMiddleware` for future user routes stays separate from programme token.
@@ -30,9 +35,9 @@ Constraints that remain in force from ADR-002:
 
 | Option | Benefits | Costs / risks |
 |--------|----------|---------------|
-| A — Keep ADR-002 read-only; invent a second mutation token | Clearer privilege split | Extra secret; product/PRD assume one programme token (A4); ops burden |
-| B — Route wave-start/board under JWT user auth | Reuses middleware | No per-user RBAC product; breaks programme-shared audit model |
-| C — **Amend programme-token zone** to cover documented read **and** write control-plane routes under the same shared token; keep JWT and webhook zones unchanged | Matches PRD; minimal secrets; ADR-002 Option C path shape preserved | Shared token can mutate forge/board — mitigate with audit logs + narrow route allowlist |
+| A — Keep programme token read-only; introduce a second mutation token | Clearer privilege split | Extra secret lifecycle; two Bearer schemes to operate |
+| B — Authenticate programme mutations with JWT user auth | Reuses existing middleware | Conflates user and programme identity; implies RBAC the platform does not yet provide |
+| C — **Widen the programme-token zone** to cover **documented** control-plane reads **and** writes under one shared token; keep JWT and webhook zones unchanged | One programme secret; zone model stays path-allowlist + route dependency | Shared token blast radius includes mutations — mitigate with allowlisted mounts + audit |
 
 ## Recommendation
 
@@ -43,34 +48,28 @@ Update the programme trust zone definition to:
 | Zone | AuthN | AuthZ / identity model |
 |------|-------|------------------------|
 | Default `/api/v1` (future user routes) | JWT via `AuthMiddleware` | Populates `AuthContext` |
-| Forge webhook ingress | GitHub App signature; `public_paths` | No JWT; no programme token |
-| **Programme control-plane (reads + documented writes)** | Path on `public_paths`; FastAPI dependency verifies shared programme service token | Does **not** populate user `AuthContext`; authorize only the route catalog in the INIT-002 TDD |
-
-Documented write surfaces for INIT-002 (exact paths in TDD §3):
-- Wave-start mutation(s)
-- Board operation mutations (status, link PR, create, list)
-
-Documented read surfaces remain (extended):
-- Run list/detail
-- Metrics aggregates
+| Forge webhook ingress | GitHub App signature; path on `public_paths` | No JWT; no programme token; no `AuthContext` |
+| **Programme control-plane (reads + documented writes)** | Path on `public_paths`; FastAPI dependency verifies shared programme service token | Does **not** populate user `AuthContext`; only routes listed in the active INIT/TDD catalogue |
 
 **ADR-002** stays Accepted for JWT + webhook decisions; this ADR **supersedes only**
-the programme-token “reads” row and consequences that forbid mutations.
+the programme-token “reads” row and any consequence that forbids mutations under
+that token.
 
 ## Consequences
 
-- `public_paths` must include all programme-token prefixes (reads and writes).
-- Board and wave-start mutations share the same blast radius as status reads —
-  acceptable for programme-engineer shared token until RBAC revisit.
-- Wave worker must still **never** call board APIs on run lifecycle (product
-  invariant — enforced in business layer, not by a second token).
-- Audit: board mutations logged separately from wave run events (spec NFR).
+- Operators must keep `public_paths` aligned with **all** programme-token mounts
+  (reads and writes) declared in the active TDD.
+- Programme-token routes must not assume `request.state.auth`.
+- Mutation and read routes that share the token share blast radius until a
+  revisit introduces split tokens or RBAC.
+- Cross-cutting audit of programme-token mutations vs unrelated run telemetry is
+  an observability concern for implementers; concrete event schemas stay in TDD.
 
 ## Revisit triggers
 
 - Per-user or role-scoped programme JWTs replace the shared static token.
-- Board APIs require stronger auth than wave-start (split tokens).
-- External untrusted clients need programme APIs (then RBAC or mTLS mandatory).
+- Mutation surfaces need a stronger authZ model than reads (split tokens).
+- External untrusted clients consume programme APIs (RBAC or mTLS mandatory).
 
 ## Acceptance finalization
 

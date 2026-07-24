@@ -1,4 +1,4 @@
-# ADR-006 — Adapter registry and fail-closed start selection
+# ADR-006 — Adapter registry and fail-closed selection
 
 | Field | Value |
 |-------|-------|
@@ -13,60 +13,61 @@
 
 ## Context
 
-**ADR-003** places AgentRunner, Notifier outbound I/O, and ForgeClient in
-**infra**, with business owning orchestration. INIT-GATEFLOW-002 requires:
-- Multiple AgentRunner ids registered (`cursor` implemented; `opencode` /
-  `claude_code` stubs)
-- Multiple Notifier ids registered (`github_comment` implemented; `slack` /
-  `teams` stubs)
-- **Fail-closed at run start**: if any runner or notifier the run will need is
-  a stub (or otherwise unimplemented), **block the entire run** before enqueue
-  / dispatch — never silent fallback to Cursor/GitHub mid-run
+**ADR-003** places outbound adapters (forge client, agent runners, harness sync,
+and any ToolProvider that performs external I/O) in **infra**, and orchestration
+in **business**. It does not specify:
 
-ADR-003 does not specify selection, registry shape, or when validation runs.
+1. How multiple adapters for the same slot kind are **registered and selected**
+2. When the runtime decides a selected adapter is **safe to use** (implemented
+   vs honest stub / unavailable)
+3. Whether an unimplemented selection fails **before work is accepted** or only
+   when the adapter is first invoked
+
+Product which adapters exist, which ids are live vs stub, and which programme
+config keys select them remain in the INIT / programme config / TDD — adapters
+must honor those contracts, but this ADR does **not** catalogue them
+(same stance as ADR-003 on product invariants).
 
 ## Options considered
 
 | Option | Benefits | Costs / risks |
 |--------|----------|---------------|
-| A — Hardcode if/else in RunOrchestrator | Fast | Violates pluggability; PolicyEngine grows adapter knowledge |
-| B — **Business-owned registry + SlotValidator**; infra adapters register by id; validate required slots at wave-start (API) and again before first dispatch | Clear fail-closed; unused stubs OK; ADR-003 ownership preserved | Extra types; must keep registry in sync with DI |
-| C — Validate only at first AgentRunner call | Less API work | Mid-run surprise; contradicts FR-18 “block at start” |
+| A — Hardcode selection inside the orchestrator | Fast to ship | Couples policy to concrete adapter types; blocks swaps |
+| B — **Business-owned registry + validator**; infra adapters register by opaque id with an `implemented` capability; resolve required ids from config; **fail closed before accepting work** if any required id is unimplemented; unused registered stubs OK | Pluggable; auditable; no silent mid-run substitute | Registry must stay in sync with DI bindings |
+| C — Validate only at first adapter invocation | Less work at the accept boundary | Mid-run surprise; silent fallback risk if callers catch and retry elsewhere |
 
 ## Recommendation
 
 **Option B.**
 
-1. **Registry** — string id → adapter capability descriptor:
-   - `implemented: bool` (false for honest stubs)
-   - factory / injected infra instance
-2. **Resolution** — programme config selects defaults and per-`workflow_node`
-   overrides (`runner.default`, `model.overrides`, `notifier.default`). Business
-   resolves the **set of runner ids and the notifier id required for this run**
-   before accept.
-3. **Validation timing** — `SlotValidator.validate_for_run(...)` runs:
-   - on wave-start API after identity + other preconditions that do not need
-     dispatch, **before** job enqueue (FR-18 / precondition #10–11)
-   - again in worker before AgentRunner (defense in depth; same result)
-4. **Failure** — structured API/worker error naming stub id + config key;
-   **zero** AgentRunner calls; unused registered stubs do not block.
+1. **Registry** — opaque string id → capability descriptor at minimum
+   `{ implemented: bool }` plus the injected infra instance / factory.
+2. **Selection** — business resolves the **set of adapter ids required for the
+   accepted unit of work** from programme configuration (defaults + overrides).
+   Concrete key names and override shapes are TDD/config schema, not this ADR.
+3. **Validation timing** — run validation **before** the unit of work is accepted
+   for durable enqueue/dispatch (API accept path and again in the worker before
+   first adapter call — defense in depth, same rule).
+4. **Failure** — structured error identifying adapter id and config key; **zero**
+   calls to unimplemented adapters; no silent substitution with another id.
 5. **Ownership** — registry + validator are **business** (selection policy);
-   stub/live adapters remain **infra** (ADR-003). Routers never import adapters.
+   live and stub adapters remain **infra** (ADR-003). Routers never import
+   adapter implementations.
 
 ## Consequences
 
-- Adding OpenCode/Claude/Slack/Teams is register-stub + config — not PolicyEngine
-  rewrites.
-- Wave-start can 422 before RunStore run creation when stubs are selected
-  (preferred) or create a terminal blocked run — TDD chooses **reject before
-  enqueue** for cleaner concurrency/idempotency.
-- DI may bind a registry singleton assembled from known adapter types.
+- Adding or swapping an adapter is register + config, not a PolicyEngine rewrite.
+- Prefer rejecting at the accept boundary over creating durable work that cannot
+  run; exact HTTP mapping is a TDD concern.
+- DI may assemble a registry singleton from known adapter bindings.
 
 ## Revisit triggers
 
-- Live second runner ships and needs health-probed readiness beyond `implemented`.
-- Per-stage notifier overrides become product requirements.
-- ToolProvider slots gain non-`none` implementations requiring the same validator.
+- Selection must incorporate live health probes beyond a static `implemented` flag.
+- Per-stage notifier (or other slot) overrides change the “required set” algorithm
+  enough to need a new decision.
+- ToolProvider (or other) slots gain non-no-op implementations that must share
+  the same validator.
 
 ## Acceptance finalization
 
