@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` |
 | Date | 2026-07-24 |
 | Branch | `feature/INIT-GATEFLOW-003-w0-cursor-skeleton` — same branch as wave code |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-07-28 |
 | Deciders | Tech lead / reviewer: prayog-pe-team — explicit LGTM required |
 | Board issue | https://github.com/drivestream-lab/gateflow/issues/20 |
@@ -106,13 +106,13 @@ After reviewer approves:
 
 ## Ready for human checkpoint?
 
-**yes** — W0 skeleton + start-gate + unit + spike note are complete; D-W0-L1 accepted as W1 blocker for live `finished` prove-it, not as W0 skeleton blocker.
+**yes — human_approved** (2026-07-24). PE accepted W0 skeleton exit; D-W0-L1 / D-W0-M1 / D-W0-V1 accepted as deferred to W1 where applicable.
 
 Human must:
-- [ ] Review FR checklist — all pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate and complete for W1
-- [ ] Accept or reject D-W0-L1 / D-W0-M1 / D-W0-V1
-- [ ] Mark as-built: INIT-GATEFLOW-003 W0 = human_approved (human only — do not self-approve)
+- [x] Review FR checklist — all pass or explicitly deferred
+- [x] Review §Contracts produced — accurate and complete for W1
+- [x] Accept or reject D-W0-L1 / D-W0-M1 / D-W0-V1
+- [x] Mark as-built: INIT-GATEFLOW-003 W0 = human_approved
 
 ```yaml
 handoff:
@@ -121,7 +121,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-003-W0.md
-    digest: sha256:5a94d4297dd0ae114f344def0f5e6c1253181f69e5c7caa980a41026c339bd7d
+    digest: sha256:7d2c2709d63380b7713b59af68137cc6ccf5859ffd1c3d290b3633da1f185c10
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-003
@@ -134,9 +134,9 @@ handoff:
     verify_command: N/A — W0 unit+spike; Scenario B in W1
     unit_tests: 83 passed
     discrepancies: [D-W0-L1, D-W0-M1, D-W0-V1]
-    human_approved: false
+    human_approved: true
   next_candidates:
-    - wave-human-decision
-  human_checkpoint: true
+    - wave-complete
+  human_checkpoint: false
   external_action: false
 ```
