@@ -70,6 +70,7 @@ class RunCreate(BaseCreateModel):
     pr_number: Optional[int] = Field(default=None)
     issue_number: Optional[int] = Field(default=None)
     initiative_id: Optional[str] = Field(default=None)
+    wave_id: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 
@@ -91,6 +92,7 @@ class RunModel(BasePostgresModel):
     pr_number: Optional[int] = Field(default=None)
     issue_number: Optional[int] = Field(default=None)
     initiative_id: Optional[str] = Field(default=None)
+    wave_id: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 
