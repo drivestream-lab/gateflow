@@ -6,9 +6,9 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` |
 | Date | 2026-07-24 |
 | Branch | `feature/INIT-GATEFLOW-002-w2-board` |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-07-28 |
-| Deciders | Tech lead / reviewer: @nikd10x — explicit LGTM required |
+| Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-24 |
 
 ## Automated check output
 
@@ -143,11 +143,11 @@ After reviewer approves:
 
 ## Ready for human checkpoint?
 
-**yes** — automated checks green; FR-24…26b + Q-4 exit documented; D-W2-V1 / D-W2-Q4 explicitly deferred for PE acceptance.
+**yes — human_approved** (2026-07-24). Automated checks green; D-W2-V1 / D-W2-Q4 accepted for W2 exit.
 
-- [ ] Review FR checklist — all pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate (no W3 consumer; ops/initiative-complete consumers)
-- [ ] Mark as-built: INIT-GATEFLOW-002 W2 = human_approved
+- [x] Review FR checklist — all pass or explicitly deferred
+- [x] Review §Contracts produced — accurate (no W3 consumer; ops/initiative-complete consumers)
+- [x] Mark as-built: INIT-GATEFLOW-002 W2 = human_approved
 
 ```yaml
 handoff:
@@ -156,7 +156,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-002-W2.md
-    digest: sha256:4ce8ea4d035505e2bb11cc2aea8c316f80a831615b411b690db20988bd818618
+    digest: sha256:31b07ce6d4c54addaa72a848f43ea58864460abd210dcdddc94c2ac463c14dec
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-002
@@ -172,9 +172,9 @@ handoff:
     live_verify: passed
     deferred_notes: [D-W2-V1, D-W2-Q4, D-W1-A1, D-W1-V1]
     q4_exit: narrowed_issues_mvp
-    human_approved: false
+    human_approved: true
   next_candidates:
-    - wave-human-decision
-  human_checkpoint: true
-  external_action: false
+    - wave-complete
+  human_checkpoint: false
+  external_action: true
 ```
