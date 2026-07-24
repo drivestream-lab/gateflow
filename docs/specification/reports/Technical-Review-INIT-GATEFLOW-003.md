@@ -16,11 +16,13 @@
 | Date | 2026-07-24 |
 | Branch | `chore/INIT-GATEFLOW-003-spec-gateflow` (Draft spec PR #18) |
 | Initiative segment | `INIT-GATEFLOW-003` |
-| Status | Draft |
+| Status | **Accepted** — PE @nikd10x 2026-07-24 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/18); posture A1+B1+C1; ADR-001…006 reused (already Accepted); no new ADR for 003 |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-24 via Cursor chat on Draft spec PR #18 |
+| Approved head | `PENDING_ACCEPTANCE_SHA` |
 | Review deadline | 2026-07-31 |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit acceptance required, not approval by silence |
-| ADR posture (PE) | **A1:** no new ADR for 003 — reuse ADR-001…006; withdrawn Draft ADR-007 |
-| Layer posture (PE) | **B1:** `cursor-sdk` is an in-process pip dependency; wrapper stays in `infra_services/` (ADR-003) |
+| Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team |
+| ADR posture (PE) | **A1:** no new ADR for 003 — reuse ADR-001…006 (Accepted); Draft ADR-007 withdrawn |
+| Layer posture (PE) | **B1:** `cursor-sdk` is an in-process pip dependency; wrapper stays in `infra_services/` (ADR-003 Accepted — leave as-is; not Cursor Cloud) |
 | Evidence posture (PE) | **C1:** local SDK contract + Docker/bridge spike live in this TDD (not an ADR) |
 
 ---
@@ -323,8 +325,8 @@ content **fuzzy** presence. Unit tests mock SDK — no live Cursor in `make test
 | Draft ADR files written | **0 / 0** required (ADR-007 withdrawn) |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
-| Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — PE must Accept this TDD on exact head** |
+| Ready for PE review | **DONE** — Accepted |
+| **Ready for /spec-implementation-plan** | **YES** — TDD Accepted; no new ADR files required |
 
 ---
 
@@ -341,48 +343,38 @@ content **fuzzy** presence. Unit tests mock SDK — no live Cursor in `make test
 | T7 Data contract ownership | PASS | §8 |
 | T8 Dependency graph | PASS | business → infra adapter → `cursor-sdk`; no ADR-003 violation |
 | T9 Engineering questions zero | PASS | §9 |
-| T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan false |
-| T11 ADR artifact integrity | PASS | no ADR_REQUIRED files; withdrawn ADR-007 deleted |
+| T10 PE review readiness | PASS | TDD **Accepted**; ready_for_plan true |
+| T11 ADR artifact integrity | PASS | ADR_REQUIRED 0; ADR-001…006 remain Accepted; ADR-007 withdrawn |
 
 ---
 
 ## PR instructions
 
-> Commit this TDD to the **Draft spec PR** branch. PE reviews on the **same PR**.
-> Gate 2 label stays **`spec-pending`** until the implementation plan exists.
-> PE accepts by setting this TDD **Status → Accepted** (no new ADR files for 003).
+> TDD is **Accepted** on this Draft spec PR. Gate 2 label stays **`spec-pending`**
+> until the implementation plan is on head. No new ADR files for 003 — Accepted
+> ADR-001…006 reused; ADR-003 left as-is (layer ownership ≠ Cursor Cloud).
 
 ```
 Branch:   chore/INIT-GATEFLOW-003-spec-gateflow
 Draft PR: https://github.com/drivestream-lab/gateflow/pull/18
 
-Required reviewers:
-  @drivestream-lab/prayog-pe-team
+Accepted:
+  [x] TDD Status → Accepted (PE @nikd10x, 2026-07-24)
+  [x] A1 — no new ADR; ADR-007 withdrawn
+  [x] B1 — ADR-003 retained (infra adapter for in-process cursor-sdk)
+  [x] C1 — local SDK contract in TDD §3.3
 
-Review deadline: 2026-07-31
-PE review checklist:
-  [ ] T1 Module boundaries (B1: infra adapter wraps in-process cursor-sdk)
-  [ ] T2 Interface contracts + §3.3 local SDK / spike
-  [ ] T3 No new ADR (A1) — Accepted ADR-003/004/006 sufficient
-  [ ] T4 Test policy / Scenario prove-it + Docker spike
-  [ ] T9 Zero unresolved PE items
-  [ ] T11 No product-feature ADRs introduced
-
-PE action (artifact acceptance — mid-lane):
-  Review/comment or Request changes → update TDD
-  Explicitly state when TDD is ready for acceptance
-  Set TDD Status → Accepted; commit to spec branch (label remains spec-pending)
-
-After artifact acceptance:
+Next:
   → /spec-implementation-plan on the same branch
   → after plan on head: PE sets spec-lgtm + Approve + attestation
+  → Ready for review → merge → board-seed from merged plan §9
 ```
 
 ## References
 
 - Spec: `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`
 - Feasibility: `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-003.md`
-- Accepted ADRs reused: ADR-001…006 (no ADR-007)
+- Accepted ADRs reused: ADR-001…006 (no ADR-007; ADR-003 unchanged)
 - Cursor Python SDK: https://cursor.com/docs/sdk/python
 - Meta PRD PR: https://github.com/drivestream-lab/prayog-meta/pull/11
 - Draft spec PR: https://github.com/drivestream-lab/gateflow/pull/18
@@ -396,11 +388,14 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md
-    digest: sha256:1ba7999b021353708c03882121a74ec4ce116018e65094baac0eaa885e44ff3d
+    digest: sha256:1be1c3b090bfd834381a249b1b1f0109e5281f60811f10c1fd1eb2bcf21fb3eb
   blockers: []
   signals:
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
+    tdd_status: Accepted
+    pe_acceptor: nikd10x
+    pe_accepted_at: 2026-07-24
     adr_posture: A1-no-new-adr
     layer_posture: B1-infra-adapter-in-process-sdk
     evidence_posture: C1-tdd-local-sdk-contract
@@ -410,6 +405,7 @@ handoff:
     tdd_only_count: 8
     deferred_count: 1
     adr_007_withdrawn: true
+    adr_003_retained: true
     pe_resolved: [PE-1, PE-2, PE-3, PE-4, Q-1, Q-2, Q-3]
     pe_deferred: [Q-4, FF-12]
     pm_questions: []
@@ -420,7 +416,7 @@ handoff:
     spec_pr: https://github.com/drivestream-lab/gateflow/pull/18
     gate2_label: spec-pending
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
 ```
