@@ -277,7 +277,7 @@ After spec-lgtm + Approve + merge — /board-seed from §9 (post-merge only)
 |------|-------|
 | Verdict | **GATE OPEN REQUEST** |
 | Spec PR | https://github.com/drivestream-lab/gateflow/pull/18 |
-| Spec PR head SHA | `{SHA after plan commit}` |
+| Spec PR head SHA | `223068d81c2aaa41c34dd80034a37748e8436eb8` |
 | Gate label (current) | `spec-pending` |
 | Gate label (target) | `spec-lgtm` |
 | Blocking items | none |
@@ -298,12 +298,12 @@ PE on **exact current head**:
 ```text
 Spec package approved
 initiative: INIT-GATEFLOW-003
-spec_pr_head_sha: {SHA after plan commit}
+spec_pr_head_sha: 223068d81c2aaa41c34dd80034a37748e8436eb8
 meta_pr_head_sha: 4c9cacb8b7aa5aeac50ef902c9d8fc400bb2ece5
 impact_map_revision: 2
 prd_digest: sha256:6062fa11d136e9a49dd6546377ec5d907789ef388108b477b846f6299673f9ad
 scope_digest: sha256:aaf398dc53a4606b34e9e24fa7513cd3a3b7e64ea677047faf5d2e90c64eba85
-plan_digest: sha256:{plan file digest}
+plan_digest: sha256:c230eaeeb68bff1354308a335d4d5897020ff23ff452ca82df4e167a5cb928af
 artifacts:
   - docs/specification/product/INIT-GATEFLOW-003-gateflow.md
   - docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-003.md
@@ -537,7 +537,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-003.md
-    digest: sha256:07384bc4185fefc3a49fb4778a42a96b304368024de4acab7e22ee3a8702a41f
+    digest: sha256:c230eaeeb68bff1354308a335d4d5897020ff23ff452ca82df4e167a5cb928af
   blockers: []
   signals:
     gate2_label: spec-pending
