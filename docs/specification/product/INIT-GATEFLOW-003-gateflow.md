@@ -136,7 +136,7 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 |----|------------|----------|-------|--------|------------------|
 | A-1 | INIT-GATEFLOW-001 and INIT-GATEFLOW-002 are finished/delivered for control-plane reuse | PRD A1 User-confirmed; as-built W0–W2 human_approved | PE | confirmed (reconcile meta #10 separately — Q-4) | As-built regresses below 002 W2 |
 | A-2 | Cursor agent can run in Gateflow’s programme-like worker (non-cloud) | PRD A2 User-confirmed | PE | confirmed | Only cloud path available |
-| A-3 | Programme can supply Cursor auth material to the worker without repo commits | PRD A3; fail-fast if absent | PE | confirmed posture; shape open (Q-1) | Secret injection impossible |
+| A-3 | Programme can supply Cursor auth material to the worker without repo commits | PRD A3; TDD §3.1 `CURSOR_API_KEY` / `CursorAgentSettings` | PE | confirmed | Secret injection impossible |
 | A-4 | Existing metrics/run APIs can expose new cycle-time fields without gateflow-ops UI | PRD A4; CTR-03 | PE | confirmed | Product requires new UI for exit |
 | A-5 | Prove-it uses Scenario A and B skill **sets** as named in PRD; orchestrated ⇒ triggered; live coding work evidence; intended `cursor` + `auto` | PRD A5; Decision #8 | PE | confirmed | Product changes skill sets |
 | A-6 | Scenario B already orchestrated in today’s pin; Scenario A **must** be orchestrated in pin for 003 exit (prayog-skills supporting) | PRD A6; local pin `v0.5.0-rc.2` (A=manual, B=orchestrated) | PE | confirmed | Pin retracts Scenario A orchestrated |
@@ -216,7 +216,7 @@ INIT-GATEFLOW-003 — Live Cursor AgentRunner (gateflow only)
 ## Summary
 
 - 5 REQs (REQ-27…REQ-31) for live Cursor AgentRunner, fail-fast unsupported runners + Cursor auth/crash, stage/wave cycle-time + p50/p95, reuse 001/002 control plane, Scenario A/B prove-it
-- Open engineering questions (non-blocking): Q-1…Q-4 (credential shape, wave duration field names, stand-in quarantine, INIT-002 meta #10 reconcile)
+- Open engineering questions (non-blocking): Q-4 (INIT-002 meta #10 reconcile); Q-1…Q-3 resolved in TDD/ADR-007
 
 ## Gate 2 — spec package readiness
 
@@ -286,8 +286,9 @@ handoff:
     prd_digest: sha256:6062fa11d136e9a49dd6546377ec5d907789ef388108b477b846f6299673f9ad
     scope_digest: sha256:aaf398dc53a4606b34e9e24fa7513cd3a3b7e64ea677047faf5d2e90c64eba85
     gate1_label_projection: lagging-pending-revised-without-lgtm
-    open_questions: [Q-1, Q-2, Q-3, Q-4]
+    open_questions: [Q-4]
     blocking_questions: []
+    resolved_in_tdd: [Q-1, Q-2, Q-3]
   next_candidates:
     - initiative-feasibility
   human_checkpoint: true
