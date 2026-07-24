@@ -6,9 +6,9 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` |
 | Date | 2026-07-24 |
 | Branch | `feature/INIT-GATEFLOW-002-w0-api-trigger-skeleton` |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-07-28 |
-| Deciders | Tech lead / reviewer: @nikd10x — explicit LGTM required |
+| Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-24 (live `verify_all` green) |
 
 ## Automated check output
 
@@ -141,12 +141,11 @@ After reviewer approves:
 
 ## Ready for human checkpoint?
 
-**yes** — `make check` / `make test` / live `verify_all` green after human Alembic; W0 FRs pass or explicitly deferred to W1; §Contracts produced ready for W1 `/pre-implement`.
+**yes — human_approved** (2026-07-24). Live `verify_all` re-validated; D-W0-V1 / D-W0-M1 / D-W0-L1 accepted as deferred for W0 skeleton / W1.
 
-Human must:
-- [ ] Review FR checklist — all pass or explicitly deferred (D-W0-V1/M1/L1)
-- [ ] Review §Contracts produced — accurate and complete for W1
-- [ ] Mark as-built: INIT-GATEFLOW-002 W0 = human_approved
+- [x] Review FR checklist — all pass or explicitly deferred
+- [x] Review §Contracts produced — accurate for W1 consumers
+- [x] Mark as-built: INIT-GATEFLOW-002 W0 = human_approved
 
 ```yaml
 handoff:
@@ -155,7 +154,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-002-W0.md
-    digest: sha256:dbfac268e7af607a3321dc44f96f71b596928f2cc42a140466ef7c4e3ee1a643
+    digest: sha256:4b2c3292d5dc413bfe7721a124ae37d39fbd77e4db2ed7ebf590fb9005674c28
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-002
@@ -169,9 +168,10 @@ handoff:
     unit_tests: 52 passed
     live_verify: passed
     human_alembic: bc8abad9a701_add_runs_wave_id
+    human_approved: true
     deferred_frs: [FR-19, FR-21, FR-22, FR-24, FR-25, FR-26a, FR-26b]
   next_candidates:
-    - wave-human-decision
-  human_checkpoint: true
-  external_action: false
+    - wave-complete
+  human_checkpoint: false
+  external_action: true
 ```

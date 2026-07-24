@@ -49,8 +49,8 @@
 |-------------------|------|---------------|-----------------|
 | INIT-001 W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
 | INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
-| INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **complete** (pending human_approved) |
+| INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **human_approved** |
 
 ## Verdict
 
-INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** is implementation-complete with live `verify_all` green after human Alembic for `runs.wave_id`. Ground report is Draft — PE LGTM → mark **human_approved** → merge → `/pre-implement` W1.
+INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** is **human_approved** (2026-07-24) with live `verify_all` green after human Alembic for `runs.wave_id`. Next: merge W0 PR → `/pre-implement` W1.
