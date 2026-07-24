@@ -112,17 +112,27 @@ class RunOrchestrator(BaseBusinessService):
                 )
 
             context = auth.context
-            run = await self._run_repository.create_run(
-                session,
-                RunCreate(
-                    org=context.org,
-                    repo=context.repo,
-                    status_type=RunStatusType.ACTIVE,
-                    pr_number=context.pr_number,
-                    issue_number=context.issue_number,
-                    initiative_id=context.initiative_id,
-                ),
-            )
+            existing_run_id = payload.get("run_id")
+            if existing_run_id:
+                run = await self._run_repository.get_run(session, UUID(str(existing_run_id)))
+                if run is None:
+                    return RunProcessSummary(
+                        terminal_status="not_dispatched",
+                        stop_reason=f"Pre-created run {existing_run_id} not found",
+                        dispatched=False,
+                    )
+            else:
+                run = await self._run_repository.create_run(
+                    session,
+                    RunCreate(
+                        org=context.org,
+                        repo=context.repo,
+                        status_type=RunStatusType.ACTIVE,
+                        pr_number=context.pr_number,
+                        issue_number=context.issue_number,
+                        initiative_id=context.initiative_id,
+                    ),
+                )
             if run.id is None:
                 raise RuntimeError("Created run missing id")
 

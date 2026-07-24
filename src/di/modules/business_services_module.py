@@ -12,6 +12,7 @@ from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.stage_tool_resolver import StageToolResolver
 from src.business_services.trigger_router import TriggerRouter
+from src.business_services.wave_start_service import WaveStartService
 from src.business_services.webhook_ingress_service import WebhookIngressService
 from src.business_services.workflow_engine import WorkflowEngine
 
@@ -29,4 +30,5 @@ class BusinessServicesModule(Module):
         binder.bind(StageToolResolver, scope=singleton)
         binder.bind(AdapterRegistry, scope=singleton)
         binder.bind(SlotValidator, scope=singleton)
+        binder.bind(WaveStartService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)
