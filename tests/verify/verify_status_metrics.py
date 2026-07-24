@@ -70,6 +70,9 @@ def main() -> int:
             if "by_workflow_node" not in body or "retention_days" not in body:
                 print(f"[ERROR] unexpected metrics body: {body}")
                 return 1
+            if "by_runner" not in body or "by_model_id" not in body:
+                print(f"[ERROR] metrics missing by_runner/by_model_id: {body}")
+                return 1
             print("[OK] GET /api/v1/metrics/runs → 200 aggregate shape")
 
             list_bare = client.get(f"{base_url}/api/v1/runs")

@@ -133,6 +133,17 @@ class RunStatusResponse(BaseModel):
     events: list[TimelineEventItem] = Field(default_factory=list)
 
 
+class DimensionMetricsAggregate(BaseModel):
+    """Duration aggregate keyed by an arbitrary dimension value."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    count: int
+    p50_ms: float
+    p95_ms: float
+
+
 class NodeMetricsAggregate(BaseModel):
     """Per-workflow_node duration aggregate."""
 
@@ -151,6 +162,8 @@ class RunMetricsResponse(BaseModel):
 
     retention_days: int
     by_workflow_node: list[NodeMetricsAggregate] = Field(default_factory=list)
+    by_runner: list[DimensionMetricsAggregate] = Field(default_factory=list)
+    by_model_id: list[DimensionMetricsAggregate] = Field(default_factory=list)
 
 
 # Re-export for callers that import handoff with policy
@@ -165,6 +178,7 @@ __all__ = [
     "ToolContext",
     "RunStatusResponse",
     "NodeMetricsAggregate",
+    "DimensionMetricsAggregate",
     "RunMetricsResponse",
     "HandoffEnvelope",
 ]

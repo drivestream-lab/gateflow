@@ -77,9 +77,23 @@ def _service(
     validator = SlotValidator(adapter_registry=registry)
     # Force notifier for stub tests via programme config mutation
     ProgrammeConfig.get_instance().notifier.default = notifier_id
+    workflow_engine = MagicMock()
+    workflow_engine.known_node_ids = MagicMock(
+        return_value={
+            "loop-spec",
+            "ground-spec",
+            "pre-implement",
+            "verify",
+            "board-seed",
+        }
+    )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_api_trigger = AsyncMock()
     return WaveStartService(
         postgres_service=postgres,
         slot_validator=validator,
+        workflow_engine=workflow_engine,
+        metrics_emitter=metrics_emitter,
         run_repository=run_repo,
         job_repository=job_repo,
     )
@@ -142,6 +156,25 @@ async def test_wave_start_missing_identity() -> None:
 async def test_wave_start_stub_notifier_422() -> None:
     service = _service(notifier_id="slack")
     with pytest.raises(UnprocessableEntityError):
+        await service.start_wave(
+            WaveStartRequest(
+                org="acme",
+                repo="widget",
+                initiative_id="INIT-X",
+                wave_id="W0",
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_wave_start_unknown_override_node_422() -> None:
+    from src.models.programme_config_models import NodeOverride
+
+    ProgrammeConfig.get_instance().model.overrides["not-a-real-node"] = NodeOverride(
+        profile="default"
+    )
+    service = _service()
+    with pytest.raises(UnprocessableEntityError, match="Unknown override node"):
         await service.start_wave(
             WaveStartRequest(
                 org="acme",

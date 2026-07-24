@@ -4,15 +4,15 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-24 |
-| Source | INIT-GATEFLOW-002 W0 on `feature/INIT-GATEFLOW-002-w0-api-trigger-skeleton` |
+| Source | INIT-GATEFLOW-002 W1 on `feature/INIT-GATEFLOW-002-w1-model-pr-metrics` |
 
 ## Testing harness
 
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 W0 (52 tests) |
-| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, **wave-start** — live pass |
+| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 W0/W1 (65 tests) |
+| Live verify | `tests/verify/verify_all.py` | health, webhook, status/metrics, wave-start, **pr_thread** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -43,6 +43,15 @@
 | Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | Live pass |
 | `runs.wave_id` column | FR-15/20 | ORM/repo + Alembic `bc8abad9a701` | — | via wave-start | Human migration applied |
 
+## Capability matrix (INIT-GATEFLOW-002 W1)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Per-node runner/model resolve + persist | FR-16 | `node_model_resolver.py`, orchestrator | `test_node_model_resolver`, orchestrator | — | ≥2 overrides in programme.yaml |
+| PR-at-start via ForgeClient | FR-19 | `forge_client.create_or_update_pull_request`, orchestrator | `test_forge_client`, orchestrator PR order | `verify_pr_thread` (optional worker) | Same `pr.*` naming; no auto-merge |
+| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py` | `test_metrics_emitter` | `verify_pr_thread`, status/metrics | `by_runner`, `by_model_id` |
+| Cursor happy path (stub) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Stub/`mock-*`/`GATEFLOW_AGENT_STUB`; **real SDK deferred** |
+
 ## Wave status
 
 | Initiative / Wave | Plan | Ground report | as-built status |
@@ -50,7 +59,9 @@
 | INIT-001 W0 | Control-plane skeleton | `Ground-Report-INIT-GATEFLOW-001-W0.md` | **human_approved** |
 | INIT-001 W1 | Operational control plane | `Ground-Report-INIT-GATEFLOW-001-W1.md` | **human_approved** |
 | INIT-002 W0 | API trigger + run list/detail + stubs | `Ground-Report-INIT-GATEFLOW-002-W0.md` | **human_approved** |
+| INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 
 ## Verdict
 
-INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** is **human_approved** (2026-07-24) with live `verify_all` green after human Alembic for `runs.wave_id`. Next: merge W0 PR → `/pre-implement` W1.
+INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0** and **W1** are
+**human_approved** (2026-07-24). Next: merge W1 PR → `/pre-implement` W2.

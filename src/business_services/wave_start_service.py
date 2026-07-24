@@ -6,8 +6,11 @@ from uuid import uuid4
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.business_services.metrics_emitter import MetricsEmitter
+from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.trigger_router import API_TRIGGER_EVENT
+from src.business_services.workflow_engine import WorkflowEngine
 from src.database.postgres.repository.run_store_repository import JobRepository, RunRepository
 from src.exceptions.app_exceptions import (
     ConflictError,
@@ -30,12 +33,16 @@ class WaveStartService(BaseBusinessService):
         self,
         postgres_service: PostgresService,
         slot_validator: SlotValidator,
+        workflow_engine: WorkflowEngine,
+        metrics_emitter: MetricsEmitter,
         run_repository: RunRepository,
         job_repository: JobRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._slot_validator = slot_validator
+        self._workflow_engine = workflow_engine
+        self._metrics_emitter = metrics_emitter
         self._run_repository = run_repository
         self._job_repository = job_repository
 
@@ -94,6 +101,14 @@ class WaveStartService(BaseBusinessService):
                         initiative_id=initiative_id,
                         wave_id=wave_id,
                     ),
+                )
+                if run.id is None:
+                    raise RuntimeError("Created run missing id")
+                await self._metrics_emitter.record_api_trigger(
+                    session,
+                    run.id,
+                    initiative_id=initiative_id,
+                    wave_id=wave_id,
                 )
                 job = await self._job_repository.enqueue(
                     session,
@@ -212,7 +227,22 @@ class WaveStartService(BaseBusinessService):
                 message="model.profiles.default is required",
                 details={"config_key": "model.profiles.default"},
             )
+        if not str(profiles["default"]).strip():
+            raise UnprocessableEntityError(
+                message="Unresolvable model for default profile",
+                details={"config_key": "model.profiles.default"},
+            )
+
+        known_nodes = self._workflow_engine.known_node_ids()
         for node_id, override in programme_config.model.overrides.items():
+            if not node_id or node_id not in known_nodes:
+                raise UnprocessableEntityError(
+                    message="Unknown override node",
+                    details={
+                        "config_key": f"model.overrides.{node_id}",
+                        "node_id": node_id,
+                    },
+                )
             if override.profile and override.profile not in profiles:
                 raise UnprocessableEntityError(
                     message="Unknown model profile in override",
@@ -222,6 +252,16 @@ class WaveStartService(BaseBusinessService):
                         "profile": override.profile,
                     },
                 )
+            try:
+                resolve_node_dispatch(programme_config, node_id)
+            except ValueError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={
+                        "config_key": f"model.overrides.{node_id}",
+                        "node_id": node_id,
+                    },
+                ) from exc
 
 
 def get_wave_start_service() -> WaveStartService:

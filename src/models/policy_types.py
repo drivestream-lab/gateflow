@@ -22,8 +22,9 @@ class PolicyDecisionType(str, Enum):
 
 
 class RunEventNameType(str, Enum):
-    """Notifier run-event comment kinds (FR-11)."""
+    """Notifier run-event comment kinds (FR-11 / FR-22)."""
 
+    API_TRIGGER = "api_trigger"
     STAGE_STARTED = "stage_started"
     STAGE_COMPLETED = "stage_completed"
     RUN_STOPPED = "run_stopped"

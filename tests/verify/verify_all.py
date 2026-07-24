@@ -13,6 +13,7 @@ from typing import Callable
 
 from tests.verify import (
     verify_health,
+    verify_pr_thread,
     verify_status_metrics,
     verify_wave_start,
     verify_webhook,
@@ -23,6 +24,7 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_webhook", verify_webhook.main),
     ("verify_status_metrics", verify_status_metrics.main),
     ("verify_wave_start", verify_wave_start.main),
+    ("verify_pr_thread", verify_pr_thread.main),
 )
 
 

@@ -109,6 +109,16 @@ class WorkflowEngine(BaseBusinessService):
         )
         return resolved
 
+    def known_node_ids(self) -> set[str]:
+        """Return all node ids from the pinned workflow (no allowlists)."""
+        if self._workflow is None:
+            self.load_pin()
+        assert self._workflow is not None
+        nodes = self._workflow.get("nodes")
+        if not isinstance(nodes, dict):
+            raise ValueError("workflow.yaml missing nodes mapping")
+        return {str(node_id) for node_id in nodes.keys()}
+
 
 def get_workflow_engine() -> WorkflowEngine:
     from src.di.dependency_container import provide_service

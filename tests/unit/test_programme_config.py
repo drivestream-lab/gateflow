@@ -22,6 +22,9 @@ def test_load_default_programme_config() -> None:
     assert config.retry.findings_budget == 3
     assert "default" in config.model.profiles
     assert config.notifier.default == "github_comment"
+    assert config.pr.branch_prefix == "gateflow/run-"
+    assert config.model.overrides["loop-spec"].profile == "loop"
+    assert config.model.overrides["ground-spec"].profile == "ground"
     assert ProgrammeConfig.get_instance() is config
 
 

@@ -32,7 +32,11 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_webhook
 # .venv/bin/python -m tests.verify.verify_status_metrics
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
+# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (+ optional PR)
 # .venv/bin/python -m tests.verify.verify_wave_smoke   # label ingress ack only
+#
+# Full PR-at-start live assert (optional):
+#   GATEFLOW_VERIFY_WORKER=1 with worker + forge credentials running
 ```
 
 See also: `docs/runbooks/w1-runtime-api-worker.md`.
@@ -65,5 +69,14 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`.
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
 | Stub fail-closed (FR-18) | — | `test_slot_validator`, `test_wave_start` |
+
+## Feature map (INIT-GATEFLOW-002 — W1)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Per-node runner/model resolve + persist (FR-16) | — | `test_node_model_resolver`, `test_run_orchestrator` |
+| PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `GATEFLOW_VERIFY_WORKER=1`) | `test_forge_client`, `test_run_orchestrator` |
+| Metrics dims + api_trigger (FR-21/22) | `verify_pr_thread` + `verify_status_metrics` | `test_metrics_emitter` |
+| Cursor stub happy path (V-3) | — | `test_cursor_agent_runner` |
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md`.
