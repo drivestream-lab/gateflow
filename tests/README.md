@@ -34,7 +34,7 @@ make check && make test
 
 See also: `docs/runbooks/w1-runtime-api-worker.md`.
 
-## Feature map (INIT-GATEFLOW-001)
+## Feature map (INIT-GATEFLOW-001 — delivered)
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
@@ -51,3 +51,18 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`.
 | Worker claim | `src.worker_main` (manual / compose) | `tests/unit/test_job_worker.py` |
 | Handoff / workflow resolve | — | `tests/unit/test_handoff_workflow.py` |
 | ForgeClient forbid gates | — | `tests/unit/test_forge_client.py` |
+
+## Feature map (INIT-GATEFLOW-002 — planned)
+
+| Capability | Verify script (planned) | Pytest (planned) |
+|------------|-------------------------|------------------|
+| API wave-start (FR-15) | replace label primary path in `verify_wave_smoke` / new `verify_wave_start` | wave-start auth, dual identity, preconditions |
+| Stub fail-closed (FR-18) | — | registry + start validation |
+| PR at run start (FR-19) | live PR-thread assert | ForgeClient PR open/update |
+| Run list/detail (FR-20) | extend `verify_status_metrics` | list/filter + timeline |
+| Metrics dims (FR-21) | extend `verify_status_metrics` | by runner / model_id |
+| Board APIs (FR-24) | new board verify (W2) | dumb primitives + idempotency |
+| Production no `gh` (FR-25/26a) | inspection / path guard | ForgeClient transport tests |
+
+See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` and feasibility:
+`docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-002.md`.
