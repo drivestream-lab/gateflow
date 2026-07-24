@@ -33,13 +33,15 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_status_metrics
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
 # .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (+ optional PR)
+# .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
 # .venv/bin/python -m tests.verify.verify_wave_smoke   # label ingress ack only
 #
 # Full PR-at-start live assert (optional):
 #   GATEFLOW_VERIFY_WORKER=1 with worker + forge credentials running
 ```
 
-See also: `docs/runbooks/w1-runtime-api-worker.md`.
+See also: `docs/runbooks/w1-runtime-api-worker.md`,
+`docs/runbooks/laptop-gh-vs-deploy-forgeclient.md`.
 
 ## Feature map (INIT-GATEFLOW-001 — delivered)
 
@@ -78,5 +80,14 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`.
 | PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `GATEFLOW_VERIFY_WORKER=1`) | `test_forge_client`, `test_run_orchestrator` |
 | Metrics dims + api_trigger (FR-21/22) | `verify_pr_thread` + `verify_status_metrics` | `test_metrics_emitter` |
 | Cursor stub happy path (V-3) | — | `test_cursor_agent_runner` |
+
+## Feature map (INIT-GATEFLOW-002 — W2)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Board APIs create/list/status/link (FR-24) | `verify_board` (in `verify_all`) | `test_board_service`, `test_forge_client_board` |
+| Worker isolation — zero board mutations | — | `test_process_job_never_calls_board_forge_mutations` |
+| Production gh-free path (FR-25/26a) | inspection checklist | `test_forge_client_source_has_no_gh_subprocess` |
+| Laptop gh vs deploy ForgeClient (FR-26b) | docs inspection | — |
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md`.
