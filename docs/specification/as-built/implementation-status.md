@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-25 |
-| Source | INIT-GATEFLOW-003 W1 on `feature/INIT-GATEFLOW-003-w1-scenario-b` |
+| Source | INIT-GATEFLOW-003 W1 wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report` |
 
 ## Testing harness
 
@@ -95,15 +95,15 @@
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
-| INIT-003 W1 | Engineering-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **Draft** — live prove-it recorded; awaiting PE `human_approved` |
+| INIT-003 W1 | Engineering-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
 **human_approved** (2026-07-24). INIT-GATEFLOW-003 **W0** is **human_approved** (2026-07-24).
 
-INIT-GATEFLOW-003 **W1** Ground Report is **Draft** on `feature/INIT-GATEFLOW-003-w1-scenario-b`
-with **live engineering-lane prove-it pass** (2026-07-25): run
-`de780ba2-7841-4827-ad69-362358a8176d`, four Cursor stages success, terminal `stopped`
-at `wave-human-decision`, `wave_duration_ms=492608`. D-W1-L1 and D-W1-M1 closed.
-Do **not** set W1 `human_approved` until PE LGTM.
+INIT-GATEFLOW-003 **W1** is **human_approved** (2026-07-25): live engineering-lane prove-it
+pass (run `de780ba2-7841-4827-ad69-362358a8176d`, four Cursor stages success, terminal
+`stopped` at `wave-human-decision`, `wave_duration_ms=492608`). Implementation on `develop`
+via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`. Next: `/pre-implement`
+for W2.

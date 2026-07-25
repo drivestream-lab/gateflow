@@ -5,8 +5,8 @@
 | Wave | W1 — engineering-lane prove-it + cycle-time + Docker spike |
 | Spec | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` |
 | Date | 2026-07-25 |
-| Branch | `feature/INIT-GATEFLOW-003-w1-scenario-b` — same branch as wave code |
-| Status | **Draft** — live prove-it recorded; awaiting PE `human_approved` |
+| Branch | `feature/INIT-GATEFLOW-003-w1-ground-report` — wave-signoff (implementation already on `develop` via #44) |
+| Status | **human_approved** (2026-07-25) |
 | Review deadline | 2026-07-28 |
 | Deciders | Tech lead / reviewer: prayog-pe-team — explicit LGTM required |
 | Board issue | https://github.com/drivestream-lab/gateflow/issues/21 |
@@ -22,7 +22,7 @@ black / ruff / pyright / lint-imports — all pass
 Contracts: 1 kept, 0 broken (layered architecture)
 
 $ make test
-110 passed in ~2.8s
+110 passed in ~1.3s
 
 $ .venv/bin/python -m tests.verify.verify_engineering_lane
 # tests/config.yaml: verify.engineering_lane: true, require_worker: true
@@ -90,7 +90,7 @@ Committed on wave branch; local DB alembic_version=7e79269bd50b
 | D-W1-M1 | REQ-30 | Human Alembic untracked at first Draft | — | **Closed** — `7e79269bd50b` on wave branch |
 | D-W0-M1 | REQ-27 | `cursor/auto` mapped via `_sdk_model_id` | Low | **Carry** — document only |
 
-No open code blockers for PE wave-signoff.
+No open code blockers for wave-signoff.
 
 ## Contracts produced by this wave
 
@@ -106,27 +106,29 @@ No open code blockers for PE wave-signoff.
 ## PR instructions
 
 ```
-Branch:   feature/INIT-GATEFLOW-003-w1-scenario-b
-PR title: [INIT-GATEFLOW-003 W1] engineering-lane — implementation + ground report
+Branch:   feature/INIT-GATEFLOW-003-w1-ground-report
+PR title: [INIT-GATEFLOW-003 W1] wave-signoff — human_approved
 Issue:    #21
 Spec:     docs/specification/product/INIT-GATEFLOW-003-gateflow.md
 Verify:   make check && make test
           (opt-in) .venv/bin/python -m tests.verify.verify_engineering_lane
 ```
 
-After reviewer approves:
-  Update as-built: INIT-GATEFLOW-003 W1 → **human_approved** *(human only)*
-  Merge PR → `/pre-implement` for W2
+Implementation already merged: https://github.com/drivestream-lab/gateflow/pull/44
+
+After this signoff PR merges:
+  as-built INIT-GATEFLOW-003 W1 = **human_approved**
+  → `/pre-implement` for W2
 
 ## Ready for human checkpoint?
 
-**yes** — Draft ground report ready for PE wave-signoff (live prove-it recorded).
+**yes — human_approved** (2026-07-25). Verifier accepted W1 ground report + live engineering-lane prove-it; as-built updated on this branch.
 
 Human must:
-- [ ] Review FR checklist
-- [ ] Review §Contracts produced
-- [ ] Confirm live RunStore evidence acceptable
-- [ ] Mark as-built: INIT-GATEFLOW-003 W1 = human_approved *(human only)*
+- [x] Review FR checklist — all pass or explicitly deferred
+- [x] Review §Contracts produced — accurate and complete for next wave
+- [x] Confirm live RunStore evidence acceptable
+- [x] Mark as-built: INIT-GATEFLOW-003 W1 = human_approved
 
 ```yaml
 handoff:
@@ -135,13 +137,13 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-003-W1.md
-    digest: sha256:de840e2d5eb2e0dc9c5548a54a80b45a83a9c1b4857a37e18bd5ffa807a5e4de
+    digest: sha256:90b29eddefe5b63da0b4181c98ea76bfc7d84273f54ba5fcf18ef26850d7d990
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-003
     wave: W1
     board_issue: https://github.com/drivestream-lab/gateflow/issues/21
-    branch: feature/INIT-GATEFLOW-003-w1-scenario-b
+    branch: feature/INIT-GATEFLOW-003-w1-ground-report
     contracts_produced: 6
     check_command: make check
     test_command: make test
@@ -152,8 +154,10 @@ handoff:
     live_engineering_lane: pass
     live_run_id: de780ba2-7841-4827-ad69-362358a8176d
     live_wave_duration_ms: 492608
+    as_built_status: human_approved
     discrepancies_open: [D-W0-M1]
     discrepancies_closed: [D-W1-L1, D-W1-M1]
+    implementation_pr: https://github.com/drivestream-lab/gateflow/pull/44
   next_candidates:
     - wave-human-decision
   human_checkpoint: true
