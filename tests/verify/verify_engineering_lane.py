@@ -100,7 +100,8 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    initiative_id = f"INIT-ENGLANE-{uuid.uuid4().hex[:8]}"
+    # INIT-{COMPONENT}-{NUMBER}: COMPONENT 2–16 A–Z; NUMBER 1–7 digits
+    initiative_id = f"INIT-ENGLANE-{int(uuid.uuid4()) % 10_000_000}"
     wave_id = "W1"
 
     try:
