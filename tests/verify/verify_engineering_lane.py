@@ -190,9 +190,7 @@ def main() -> int:
                         f"got outcome={stage.get('outcome_type')!r}"
                     )
                     return 1
-                print(
-                    f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')}"
-                )
+                print(f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')}")
 
             if status != "stopped":
                 print(
