@@ -11,8 +11,9 @@
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0/W1 |
-| Live verify | `tests/verify/verify_all.py` | health…board (engineering-lane separate) |
+| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0/W1 (110 passed) |
+| Live verify | `tests/verify/verify_all.py` | health…board (engineering-lane **separate** opt-in) |
+| Engineering-lane prove-it | `tests/verify/verify_engineering_lane.py` | **Live pass** 2026-07-25 (run `de780ba2-…`) |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -24,13 +25,13 @@
 | RunStore + jobs | FR-5, FR-17 | ORM/repos + migration | `test_run_store_models` | via webhook | |
 | TriggerRouter + preconditions | FR-2–4 | `trigger_router.py` | `test_trigger_policy` | label start disabled in 002 | |
 | PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
-| RunOrchestrator walker + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker manual | Multi-hop until gate; hop cap |
-| AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | — | Stub fail-closed |
+| RunOrchestrator walker + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker + engineering-lane | Multi-hop until gate; hop cap |
+| AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | engineering-lane | Live local SDK; launchpad W1 stub sync |
 | ToolProvider none | FR-14 | (no StageToolResolver; empty tool context) | — | — | Slot map removed with programme.yaml |
 | Status + metrics APIs | FR-13,15 | `runs_routes`, `metrics_routes` | `test_programme_token_api` | `verify_status_metrics` | Programme token |
 | Orchestration settings | FR-18 | `orchestration_settings.py` (`GATEFLOW_*`) | wave-start / policy tests | — | notifier + hop cap + findings/metrics |
 | W1 runbook | FR-19 | `docs/runbooks/orchestrate-new-initiative-repo.md` | — | inspection | |
-| API + worker runtime | FR-17 | `src.main` + `src.worker_main` | `test_job_worker` | `docs/runbooks/w1-runtime-api-worker.md` | |
+| API + worker runtime | FR-17 | `src.main` + `src.worker_main` | `test_job_worker` | `docs/runbooks/w1-runtime-api-worker.md` | Dev reload scoped to `src/*.py` + `.env` |
 
 ## Capability matrix (INIT-GATEFLOW-002 W0)
 
@@ -48,10 +49,10 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Per-node runner/model resolve + persist | FR-16 | `dispatch_plan_models` + `node_model_resolver`; API plan | `test_node_model_resolver`, orchestrator | — | Inherit from wave-start; no programme overrides |
-| Pin walker until gate | FR-15 inherit | `run_orchestrator.py` loop + PolicyEngine | `test_run_orchestrator` (multi-hop + hop cap) | — | `GATEFLOW_MAX_ORCHESTRATED_HOPS` |
+| Pin walker until gate | FR-15 inherit | `run_orchestrator.py` loop + PolicyEngine | `test_run_orchestrator` (multi-hop + hop cap) | engineering-lane | `GATEFLOW_MAX_ORCHESTRATED_HOPS` |
 | PR-at-start via ForgeClient | FR-19 | `ensure_branch_from_base` + `create_or_update_pull_request`; caller head/base | `test_pr_branch_naming`, `test_forge_client`, orchestrator PR order | `verify_pr_thread` (optional worker) | Head from wave-start identity; no programme `pr.*`; no auto-merge |
-| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | `verify_pr_thread`, status/metrics | `by_runner`, `by_model_id` |
-| Cursor happy path (unit double) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Unit `mock-*` skill ids; live SDK = INIT-003 |
+| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | status/metrics, engineering-lane | `by_runner`, `by_model_id` |
+| Cursor happy path (unit double) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Unit `mock-*` only (`GATEFLOW_AGENT_STUB` removed) |
 
 ## Capability matrix (INIT-GATEFLOW-002 W2)
 
@@ -69,9 +70,9 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | `cursor-sdk` + `CursorAgentSettings` | REQ-27/29 | Poetry + `cursor_agent_settings.py` | `test_cursor_agent_settings` | — | `CURSOR_API_KEY` env only |
-| Local CursorAgentRunner | REQ-27/31 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | W1 engineering-lane | `LocalAgentOptions(cwd)`; no cloud |
-| Start-gate missing key | REQ-28/29 | `slot_validator.py`; API runner/model required | `test_slot_validator`, `test_wave_start` | — | 422 before enqueue; no programme runner fallback |
-| Unit doubles quarantine | REQ-28 | stub/`mock-*` paths | unit only | not live exit | Documented in README + spike |
+| Local CursorAgentRunner | REQ-27/31 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | W1 engineering-lane **pass** | `LocalAgentOptions(cwd)`; no cloud |
+| Start-gate missing key | REQ-28/29 | `slot_validator.py`; API runner/model required | `test_slot_validator`, `test_wave_start` | — | 422 before enqueue |
+| Unit doubles quarantine | REQ-28 | `mock-*` skill ids | unit only | not live exit | `GATEFLOW_AGENT_STUB` removed |
 | Laptop SDK spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
 
 ## Capability matrix (INIT-GATEFLOW-003 W1)
@@ -80,8 +81,9 @@
 |------------|------|------|------|-------------|-------|
 | Docker cursor-sdk bridge spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` **pass** |
 | Failure-path stage + duration | REQ-29/30 | `run_orchestrator.py`, `metrics_emitter.py` | `test_run_orchestrator`, `test_metrics_emitter` | — | FF-05 |
-| `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_engineering_lane` | Human Alembic — `DDL-NOTE-INIT-GATEFLOW-003-W1-wave-duration-ms.md` |
-| Engineering-lane live prove-it | REQ-27/31 | `verify_engineering_lane.py` | — | opt-in `tests/config.yaml` `verify.engineering_lane` | full chain pre-implement→ground-spec; stub unset; worker + key |
+| `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_engineering_lane` **pass** | Alembic `7e79269bd50b`; live `492608` ms |
+| Engineering-lane live prove-it | REQ-27/31 | `verify_engineering_lane.py` | — | **pass** 2026-07-25 | Full chain → `stopped` at `wave-human-decision`; D-W1-L1 closed |
+| Pin walker (no programme.yaml) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | engineering-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
 
 ## Wave status
 
@@ -93,13 +95,15 @@
 | INIT-002 W1 | Per-node model + PR-at-start + metrics | `Ground-Report-INIT-GATEFLOW-002-W1.md` | **human_approved** |
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
-| INIT-003 W1 | Engineering-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **Draft** — awaiting human_approved |
+| INIT-003 W1 | Engineering-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **Draft** — live prove-it recorded; awaiting PE `human_approved` |
 
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
 **human_approved** (2026-07-24). INIT-GATEFLOW-003 **W0** is **human_approved** (2026-07-24).
+
 INIT-GATEFLOW-003 **W1** Ground Report is **Draft** on `feature/INIT-GATEFLOW-003-w1-scenario-b`
-(awaiting PE wave-signoff). Human Alembic `7e79269bd50b` applied locally; live
-engineering-lane opt-in still open (D-W1-L1). Do **not** set W1 `human_approved`
-until PE LGTM.
+with **live engineering-lane prove-it pass** (2026-07-25): run
+`de780ba2-7841-4827-ad69-362358a8176d`, four Cursor stages success, terminal `stopped`
+at `wave-human-decision`, `wave_duration_ms=492608`. D-W1-L1 and D-W1-M1 closed.
+Do **not** set W1 `human_approved` until PE LGTM.
