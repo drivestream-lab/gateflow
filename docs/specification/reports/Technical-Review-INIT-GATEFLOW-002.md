@@ -278,9 +278,9 @@ Caller supplies on `POST /waves/start` (required):
 {
   "initiative_id": "INIT-GATEFLOW-003",
   "wave_id": "W1",
-  "branch_slug": "scenario-b",
+  "branch_slug": "engineering-lane",
   "base_branch": "develop",
-  "start_node": "loop-spec",
+  "start_node": "pre-implement",
   "runner": "cursor",
   "model_id": "cursor/auto",
   "org": "drivestream-lab",

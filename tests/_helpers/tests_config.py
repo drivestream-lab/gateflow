@@ -30,22 +30,22 @@ class VerifyConfig(BaseModel):
     repo: str = Field(default="gateflow")
     require_worker: bool = Field(
         default=False,
-        description="True when worker is up and PR/Scenario live asserts are required",
+        description="True when worker is up and PR / live lane asserts are required",
     )
     workspace: str = Field(
         default="",
         description="Wave-start workspace; empty means process cwd",
     )
-    scenario_b: bool = Field(
+    engineering_lane: bool = Field(
         default=False,
-        description="Opt-in long live Cursor Scenario B prove-it",
+        description="Opt-in long live Cursor engineering-lane prove-it",
     )
-    scenario_b_evidence: str = Field(
+    engineering_lane_evidence: str = Field(
         default="",
-        description="Evidence JSON path for Scenario B (absolute preferred)",
+        description="Evidence JSON path for engineering lane (absolute preferred)",
     )
-    scenario_b_timeout_s: float = Field(default=1800.0, ge=1.0)
-    start_node: str = Field(default="loop-spec")
+    engineering_lane_timeout_s: float = Field(default=3600.0, ge=1.0)
+    start_node: str = Field(default="pre-implement")
     runner: str = Field(default="cursor")
     model_id: str = Field(default="cursor/auto")
 

@@ -15,7 +15,6 @@ from src.models.policy_types import AgentRunOutcomeType
 def _reset_cursor_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     CursorAgentSettings.reset_instance()
     monkeypatch.setenv("CURSOR_API_KEY", "")
-    monkeypatch.delenv("GATEFLOW_AGENT_STUB", raising=False)
     yield
     CursorAgentSettings.reset_instance()
 
@@ -37,22 +36,6 @@ async def test_mock_skill_prefix_stub_success() -> None:
     assert result.runner == "cursor"
     assert result.model_profile == "loop"
     assert result.model_id == "cursor/fast"
-
-
-@pytest.mark.asyncio
-async def test_gateflow_agent_stub_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GATEFLOW_AGENT_STUB", "1")
-    runner = CursorAgentRunner()
-    await runner.initialize()
-    result = await runner.run_skill(
-        workspace_path="/tmp",
-        skill_id="loop-spec",
-        prompt_context={},
-        model_profile="default",
-        runner="cursor",
-        model_id="cursor/auto",
-    )
-    assert result.outcome == AgentRunOutcomeType.SUCCESS
 
 
 @pytest.mark.asyncio

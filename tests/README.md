@@ -25,7 +25,8 @@ make check && make test
 #    docs/specification/reports/DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md)
 # .venv/bin/python -m src.main
 # optional worker: .venv/bin/python -m src.worker_main
-# Prefer: make run  (API + worker; required for wave-start / Scenario B)# set -a && source .env && set +a
+# Prefer: make run  (API + worker; required for wave-start / engineering-lane)
+# set -a && source .env && set +a
 #   needs GITHUB_WEBHOOK_SECRET + PROGRAMME_SERVICE_TOKEN
 # .venv/bin/python -m tests.verify.verify_all
 #
@@ -52,8 +53,8 @@ make check && make test
 
 | Concern | Where |
 |---------|--------|
-| App runtime (DB, Redis, forge auth, Cursor key, programme token, findings/metrics, agent stub) | `.env` (from `.env.example`) |
-| Live verify URLs, org/repo, worker/Scenario B flags, evidence path, Enter-at defaults | `tests/config.yaml` (from `tests/config.yaml.example`) |
+| App runtime (DB, Redis, forge auth, Cursor key, programme token, findings/metrics) | `.env` (from `.env.example`) |
+| Live verify URLs, org/repo, worker/engineering-lane flags, evidence path, Enter-at defaults | `tests/config.yaml` (from `tests/config.yaml.example`) |
 
 ```bash
 cp tests/config.yaml.example tests/config.yaml
@@ -114,7 +115,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | CursorAgentSettings (`CURSOR_API_KEY`) | — | `test_cursor_agent_settings` |
-| Local cursor-sdk AgentRunner (mocked) | Scenario B = W1 | `test_cursor_agent_runner` |
+| Local cursor-sdk AgentRunner (mocked) | engineering-lane = W1 | `test_cursor_agent_runner` |
 | Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
 | Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
 
@@ -124,10 +125,13 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 |------------|---------------|--------|
 | Docker/image cursor-sdk bridge spike | inspection | `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` |
 | Failure-path stage + duration_ms | — | `test_run_orchestrator`, `test_metrics_emitter` |
-| `runs.wave_duration_ms` + run detail | Scenario B verify (opt-in) | `test_run_orchestrator` |
-| Scenario B live Cursor prove-it | `python -m tests.verify.verify_scenario_b` (opt-in; in `verify_all`) | — |
+| `runs.wave_duration_ms` + run detail | engineering-lane verify (opt-in) | `test_run_orchestrator` |
+| Engineering-lane live Cursor prove-it | `python -m tests.verify.verify_engineering_lane` (opt-in; **not** in `verify_all`) | — |
 
-### Scenario B live verify prereqs
+### Engineering-lane live verify prereqs
+
+Pin chain (Enter-at `pre-implement`):  
+`pre-implement` → `loop-spec` → `verify` → `ground-spec` → STOP at `wave-human-decision`.
 
 App secrets in `.env`; verify flags in `tests/config.yaml`. Shared Postgres/Redis via
 `POSTGRES_*` / `REDIS_*` — do not require `docker compose` when those already
@@ -139,26 +143,20 @@ point at shared infra.
 
 cp tests/config.yaml.example tests/config.yaml
 # edit tests/config.yaml:
-#   verify.scenario_b: true
+#   verify.engineering_lane: true
 #   verify.require_worker: true
-#   verify.scenario_b_evidence: /absolute/path/...
-#   verify.start_node: pre-implement   # or other Scenario B node
+#   verify.engineering_lane_evidence: /absolute/path/...
+#   verify.start_node: pre-implement
 
-# Terminal A/B — API + worker (both source .env)
-set -a && source .env && set +a
-.venv/bin/python -m src.main
-# other terminal:
-set -a && source .env && set +a
-.venv/bin/python -m src.worker_main
+# Terminal — API + worker
+make run
 
-# Verify (CURSOR_API_KEY + PROGRAMME_SERVICE_TOKEN from .env; GATEFLOW_AGENT_STUB empty)
+# Separate terminal — lane prove-it only (do not mix with verify_all while Cursor runs)
 set -a && source .env && set +a
-unset GATEFLOW_AGENT_STUB
-.venv/bin/python -m tests.verify.verify_scenario_b
+.venv/bin/python -m tests.verify.verify_engineering_lane
 ```
 
-Keep `verify.scenario_b: false` in `tests/config.yaml` for routine smoke so
-`verify_all` does not start a long live Cursor run.
+Keep `verify.engineering_lane: false` for routine smoke.
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

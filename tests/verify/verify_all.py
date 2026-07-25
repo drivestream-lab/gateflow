@@ -3,6 +3,9 @@
 Requires running API + migrated Postgres.
 Needs GITHUB_WEBHOOK_SECRET and PROGRAMME_SERVICE_TOKEN in the environment.
 
+Engineering-lane (long live Cursor) is **not** in this aggregator — run
+``python -m tests.verify.verify_engineering_lane`` separately.
+
 Usage:
   set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_all
@@ -15,7 +18,6 @@ from tests.verify import (
     verify_board,
     verify_health,
     verify_pr_thread,
-    verify_scenario_b,
     verify_status_metrics,
     verify_wave_start,
     verify_webhook,
@@ -28,7 +30,6 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_wave_start", verify_wave_start.main),
     ("verify_pr_thread", verify_pr_thread.main),
     ("verify_board", verify_board.main),
-    ("verify_scenario_b", verify_scenario_b.main),
 )
 
 

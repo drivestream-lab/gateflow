@@ -13,8 +13,8 @@ from src.models.pr_branch_naming import (
 
 def test_build_wave_head_branch_happy() -> None:
     assert (
-        build_wave_head_branch("INIT-GATEFLOW-003", "W1", "scenario-b")
-        == "feature/INIT-GATEFLOW-003-w1-scenario-b"
+        build_wave_head_branch("INIT-GATEFLOW-003", "W1", "engineering-lane")
+        == "feature/INIT-GATEFLOW-003-w1-engineering-lane"
     )
 
 

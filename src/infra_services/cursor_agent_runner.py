@@ -1,7 +1,6 @@
 """CursorAgentRunner — local cursor-sdk AgentRunner (ADR-003 infra slot)."""
 
 import json
-import os
 from typing import Any, Optional
 
 from cursor_sdk import AsyncAgent, AsyncClient, LocalAgentOptions
@@ -20,8 +19,8 @@ logger = get_logger()
 class CursorAgentRunner(BaseInfraService):
     """Run skills via in-process local ``cursor-sdk`` (cloud agents never used).
 
-    Test doubles (``mock-*`` skill prefix or ``GATEFLOW_AGENT_STUB=1``) are for
-    unit tests only — not live prove-it exit evidence (INIT-GATEFLOW-003).
+    Unit tests may use a ``mock-*`` skill id; that path is not live prove-it
+    evidence (INIT-GATEFLOW-003).
     """
 
     @inject
@@ -42,9 +41,6 @@ class CursorAgentRunner(BaseInfraService):
 
     async def health_check(self) -> bool:
         return self._initialized
-
-    def _stub_enabled(self) -> bool:
-        return os.environ.get("GATEFLOW_AGENT_STUB", "").strip() in {"1", "true", "yes"}
 
     def _resolve_dispatch(
         self,
@@ -104,15 +100,14 @@ class CursorAgentRunner(BaseInfraService):
                 error_message="force_failure=true in prompt_context",
             )
 
-        if skill_id.startswith("mock-") or self._stub_enabled():
+        if skill_id.startswith("mock-"):
             logger.info(
-                "Agent run stub success (unit/test double only)",
+                "Agent run mock-* success (unit test double only)",
                 skill_id=skill_id,
                 workspace_path=workspace_path,
                 model_profile=model_profile,
                 runner=resolved_runner,
                 model_id=resolved_model_id,
-                stub_env=self._stub_enabled(),
             )
             return AgentRunResult(
                 runner=resolved_runner,
@@ -136,7 +131,7 @@ class CursorAgentRunner(BaseInfraService):
                 model_provider=resolved_provider,
                 error_message=(
                     "Cursor AgentRunner unavailable — CURSOR_API_KEY required for live "
-                    "local cursor-sdk (unit doubles: mock-* skill or GATEFLOW_AGENT_STUB=1)"
+                    "local cursor-sdk"
                 ),
             )
 
@@ -276,7 +271,18 @@ class CursorAgentRunner(BaseInfraService):
         context_json = json.dumps(prompt_context, default=str, sort_keys=True)
         return (
             f"Execute the Gateflow skill `{skill_id}` in this workspace.\n"
-            f"Prompt context (JSON): {context_json}"
+            f"Prompt context (JSON): {context_json}\n"
+            "\n"
+            "Durable handoff rules for orchestrated engineering-lane skills "
+            "(`pre-implement`, `loop-spec`, `verify`, `ground-spec`):\n"
+            "- Write a durable handoff YAML block with stage equal to this skill id.\n"
+            "- Set outcome from the skill result (usually pass).\n"
+            "- Set human_checkpoint: false so Gateflow can continue to the next "
+            "pin outcome (orchestrated auto-walk).\n"
+            "- Only set human_checkpoint: true when you intentionally stop the "
+            "wave for a human (not the default on pass).\n"
+            "- Do not treat next_candidates as Gateflow authority; pin outcomes "
+            "drive the walker.\n"
         )
 
     def _sdk_model_id(self, resolved_model_id: Optional[str]) -> str:
