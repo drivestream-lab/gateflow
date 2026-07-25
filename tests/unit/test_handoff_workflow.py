@@ -1,4 +1,4 @@
-"""Unit tests for HandoffReader and WorkflowEngine (TASK-W0-05)."""
+"""Unit tests for HandoffReader and WorkflowEngine."""
 
 from pathlib import Path
 
@@ -6,25 +6,7 @@ import pytest
 
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.workflow_engine import WorkflowEngine
-from src.configs.programme_config_loader import load_programme_config
 from src.models.handoff_models import HandoffEnvelope
-from src.models.programme_config_models import ProgrammeConfig
-
-
-@pytest.fixture(autouse=True)
-def _programme_config(tmp_path: Path) -> ProgrammeConfig:
-    ProgrammeConfig.reset_instance()
-    return load_programme_config(Path("config/programme.yaml"))
-
-
-def test_resolve_git_ref_prefers_pr_head() -> None:
-    reader = HandoffReader()
-    assert reader.resolve_git_ref(pr_head_sha="abc123", default_branch="develop") == "abc123"
-
-
-def test_resolve_git_ref_falls_back_to_default_branch() -> None:
-    reader = HandoffReader()
-    assert reader.resolve_git_ref(pr_head_sha=None, default_branch="develop") == "develop"
 
 
 def test_parse_and_find_handoff(tmp_path: Path) -> None:
@@ -37,18 +19,8 @@ def test_parse_and_find_handoff(tmp_path: Path) -> None:
         "  human_checkpoint: false\n  external_action: false\n```\n",
         encoding="utf-8",
     )
-    config = ProgrammeConfig.get_instance()
-    # Override globs relative to tmp workspace
-    config = config.model_copy(
-        update={
-            "handoff": config.handoff.model_copy(
-                update={"artifact_globs": ["docs/specification/reports/**/*"]}
-            )
-        }
-    )
-    ProgrammeConfig.set_instance(config)
     reader = HandoffReader()
-    envelope = reader.find_latest_handoff(tmp_path, programme_config=config)
+    envelope = reader.find_latest_handoff(tmp_path)
     assert envelope.stage == "board-seed"
     assert envelope.outcome == "pass"
 
@@ -64,7 +36,23 @@ def test_workflow_resolve_next_from_pin() -> None:
     resolved = engine.resolve_next(handoff)
     assert resolved.node_id == "pre-implement"
     assert resolved.node_type == "skill"
+    # board-seed is manual in pin; next node pre-implement is orchestrated
     assert resolved.dispatch == "orchestrated"
+
+
+def test_require_orchestrated_skill_ok() -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.require_orchestrated_skill("loop-spec")
+    assert node.node_id == "loop-spec"
+    assert node.dispatch == "orchestrated"
+
+
+def test_require_orchestrated_skill_rejects_manual() -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    with pytest.raises(ValueError, match="orchestrated"):
+        engine.require_orchestrated_skill("board-seed")
 
 
 def test_workflow_missing_pin_fails(tmp_path: Path) -> None:

@@ -1,0 +1,29 @@
+# Copy to tests/config.yaml (gitignored) for local live debug / verify.
+# Verify scripts read this file — not .env — for URLs and flow flags.
+# App secrets (PROGRAMME_SERVICE_TOKEN, CURSOR_API_KEY, forge creds) stay in .env.
+
+forge:
+  org: drivestream-lab
+  repo: gateflow
+  base_branch: develop
+  # Optional: leave empty to use a generated probe branch
+  # probe_branch_prefix: gateflow/debug-probe-
+
+verify:
+  base_url: http://127.0.0.1:8080
+  org: drivestream-lab
+  repo: gateflow
+  # Set true when a worker is running and you want PR / Scenario live asserts
+  require_worker: false
+  # Workspace for wave-start (empty → process cwd)
+  workspace: ""
+  # INIT-GATEFLOW-003 Scenario B opt-in (long live Cursor run). Keep false for smoke.
+  scenario_b: false
+  # Evidence file path (absolute recommended). Relative paths join workspace/cwd.
+  # Verify mkdir -p the parent; the live agent writes the file.
+  scenario_b_evidence: /absolute/path/to/run_gateflow/evidence/scenario-b-live.json
+  scenario_b_timeout_s: 1800
+  # Default Enter-at fields for wave-start verify bodies
+  start_node: loop-spec
+  runner: cursor
+  model_id: cursor/auto

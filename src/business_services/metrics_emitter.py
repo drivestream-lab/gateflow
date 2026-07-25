@@ -28,7 +28,7 @@ from src.models.control_plane_models import (
     RunMetricsResponse,
     RunStatusResponse,
 )
-from src.models.programme_config_models import ProgrammeConfig
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.run_store_models import RunEventCreate
 from src.models.run_store_types import RunOutcomeType
 
@@ -273,11 +273,10 @@ class MetricsEmitter(BaseBusinessService):
     async def aggregate_run_metrics(
         self,
         session: AsyncSession,
-        programme_config: Optional[ProgrammeConfig] = None,
     ) -> RunMetricsResponse:
         """Compute p50/p95 by workflow_node, runner, and model_id within retention."""
-        config = programme_config or ProgrammeConfig.get_instance()
-        cutoff = datetime.now(UTC) - timedelta(days=config.metrics.retention_days)
+        orchestration = OrchestrationSettings.get_instance()
+        cutoff = datetime.now(UTC) - timedelta(days=orchestration.metrics_retention_days)
         stmt = (
             select(RunEventSchema)
             .where(RunEventSchema.event_type == "stage_completed")
@@ -305,7 +304,7 @@ class MetricsEmitter(BaseBusinessService):
             for node, durations in sorted(by_node.items())
         ]
         return RunMetricsResponse(
-            retention_days=config.metrics.retention_days,
+            retention_days=orchestration.metrics_retention_days,
             by_workflow_node=aggregates,
             by_runner=_bucket_durations(rows, key_field="runner"),
             by_model_id=_bucket_durations(rows, key_field="model_id"),

@@ -2,26 +2,27 @@
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
-  - PROGRAMME_SERVICE_TOKEN
-  - CURSOR_API_KEY set
-  - GATEFLOW_AGENT_STUB unset / not truthy
-  - GATEFLOW_VERIFY_SCENARIO_B=1 (explicit opt-in — live agent work)
-  - GATEFLOW_VERIFY_WORKER=1 with worker processing api_trigger jobs
-  - Workspace at GATEFLOW_VERIFY_WORKSPACE (default: repo cwd) containing a
-    handoff that resolves next orchestrated node in Scenario B
+  - PROGRAMME_SERVICE_TOKEN + CURSOR_API_KEY in .env (app secrets)
+  - GATEFLOW_AGENT_STUB unset / not truthy in .env
+  - tests/config.yaml: verify.scenario_b: true, verify.require_worker: true
+  - verify.workspace (optional; default cwd) and verify.scenario_b_evidence
+  - Wave-start Enter-at: start_node in Scenario B set
     (pre-implement | loop-spec | verify | ground-spec)
 
 Asserts (when opted in):
   - Wave-start accepted
   - Run stage(s) with runner=cursor after worker dispatch
   - wave_duration_ms present on terminal run detail
-  - Coding-work evidence file GATEFLOW_SCENARIO_B_EVIDENCE (default
-    .gateflow/evidence/scenario-b-live.json) exists or is created by the agent
+  - Coding-work evidence file at ``verify.scenario_b_evidence``
+    (absolute path used as-is; relative paths join workspace/cwd).
+    Verify creates the parent directory; the JSON file must be written by the live
+    agent (not pre-seeded).
 
 Usage:
+  cp tests/config.yaml.example tests/config.yaml
+  # edit tests/config.yaml: scenario_b: true, require_worker: true, evidence path
   set -a && source .env && set +a
   unset GATEFLOW_AGENT_STUB
-  export GATEFLOW_VERIFY_SCENARIO_B=1 GATEFLOW_VERIFY_WORKER=1
   .venv/bin/python -m tests.verify.verify_scenario_b
 """
 
@@ -36,16 +37,19 @@ from pathlib import Path
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config
 
 _SCENARIO_B_NODES = frozenset({"pre-implement", "loop-spec", "verify", "ground-spec"})
 
 
 def main() -> int:
-    if os.environ.get("GATEFLOW_VERIFY_SCENARIO_B", "").strip() not in {"1", "true", "yes"}:
+    cfg = load_tests_config()
+    if not cfg.verify.scenario_b:
         print(
-            "[INFO] GATEFLOW_VERIFY_SCENARIO_B not set — skipping live Scenario B "
+            "[INFO] verify.scenario_b is false — skipping live Scenario B "
             "(unit + Docker spike cover non-live gates). "
-            "Set GATEFLOW_VERIFY_SCENARIO_B=1 with worker + CURSOR_API_KEY for prove-it."
+            "Set verify.scenario_b: true in tests/config.yaml with worker + "
+            "CURSOR_API_KEY for prove-it."
         )
         return 0
 
@@ -58,8 +62,11 @@ def main() -> int:
         print("[ERROR] CURSOR_API_KEY is required for Scenario B live prove-it")
         return 1
 
-    if os.environ.get("GATEFLOW_VERIFY_WORKER", "").strip() not in {"1", "true", "yes"}:
-        print("[ERROR] GATEFLOW_VERIFY_WORKER=1 required (worker must claim api_trigger)")
+    if not cfg.verify.require_worker:
+        print(
+            "[ERROR] verify.require_worker: true required in tests/config.yaml "
+            "(worker must claim api_trigger)"
+        )
         return 1
 
     base_url = require_base_url()
@@ -68,16 +75,30 @@ def main() -> int:
         print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
         return 1
 
-    workspace = Path(os.environ.get("GATEFLOW_VERIFY_WORKSPACE") or Path.cwd()).resolve()
-    evidence_rel = os.environ.get(
-        "GATEFLOW_SCENARIO_B_EVIDENCE",
-        ".gateflow/evidence/scenario-b-live.json",
-    )
-    evidence_path = workspace / evidence_rel
-    timeout_s = float(os.environ.get("GATEFLOW_SCENARIO_B_TIMEOUT_S", "1800"))
+    workspace = Path(cfg.verify.workspace or Path.cwd()).resolve()
+    evidence_raw = cfg.verify.scenario_b_evidence.strip()
+    if not evidence_raw:
+        print("[ERROR] verify.scenario_b_evidence is required in tests/config.yaml")
+        return 1
+    evidence_path = Path(evidence_raw).expanduser()
+    if not evidence_path.is_absolute():
+        evidence_path = (workspace / evidence_path).resolve()
+    else:
+        evidence_path = evidence_path.resolve()
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] evidence path from tests/config.yaml: {evidence_path}")
+    timeout_s = float(cfg.verify.scenario_b_timeout_s)
+
+    start_node = cfg.verify.start_node
+    if start_node not in _SCENARIO_B_NODES:
+        print(
+            f"[ERROR] verify.start_node={start_node!r} not in Scenario B set "
+            f"{sorted(_SCENARIO_B_NODES)}"
+        )
+        return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    initiative_id = f"INIT-VERIFY-SCENARIO-B-{uuid.uuid4().hex[:8]}"
+    initiative_id = f"INIT-SCENB-{uuid.uuid4().int % 10_000_000}"
     wave_id = "W1"
 
     try:
@@ -86,10 +107,15 @@ def main() -> int:
                 f"{base_url}/api/v1/waves/start",
                 headers=headers,
                 json={
-                    "org": "drivestream-lab",
-                    "repo": "gateflow",
+                    "org": cfg.verify.org,
+                    "repo": cfg.verify.repo,
                     "initiative_id": initiative_id,
                     "wave_id": wave_id,
+                    "branch_slug": "scenario-b",
+                    "base_branch": cfg.forge.base_branch,
+                    "start_node": start_node,
+                    "runner": cfg.verify.runner,
+                    "model_id": cfg.verify.model_id,
                     "workspace_path": str(workspace),
                 },
             )
@@ -151,18 +177,19 @@ def main() -> int:
             if detail_body.get("wave_duration_ms") is None:
                 print(
                     f"[ERROR] expected wave_duration_ms on run detail "
-                    f"(apply human Alembic DDL-NOTE-INIT-GATEFLOW-003-W1): {detail_body}"
+                    f"(status={detail_body.get('status_type')}): {detail_body}"
                 )
                 return 1
             print(f"[OK] wave_duration_ms={detail_body.get('wave_duration_ms')}")
 
             if not evidence_path.is_file():
                 print(
-                    f"[ERROR] coding-work evidence missing at {evidence_path} "
-                    "(agent should write GATEFLOW_SCENARIO_B_EVIDENCE)"
+                    f"[ERROR] expected coding-work evidence file at {evidence_path} "
+                    "(agent must write it; do not pre-seed)"
                 )
                 return 1
-            print(f"[OK] coding-work evidence present: {evidence_path}")
+            print(f"[OK] evidence file present: {evidence_path}")
+
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure: {exc}")
         return 1

@@ -8,20 +8,6 @@ import pytest
 
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.database.postgres.schema.run_store_schema import RunEventSchema
-from src.models.programme_config_models import ProgrammeConfig
-
-
-@pytest.fixture(autouse=True)
-def _programme_config() -> None:
-    ProgrammeConfig.reset_instance()
-    ProgrammeConfig.set_instance(
-        ProgrammeConfig.model_validate(
-            {
-                "notifier": {"default": "github_comment"},
-                "metrics": {"retention_days": 90},
-            }
-        )
-    )
 
 
 @pytest.mark.asyncio

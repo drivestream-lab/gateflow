@@ -5,7 +5,8 @@ PROGRAMME_SERVICE_TOKEN. Labelled webhooks may still 202 at ingress but must
 not be treated as the start path for 002 programmes.
 
 Usage:
-  set -a && source .env && set +a
+  cp tests/config.yaml.example tests/config.yaml   # once
+  set -a && source .env && set +a                  # app secrets only
   .venv/bin/python -m tests.verify.verify_wave_start
 """
 
@@ -19,6 +20,7 @@ import uuid
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -27,6 +29,7 @@ def _sign(secret: str, body: bytes) -> str:
 
 
 def main() -> int:
+    cfg = load_tests_config()
     base_url = require_base_url()
     token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
     if not token:
@@ -35,13 +38,18 @@ def main() -> int:
 
     headers = {"Authorization": f"Bearer {token}"}
     start_url = f"{base_url}/api/v1/waves/start"
-    initiative_id = f"INIT-VERIFY-{uuid.uuid4().hex[:8]}"
+    initiative_id = f"INIT-VFY-{uuid.uuid4().int % 10_000_000}"
     wave_id = "W0"
     body = {
-        "org": "drivestream-lab",
-        "repo": "gateflow",
+        "org": cfg.verify.org,
+        "repo": cfg.verify.repo,
         "initiative_id": initiative_id,
         "wave_id": wave_id,
+        "branch_slug": "verify-wave-start",
+        "base_branch": cfg.forge.base_branch,
+        "start_node": cfg.verify.start_node,
+        "runner": cfg.verify.runner,
+        "model_id": cfg.verify.model_id,
     }
 
     try:

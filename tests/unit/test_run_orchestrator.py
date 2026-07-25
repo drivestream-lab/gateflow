@@ -9,28 +9,37 @@ from uuid import uuid4
 
 import pytest
 
+from src.business_services.policy_engine import PolicyEngine
 from src.business_services.run_orchestrator import RunOrchestrator
-from src.configs.programme_config_loader import load_programme_config
+from src.business_services.workflow_engine import WorkflowEngine
 from src.models.control_plane_models import AgentRunResult
-from src.models.policy_types import AgentRunOutcomeType, PolicyDecisionType
-from src.models.programme_config_models import ProgrammeConfig
+from src.models.policy_types import AgentRunOutcomeType
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 
 
-@pytest.fixture(autouse=True)
-def _programme_config() -> ProgrammeConfig:
-    ProgrammeConfig.reset_instance()
-    return load_programme_config(Path("config/programme.yaml"))
-
-
-def _dispatch_handoff() -> dict[str, object]:
+def _gate_stop_handoff(stage: str = "loop-spec") -> dict[str, object]:
+    """Payload handoff that stops the walker after the executed stage."""
     return {
         "contract": "sdd-delivery/v2",
-        "stage": "board-seed",
+        "stage": stage,
         "outcome": "pass",
         "blockers": [],
-        "human_checkpoint": False,
+        "human_checkpoint": True,
+    }
+
+
+def _dispatch_plan(
+    *,
+    start_node: str = "loop-spec",
+    model_id: str = "cursor/fast",
+) -> dict[str, object]:
+    return {
+        "start_node": start_node,
+        "dispatch_plan": {
+            "default": {"runner": "cursor", "model_id": model_id, "model_profile": "api"},
+            "nodes": {},
+        },
     }
 
 
@@ -45,8 +54,9 @@ def _job_payload(**extra: object) -> JobPayloadDocument:
         },
         "pull_request": {"number": 7},
         "label": {"name": "gateflow:run-wave"},
-        "handoff": _dispatch_handoff(),
         "workspace_path": str(Path.cwd()),
+        **_dispatch_plan(),
+        "handoff": _gate_stop_handoff(),
         **extra,
     }
     return JobPayloadDocument.model_validate(base)
@@ -93,15 +103,12 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     )
 
     trigger_router = MagicMock()
-    policy_engine = MagicMock()
     handoff_reader = MagicMock()
     notifier = MagicMock()
     notifier.notify_precondition_failure = AsyncMock(return_value=False)
     notifier.post_run_event_comment = AsyncMock(return_value=False)
     metrics_emitter = MagicMock()
     metrics_emitter.record_stage_duration = AsyncMock()
-    stage_tool_resolver = MagicMock()
-    stage_tool_resolver.resolve.return_value = MagicMock(slots={})
     launchpad_client = MagicMock()
     launchpad_client.sync_harness = AsyncMock()
     cursor_agent_runner = MagicMock()
@@ -110,16 +117,20 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
     forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
+    workflow_engine = WorkflowEngine()
+    workflow_engine.load_pin()
+    policy_engine = PolicyEngine(workflow_engine=workflow_engine)
 
     defaults = {
         "postgres_service": postgres,
         "trigger_router": trigger_router,
         "policy_engine": policy_engine,
+        "workflow_engine": workflow_engine,
         "handoff_reader": handoff_reader,
         "notifier": notifier,
         "metrics_emitter": metrics_emitter,
-        "stage_tool_resolver": stage_tool_resolver,
         "launchpad_client": launchpad_client,
         "cursor_agent_runner": cursor_agent_runner,
         "forge_client": forge_client,
@@ -175,9 +186,8 @@ async def test_concurrent_reject_path_not_dispatched() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stop_path_on_human_checkpoint() -> None:
+async def test_enter_at_missing_start_node_fails() -> None:
     from src.models.control_plane_models import (
-        PolicyDecision,
         TriggerAuthorizationResult,
         TriggerContext,
     )
@@ -189,7 +199,7 @@ async def test_stop_path_on_human_checkpoint() -> None:
             context=TriggerContext(
                 org="acme",
                 repo="widget",
-                event_type="pull_request",
+                event_type="api_trigger",
                 delivery_id="d-run",
                 trigger_label="gateflow:run-wave",
                 pr_number=7,
@@ -197,42 +207,29 @@ async def test_stop_path_on_human_checkpoint() -> None:
             failures=[],
         )
     )
-    policy_engine = MagicMock()
-    policy_engine.evaluate_dispatch = MagicMock(
-        return_value=PolicyDecision(
-            decision=PolicyDecisionType.STOP,
-            block_reason="handoff.human_checkpoint is true",
-        )
-    )
-    orchestrator = _build_orchestrator(
-        trigger_router=trigger_router,
-        policy_engine=policy_engine,
-    )
+    orchestrator = _build_orchestrator(trigger_router=trigger_router)
+    payload = _job_payload()
+    raw = payload.model_dump()
+    raw.pop("start_node", None)
+    raw.pop("dispatch_plan", None)
     job = JobModel(
         id=uuid4(),
         status_type=JobStatusType.CLAIMED,
-        payload=_job_payload(
-            handoff={
-                **_dispatch_handoff(),
-                "human_checkpoint": True,
-            }
-        ),
+        payload=JobPayloadDocument.model_validate(raw),
         delivery_id="d-run",
     )
     summary = await orchestrator.process_job(job)
     assert summary.dispatched is False
     assert summary.run_id is not None
-    assert summary.terminal_status == RunStatusType.STOPPED.value
+    assert summary.terminal_status == RunStatusType.FAILED.value
 
 
 @pytest.mark.asyncio
 async def test_agent_failure_marks_run_failed() -> None:
     from src.models.control_plane_models import (
-        PolicyDecision,
         TriggerAuthorizationResult,
         TriggerContext,
     )
-    from src.models.handoff_models import ResolvedWorkflowNode
 
     trigger_router = MagicMock()
     trigger_router.authorize_and_check = AsyncMock(
@@ -248,17 +245,6 @@ async def test_agent_failure_marks_run_failed() -> None:
                 workspace_path=str(Path.cwd()),
             ),
             failures=[],
-        )
-    )
-    policy_engine = MagicMock()
-    policy_engine.evaluate_dispatch = MagicMock(
-        return_value=PolicyDecision(
-            decision=PolicyDecisionType.DISPATCH,
-            next_node=ResolvedWorkflowNode(
-                node_id="pre-implement",
-                node_type="skill",
-                dispatch="orchestrated",
-            ),
         )
     )
     cursor_agent_runner = MagicMock()
@@ -304,7 +290,6 @@ async def test_agent_failure_marks_run_failed() -> None:
     )
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
-        policy_engine=policy_engine,
         cursor_agent_runner=cursor_agent_runner,
         metrics_emitter=metrics_emitter,
         stage_repository=stage_repo,
@@ -314,7 +299,7 @@ async def test_agent_failure_marks_run_failed() -> None:
         JobModel(
             id=uuid4(),
             status_type=JobStatusType.CLAIMED,
-            payload=_job_payload(),
+            payload=_job_payload(event_type="api_trigger"),
             delivery_id="d-run",
         )
     )
@@ -329,7 +314,7 @@ async def test_agent_failure_marks_run_failed() -> None:
 
     assert stage_create.outcome_type == RunOutcomeType.FAILED
     assert stage_create.runner == "cursor"
-    assert stage_create.workflow_node == "pre-implement"
+    assert stage_create.workflow_node == "loop-spec"
     update = run_repo.update_run.await_args.args[2]
     assert isinstance(update.wave_duration_ms, int)
     assert update.wave_duration_ms >= 0
@@ -338,11 +323,9 @@ async def test_agent_failure_marks_run_failed() -> None:
 @pytest.mark.asyncio
 async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
     from src.models.control_plane_models import (
-        PolicyDecision,
         TriggerAuthorizationResult,
         TriggerContext,
     )
-    from src.models.handoff_models import ResolvedWorkflowNode
 
     trigger_router = MagicMock()
     trigger_router.authorize_and_check = AsyncMock(
@@ -360,23 +343,12 @@ async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
             failures=[],
         )
     )
-    policy_engine = MagicMock()
-    policy_engine.evaluate_dispatch = MagicMock(
-        return_value=PolicyDecision(
-            decision=PolicyDecisionType.DISPATCH,
-            next_node=ResolvedWorkflowNode(
-                node_id="loop-spec",
-                node_type="skill",
-                dispatch="orchestrated",
-            ),
-        )
-    )
     cursor_agent_runner = MagicMock()
     cursor_agent_runner.run_skill = AsyncMock(
         return_value=AgentRunResult(
             runner="cursor",
             outcome=AgentRunOutcomeType.SUCCESS,
-            model_profile="loop",
+            model_profile="api",
             model_id="cursor/fast",
             model_provider="cursor",
         )
@@ -384,11 +356,11 @@ async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
     forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=99)
 
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
-        policy_engine=policy_engine,
         cursor_agent_runner=cursor_agent_runner,
         stage_repository=stage_repo,
         forge_client=forge_client,
@@ -402,27 +374,25 @@ async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
         )
     )
     assert summary.dispatched is True
-    assert summary.terminal_status == RunStatusType.COMPLETED.value
+    assert summary.terminal_status == RunStatusType.STOPPED.value
     stage_repo.create_stage.assert_awaited()
     stage_create = stage_repo.create_stage.await_args.args[1]
     assert stage_create.runner == "cursor"
-    assert stage_create.model_profile == "loop"
+    assert stage_create.model_profile == "api"
     assert stage_create.model_id == "cursor/fast"
     assert stage_create.model_provider == "cursor"
     cursor_agent_runner.run_skill.assert_awaited()
     call_kwargs = cursor_agent_runner.run_skill.await_args.kwargs
-    assert call_kwargs["model_profile"] == "loop"
+    assert call_kwargs["model_profile"] == "api"
     assert call_kwargs["model_id"] == "cursor/fast"
 
 
 @pytest.mark.asyncio
 async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
     from src.models.control_plane_models import (
-        PolicyDecision,
         TriggerAuthorizationResult,
         TriggerContext,
     )
-    from src.models.handoff_models import ResolvedWorkflowNode
 
     run_id = uuid4()
     run_repo = MagicMock()
@@ -433,7 +403,7 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
             repo="widget",
             status_type=RunStatusType.ACTIVE,
             pr_number=None,
-            initiative_id="INIT-X",
+            initiative_id="INIT-ACME-001",
             wave_id="W1",
             retry_counter=0,
             notify_pending=False,
@@ -448,7 +418,7 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
             outcome_type=update.outcome_type,
             workflow_node=update.workflow_node,
             pr_number=update.pr_number if update.pr_number is not None else 55,
-            initiative_id="INIT-X",
+            initiative_id="INIT-ACME-001",
             wave_id="W1",
             retry_counter=0,
             notify_pending=update.notify_pending or False,
@@ -465,20 +435,9 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
                 delivery_id="d-run",
                 trigger_label="gateflow:run-wave",
                 workspace_path=str(Path.cwd()),
-                initiative_id="INIT-X",
+                initiative_id="INIT-ACME-001",
             ),
             failures=[],
-        )
-    )
-    policy_engine = MagicMock()
-    policy_engine.evaluate_dispatch = MagicMock(
-        return_value=PolicyDecision(
-            decision=PolicyDecisionType.DISPATCH,
-            next_node=ResolvedWorkflowNode(
-                node_id="ground-spec",
-                node_type="skill",
-                dispatch="orchestrated",
-            ),
         )
     )
     cursor_agent_runner = MagicMock()
@@ -486,12 +445,13 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
         return_value=AgentRunResult(
             runner="cursor",
             outcome=AgentRunOutcomeType.SUCCESS,
-            model_profile="ground",
+            model_profile="api",
             model_id="cursor/auto",
             model_provider="cursor",
         )
     )
     forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=55)
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
@@ -510,7 +470,6 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
 
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
-        policy_engine=policy_engine,
         cursor_agent_runner=cursor_agent_runner,
         forge_client=forge_client,
         run_repository=run_repo,
@@ -520,24 +479,35 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
         JobModel(
             id=uuid4(),
             status_type=JobStatusType.CLAIMED,
-            payload=_job_payload(event_type="api_trigger", pr_number=None),
+            payload=_job_payload(
+                event_type="api_trigger",
+                pr_number=None,
+                initiative_id="INIT-ACME-001",
+                wave_id="W1",
+                branch_slug="pr-order",
+                base_branch="develop",
+                **_dispatch_plan(start_node="ground-spec", model_id="cursor/auto"),
+                handoff=_gate_stop_handoff("ground-spec"),
+            ),
             delivery_id="d-run",
         )
     )
     assert summary.dispatched is True
     assert call_order == ["pr", "stage"]
+    forge_client.ensure_branch_from_base.assert_awaited()
     forge_client.create_or_update_pull_request.assert_awaited()
+    pr_kwargs = forge_client.create_or_update_pull_request.await_args.kwargs
+    assert pr_kwargs["head"] == "feature/INIT-ACME-001-w1-pr-order"
+    assert pr_kwargs["base"] == "develop"
 
 
 @pytest.mark.asyncio
 async def test_process_job_never_calls_board_forge_mutations() -> None:
     """FR-24 worker isolation — completing a wave job must not mutate board tickets."""
     from src.models.control_plane_models import (
-        PolicyDecision,
         TriggerAuthorizationResult,
         TriggerContext,
     )
-    from src.models.handoff_models import ResolvedWorkflowNode
 
     trigger_router = MagicMock()
     trigger_router.authorize_and_check = AsyncMock(
@@ -555,28 +525,18 @@ async def test_process_job_never_calls_board_forge_mutations() -> None:
             failures=[],
         )
     )
-    policy_engine = MagicMock()
-    policy_engine.evaluate_dispatch = MagicMock(
-        return_value=PolicyDecision(
-            decision=PolicyDecisionType.DISPATCH,
-            next_node=ResolvedWorkflowNode(
-                node_id="loop-spec",
-                node_type="skill",
-                dispatch="orchestrated",
-            ),
-        )
-    )
     cursor_agent_runner = MagicMock()
     cursor_agent_runner.run_skill = AsyncMock(
         return_value=AgentRunResult(
             runner="cursor",
             outcome=AgentRunOutcomeType.SUCCESS,
-            model_profile="loop",
+            model_profile="api",
             model_id="cursor/fast",
             model_provider="cursor",
         )
     )
     forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
     forge_client.update_issue_status = AsyncMock()
     forge_client.link_pull_request = AsyncMock()
@@ -586,7 +546,6 @@ async def test_process_job_never_calls_board_forge_mutations() -> None:
 
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
-        policy_engine=policy_engine,
         cursor_agent_runner=cursor_agent_runner,
         forge_client=forge_client,
     )
@@ -604,3 +563,136 @@ async def test_process_job_never_calls_board_forge_mutations() -> None:
     forge_client.create_issue.assert_not_called()
     forge_client.apply_issue_labels.assert_not_called()
     forge_client.find_issues_by_labels.assert_not_called()
+
+
+def _authorized_api_trigger() -> MagicMock:
+    from src.models.control_plane_models import (
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    return trigger_router
+
+
+@pytest.mark.asyncio
+async def test_walker_continues_then_stops_at_gate() -> None:
+    from src.models.handoff_models import HandoffEnvelope
+
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="api",
+            model_id="cursor/fast",
+            model_provider="cursor",
+        )
+    )
+    handoff_reader = MagicMock()
+    handoff_reader.find_latest_handoff = MagicMock(
+        side_effect=[
+            HandoffEnvelope(
+                contract="sdd-delivery/v2",
+                stage="loop-spec",
+                outcome="pass",
+                blockers=[],
+                human_checkpoint=False,
+            ),
+            HandoffEnvelope(
+                contract="sdd-delivery/v2",
+                stage="verify",
+                outcome="pass",
+                blockers=[],
+                human_checkpoint=True,
+            ),
+        ]
+    )
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    raw = _job_payload(event_type="api_trigger").model_dump()
+    raw.pop("handoff", None)
+    orchestrator = _build_orchestrator(
+        trigger_router=_authorized_api_trigger(),
+        cursor_agent_runner=cursor_agent_runner,
+        handoff_reader=handoff_reader,
+        stage_repository=stage_repo,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is True
+    assert summary.terminal_status == RunStatusType.STOPPED.value
+    assert stage_repo.create_stage.await_count == 2
+    assert cursor_agent_runner.run_skill.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.configs.orchestration_settings import OrchestrationSettings
+    from src.models.handoff_models import HandoffEnvelope
+
+    monkeypatch.setenv("GATEFLOW_MAX_ORCHESTRATED_HOPS", "1")
+    OrchestrationSettings._instances.pop("OrchestrationSettings", None)
+
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="api",
+            model_id="cursor/fast",
+            model_provider="cursor",
+        )
+    )
+    handoff_reader = MagicMock()
+    handoff_reader.find_latest_handoff = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="loop-spec",
+            outcome="pass",
+            blockers=[],
+            human_checkpoint=False,
+        )
+    )
+    raw = _job_payload(event_type="api_trigger").model_dump()
+    raw.pop("handoff", None)
+    orchestrator = _build_orchestrator(
+        trigger_router=_authorized_api_trigger(),
+        cursor_agent_runner=cursor_agent_runner,
+        handoff_reader=handoff_reader,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is True
+    assert summary.terminal_status == RunStatusType.FAILED.value
+    assert summary.stop_reason is not None
+    assert "Max orchestrated hops" in summary.stop_reason
+    assert cursor_agent_runner.run_skill.await_count == 1
+    OrchestrationSettings._instances.pop("OrchestrationSettings", None)

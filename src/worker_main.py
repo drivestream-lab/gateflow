@@ -8,7 +8,6 @@ import dotenv
 
 from src.configs.app_settings import AppSettings
 from src.configs.github_settings import GithubSettings
-from src.configs.programme_config_loader import load_programme_config
 from src.di.dependency_container import (
     close_all_services,
     configure_container,
@@ -41,7 +40,6 @@ async def run_worker_loop() -> None:
 async def async_main() -> None:
     startup_correlation_id = str(uuid.uuid4())
     with LoggingContext(startup_correlation_id):
-        load_programme_config()
         GithubSettings.get_instance()
         configure_container()
         await initialize_all_services()

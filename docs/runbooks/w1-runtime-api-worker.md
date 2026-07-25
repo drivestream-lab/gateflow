@@ -13,16 +13,27 @@ or AgentRunner inline.
 ## Local stack
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d
+# Preferred — API + worker (ADR-001). Needed for wave-start / Scenario B verify.
+make run
+
+# Or separate terminals:
+make run-api      # HTTP only
+make run-worker   # job claim loop only
+```
+
+`make run` alone used to start **only** the API; jobs stayed `pending` and Cursor
+never ran. Worker claims Postgres jobs and runs `RunOrchestrator`.
+
+```bash
 ./scripts/run_postgres_migration.sh head
-cp -n .env.example .env   # set GITHUB_* and PROGRAMME_SERVICE_TOKEN
-make setup
+# .env already points at shared Postgres/Redis (no docker-compose required)
 
 # Terminal A
-.venv/bin/python -m src.main
+make run
 
-# Terminal B
-.venv/bin/python -m src.worker_main
+# Terminal B — verify
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_all
 ```
 
 Health while worker runs:

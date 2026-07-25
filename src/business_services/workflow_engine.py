@@ -119,6 +119,38 @@ class WorkflowEngine(BaseBusinessService):
             raise ValueError("workflow.yaml missing nodes mapping")
         return {str(node_id) for node_id in nodes.keys()}
 
+    def require_orchestrated_skill(self, node_id: str) -> ResolvedWorkflowNode:
+        """Fail-fast: node must exist, be skill, and dispatch=orchestrated."""
+        if self._workflow is None:
+            self.load_pin()
+        assert self._workflow is not None
+        nodes = self._workflow.get("nodes")
+        if not isinstance(nodes, dict):
+            raise ValueError("workflow.yaml missing nodes mapping")
+        raw = nodes.get(node_id)
+        if not isinstance(raw, dict):
+            raise ValueError(f"Unknown workflow node: {node_id}")
+        node_type = str(raw.get("type", "unknown"))
+        dispatch_raw = raw.get("dispatch")
+        dispatch = str(dispatch_raw) if dispatch_raw is not None else None
+        if node_type != "skill" or dispatch != "orchestrated":
+            raise ValueError(
+                f"start_node {node_id!r} must be type=skill with dispatch=orchestrated "
+                f"(got type={node_type!r} dispatch={dispatch!r})"
+            )
+        next_outcomes = raw.get("outcomes")
+        outcomes_map = (
+            {str(k): str(v) for k, v in next_outcomes.items()}
+            if isinstance(next_outcomes, dict)
+            else {}
+        )
+        return ResolvedWorkflowNode(
+            node_id=node_id,
+            node_type=node_type,
+            dispatch=dispatch,
+            outcomes=outcomes_map,
+        )
+
 
 def get_workflow_engine() -> WorkflowEngine:
     from src.di.dependency_container import provide_service

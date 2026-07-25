@@ -1,6 +1,5 @@
 """Unit tests for TriggerRouter and PolicyEngine (W1 control plane)."""
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -8,18 +7,10 @@ import pytest
 
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.trigger_router import TriggerRouter
-from src.configs.programme_config_loader import load_programme_config
 from src.models.handoff_models import HandoffEnvelope
 from src.models.policy_types import PolicyDecisionType, WavePreconditionIdType
-from src.models.programme_config_models import ProgrammeConfig
 from src.models.run_store_models import RunModel
 from src.models.run_store_types import RunStatusType
-
-
-@pytest.fixture(autouse=True)
-def _programme_config() -> ProgrammeConfig:
-    ProgrammeConfig.reset_instance()
-    return load_programme_config(Path("config/programme.yaml"))
 
 
 def _labeled_payload(label: str = "gateflow:run-wave") -> dict[str, object]:
@@ -152,12 +143,11 @@ def test_policy_block_on_contract_mismatch() -> None:
     assert decision.decision == PolicyDecisionType.BLOCK
 
 
-def test_policy_findings_budget_stop() -> None:
-    config = ProgrammeConfig.get_instance()
-    config = config.model_copy(
-        update={"retry": config.retry.model_copy(update={"findings_budget": 2})}
-    )
-    ProgrammeConfig.set_instance(config)
+def test_policy_findings_budget_stop(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.configs.orchestration_settings import OrchestrationSettings
+
+    monkeypatch.setenv("GATEFLOW_FINDINGS_BUDGET", "2")
+    OrchestrationSettings._instances.pop("OrchestrationSettings", None)
     policy = PolicyEngine(workflow_engine=MagicMock())
     handoff = HandoffEnvelope(
         contract="sdd-delivery/v2",
@@ -167,3 +157,4 @@ def test_policy_findings_budget_stop() -> None:
     decision = policy.evaluate_dispatch(handoff, MagicMock(), retry_counter=2)
     assert decision.decision == PolicyDecisionType.STOP
     assert "Retry budget exhausted" in (decision.block_reason or "")
+    OrchestrationSettings._instances.pop("OrchestrationSettings", None)

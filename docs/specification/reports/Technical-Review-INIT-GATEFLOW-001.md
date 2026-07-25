@@ -43,7 +43,8 @@ ORM) or writing gate-approval labels.
 | `src/api/v1/runs_routes.py` | new | status read API | Programme-token protected reads |
 | `src/api/v1/metrics_routes.py` | new | metrics aggregate API | Programme-token protected reads |
 | `src/business_services/*` | base only | TriggerRouter, HandoffReader, WorkflowEngine, PolicyEngine, RunOrchestrator, Notifier, MetricsEmitter, StageToolResolver | Domain orchestration |
-| `src/infra_services/forge_client.py` | new | GitHub outbound | Comments, run-status labels, audit |
+| `src/infra_services/forge_client.py` | new | GitHub outbound REST + forbid guards | Comments, run-status labels, audit; single business-facing forge surface |
+| `src/infra_services/github_token_provider.py` (or equiv) | new | Outbound Bearer mint/resolve | PAT vs App installation **token strategy** (not an ADR-006 product slot) |
 | `src/infra_services/cursor_agent_runner.py` | new | AgentRunner adapter | Cursor SDK dispatch |
 | `src/infra_services/launchpad_client.py` | new | Harness sync | Pre-dispatch sync |
 | `src/database/postgres/schema/*` | base only | runs, stages, events, jobs, webhook_deliveries | ORM tables |
@@ -158,6 +159,71 @@ PE ──Bearer programme token──► GET /api/v1/runs/{id}
 - H1 comments only (no commit statuses)
 - Zero writes to gate-approval labels; zero auto-merge
 
+### 3.5a ForgeClient outbound credential strategy (Q-1 implementation contract)
+
+ADR-003 Q-1 remains normative: **App installation token in production**; **scoped PAT
+only when explicitly configured for non-prod**. This section is the **TDD-only**
+implementation contract for how ForgeClient obtains the Bearer token. It does
+**not** introduce a new ADR and does **not** register PAT/App as ADR-006 adapter
+ids (those slots are runner/notifier product choices).
+
+**Boundary:**
+
+```
+Business (Notifier / BoardService / RunOrchestrator)
+  → ForgeClient (single Protocol / class; PR, comment, board ops)
+       → GithubTokenProvider (Protocol; concrete bound in InfraModule)
+            ├─ PatTokenProvider          when GITHUB_AUTH_MODE=pat
+            └─ AppInstallationTokenProvider  when GITHUB_AUTH_MODE=app
+Inbound webhooks remain ADR-002 forge-signature zone (GITHUB_WEBHOOK_SECRET);
+webhook auth is out of scope for TokenProvider.
+```
+
+**Settings (env — secrets never in programme.yaml):**
+
+| Env / field | Purpose |
+|-------------|---------|
+| `GITHUB_AUTH_MODE` | **Required.** Enum only: `pat` \| `app`. No `auto`, no inference from which secrets are present. |
+| `GITHUB_PERSONAL_ACCESS_TOKEN` | **Required** when mode is `pat`; ignored for credential selection when mode is `app` (must not be used as fallback) |
+| `GITHUB_APP_ID` | **Required** when mode is `app` |
+| `GITHUB_PRIVATE_KEY_PATH` | PEM path; **required** when mode is `app` |
+| `APP_ENVIRONMENT` | `production` **forbids** mode `pat` (ADR-003) |
+
+No `GITHUB_APP_INSTALLATION_ID` (or similar) env — installation is **discovered** at startup in `app` mode via `GET /app/installations` (App JWT). Exactly **one** installation → use it; zero or many → **fail fast** with a clear message (operator narrows App installs or splits Apps per environment).
+
+**Mode behavior (explicit only — fail fast on any violation):**
+
+| `GITHUB_AUTH_MODE` | Behavior |
+|--------------------|----------|
+| `pat` | Bind/use `PatTokenProvider`. **Fail startup** if mode unset/invalid, PAT unset/empty, or `APP_ENVIRONMENT=production`. |
+| `app` | Bind/use `AppInstallationTokenProvider`. **Fail startup** if App id / PEM missing, or installation discovery does not yield exactly one install. |
+
+**Not allowed:**
+
+- Defaulting or inferring mode from which env vars are set
+- Silent fallback `pat` ↔ `app` at startup or mid-run
+- Starting with unset / unknown `GITHUB_AUTH_MODE`
+
+**DI:**
+
+- `InfraModule` binds `GithubTokenProvider` to the concrete class selected by `GITHUB_AUTH_MODE` (fail-fast in the `@provider` if mode/credentials violate the table above).
+- `ForgeClient` injects `GithubTokenProvider` only; it does not branch on mode.
+
+**Lifecycle / invariants:**
+
+- Log `auth_mode` once at ForgeClient / provider init (never the secret).
+- App installation tokens are short-lived: provider refreshes before expiry (or on 401 once) without business callers knowing.
+- Business and routers must not branch on auth mode.
+- Production path inspection (FR-25 / INIT-002): `GITHUB_AUTH_MODE` must be `app`.
+- Forbidden ops (gate-approval labels, auto-merge, no `gh` subprocess) unchanged.
+
+**Errors:**
+
+| Condition | Behavior |
+|-----------|----------|
+| Missing/invalid mode, mode/env/credential conflict | Fail fast at DI provider or `initialize()` — process must not serve forge writes |
+| GitHub 401/403 after token resolve | Surface via existing ForgeClient error/`notify_pending` paths; **do not** switch modes |
+
 ### 3.6 Status / metrics API → RunStore
 
 **Method / entry point:** `get_run` / `aggregate_run_metrics`
@@ -191,6 +257,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 | F-02, F-04 | ADR_REQUIRED | `docs/specification/adr/adr-002-edge-trust-model.md` | Three trust zones: JWT / forge signature / programme token via allowlist + route deps | Accepted | `sha256:e9751d5c969a27dce82b7b3eebc0d4af6eed9cf5d3caeca0b74300ea9d137849` |
 | F-05, Q-1 | ADR_REQUIRED | `docs/specification/adr/adr-003-slot-layer-ownership.md` | Outbound I/O = infra; orchestration = business; App token prod, PAT non-prod only | Accepted | `sha256:581236751ca755a6c26b4f0cbadf5adea010bfeeee20774fc6969013a3a8f632` |
 | F-06 | ADR_REQUIRED | `docs/specification/adr/adr-004-programme-config-authority.md` | In-repo file + Pydantic startup validation; secrets in env only | Accepted | `sha256:64df031b81f3e70032f6c363373b5af98b02f50e0d3089eb8a25915d2da1f697` |
+| Q-1 (impl) | TDD_ONLY | §3.5a | `GITHUB_AUTH_MODE` + TokenProvider inside ForgeClient; not ADR-006 slots | Resolved | N/A |
 | Q-3 | TDD_ONLY | §3.6 mounts | Exact paths listed under interface contracts | Resolved | N/A |
 | F-07 | TDD_ONLY | §3.6 / §8 | Models in `src/models/`; no inline router models | Resolved | N/A |
 | F-08 | TDD_ONLY | §5 / §6 | Pin unavailable → block + comment; unit assert never silent | Resolved | N/A |
@@ -200,7 +267,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 **Derived counts:**
 
 - ADR_REQUIRED: 4
-- TDD_ONLY: 3
+- TDD_ONLY: 4 (includes Q-1 impl §3.5a)
 - DEFERRED_WITH_DEFAULT: 2
 - Accepted ADR files on branch: 4
 - Missing/broken ADR files: 0
@@ -218,6 +285,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 | Concurrent run reject | In-memory/faked repo | — | Optional | exact |
 | AgentRunner failure | Mock runner timeout | — | — | exact outcome `failed` |
 | ForgeClient forbid gates | Mock HTTP asserts no forbidden calls | — | — | exact |
+| ForgeClient TokenProvider | Explicit `pat`/`app` only; prod+`pat` raises; App mint mocked; no fallback | — | Optional live: `GITHUB_AUTH_MODE=app` PR/comment smoke | exact startup errors + Bearer source |
 | Status/metrics auth | Token missing/invalid | — | Programme token smoke | exact 401/200 |
 | RunStore repos | — | Testcontainers/docker Postgres optional later | docker-compose verify | exact row shapes |
 | E2E wave loop | — | — | Label → stop comment on dogfood repo | observational checklist |
@@ -254,7 +322,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 | RunOrchestrator | INFO | `run_id`, `job_id`, `workflow_node`, `outcome` | kwargs not interpolated IDs |
 | PolicyEngine | INFO/WARNING | `decision`, `block_reason`, `workflow_node` | |
 | AgentRunner | INFO/ERROR | `runner`, `model_id`, `outcome`, `duration_ms` | |
-| ForgeClient | INFO/WARNING | `operation`, `notify_pending`, audit ids | |
+| ForgeClient | INFO/WARNING | `operation`, `notify_pending`, audit ids, `auth_mode` (never token) | |
 | status/metrics | INFO | `run_id` | auth failures WARNING without token value |
 
 Align with `logging-loguru.mdc`: static messages + structured kwargs; correlation id from middleware / worker job context.
@@ -288,7 +356,7 @@ migration review — not in ADRs.
 | F-02, F-04 | PE | resolved | Edge trust zones? | ADR-002 Option C | plan | — | adr-002-edge-trust-model |
 | Q-3 | PE | resolved | Exact status/metrics/webhook paths? | TDD §3.6 illustrative mounts | plan | — | TDD_ONLY (not ADR) |
 | F-05 | PE | resolved | Slot layer ownership? | ADR-003 Option B | plan | — | adr-003-slot-layer-ownership |
-| Q-1 | PE | resolved | ForgeClient App vs PAT? | App prod; scoped PAT non-prod only | W0 ForgeClient | — | adr-003 |
+| Q-1 | PE | resolved | ForgeClient App vs PAT? | App prod; scoped PAT non-prod only (ADR-003); **impl** = required `GITHUB_AUTH_MODE=pat\|app` + InfraModule-bound TokenProvider (§3.5a) | W0 ForgeClient (mint deferred → close via §3.5a build) | — | adr-003 + TDD §3.5a |
 | F-06 | PE | resolved | Programme config authority? | ADR-004 Option B | plan | — | adr-004-programme-config-authority |
 | F-07 | PE | resolved | Model placement? | `src/models/` only | plan | — | TDD §3/§8 |
 | F-08 | PE | resolved | Silent pin failure? | Forbidden; block+comment | plan | — | TDD §6 |
@@ -341,7 +409,7 @@ migration review — not in ADRs.
 | Check | Status | Notes |
 |-------|--------|-------|
 | T1 Module boundaries | PASS | §2 table + diagram |
-| T2 Interface contracts | PASS | §3.1–3.6 |
+| T2 Interface contracts | PASS | §3.1–3.6 (+ §3.5a credential strategy) |
 | T3 NEW-ADR dispositions | PASS | F-01+F-03→ADR-001; F-02+F-04→ADR-002; F-05→ADR-003; F-06→ADR-004; Q-3/F-07/08 TDD_ONLY; Q-2/F-10 deferred |
 | T4 Test policy | PASS | §5 |
 | T5 Error handling | PASS | §6 |

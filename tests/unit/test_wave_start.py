@@ -1,33 +1,26 @@
-"""Unit tests for WaveStartService identity and slot gates (FR-15/18)."""
+"""Unit tests for WaveStartService identity, Enter-at, and slot gates."""
 
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.wave_start_service import WaveStartService
+from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.cursor_agent_settings import CursorAgentSettings
-from src.configs.programme_config_loader import load_programme_config
 from src.exceptions.app_exceptions import (
     ConflictError,
     UnprocessableEntityError,
     ValidationError,
 )
 from src.models.adapter_models import AdapterSlotKindType, WaveStartRequest
-from src.models.programme_config_models import ProgrammeConfig
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
-
-
-@pytest.fixture(autouse=True)
-def _programme_config() -> ProgrammeConfig:
-    ProgrammeConfig.reset_instance()
-    return load_programme_config(Path("config/programme.yaml"))
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +29,22 @@ def _cursor_api_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("CURSOR_API_KEY", "test-key-for-wave-start")
     yield
     CursorAgentSettings.reset_instance()
+
+
+def _wave_req(**overrides: object) -> WaveStartRequest:
+    body: dict[str, object] = {
+        "org": "acme",
+        "repo": "widget",
+        "initiative_id": "INIT-ACME-001",
+        "wave_id": "W0",
+        "branch_slug": "unit-test",
+        "base_branch": "develop",
+        "start_node": "loop-spec",
+        "runner": "cursor",
+        "model_id": "cursor/auto",
+    }
+    body.update(overrides)
+    return WaveStartRequest.model_validate(body)
 
 
 def _service(
@@ -62,7 +71,7 @@ def _service(
             org="acme",
             repo="widget",
             status_type=RunStatusType.ACTIVE,
-            initiative_id="INIT-X",
+            initiative_id="INIT-ACME-001",
             wave_id="W0",
             retry_counter=0,
             notify_pending=False,
@@ -85,18 +94,8 @@ def _service(
     registry.register("github_comment", AdapterSlotKindType.NOTIFIER, implemented=True)
     registry.register("slack", AdapterSlotKindType.NOTIFIER, implemented=False)
     validator = SlotValidator(adapter_registry=registry)
-    # Force notifier for stub tests via programme config mutation
-    ProgrammeConfig.get_instance().notifier.default = notifier_id
-    workflow_engine = MagicMock()
-    workflow_engine.known_node_ids = MagicMock(
-        return_value={
-            "loop-spec",
-            "ground-spec",
-            "pre-implement",
-            "verify",
-            "board-seed",
-        }
-    )
+    workflow_engine = WorkflowEngine()
+    workflow_engine.load_pin()
     metrics_emitter = MagicMock()
     metrics_emitter.record_api_trigger = AsyncMock()
     return WaveStartService(
@@ -112,31 +111,32 @@ def _service(
 @pytest.mark.asyncio
 async def test_wave_start_initiative_wave_ok() -> None:
     service = _service()
-    response = await service.start_wave(
-        WaveStartRequest(
-            org="acme",
-            repo="widget",
-            initiative_id="INIT-X",
-            wave_id="W0",
-        )
-    )
+    response = await service.start_wave(_wave_req())
     assert response.status == "active"
     assert response.run_id
     assert response.job_id
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 1
+    call = enqueue.await_args
+    assert call is not None
+    raw = call.args[1].payload.model_dump()
+    assert raw["start_node"] == "loop-spec"
+    assert raw["dispatch_plan"]["default"]["runner"] == "cursor"
+    assert raw["branch_slug"] == "unit-test"
+
+
+@pytest.mark.asyncio
+async def test_wave_start_rejects_manual_start_node() -> None:
+    service = _service()
+    with pytest.raises(ValidationError, match="orchestrated"):
+        await service.start_wave(_wave_req(start_node="board-seed"))
 
 
 @pytest.mark.asyncio
 async def test_wave_start_dual_identity_agree() -> None:
     service = _service()
-    response = await service.start_wave(
-        WaveStartRequest(
-            org="acme",
-            repo="widget",
-            ticket_id="INIT-X:W0",
-            initiative_id="INIT-X",
-            wave_id="W0",
-        )
-    )
+    response = await service.start_wave(_wave_req(ticket_id="INIT-ACME-001:W0"))
     assert response.run_id
 
 
@@ -144,36 +144,28 @@ async def test_wave_start_dual_identity_agree() -> None:
 async def test_wave_start_dual_identity_disagree() -> None:
     service = _service()
     with pytest.raises(ValidationError, match="disagree"):
-        await service.start_wave(
-            WaveStartRequest(
-                org="acme",
-                repo="widget",
-                ticket_id="INIT-X:W0",
-                initiative_id="INIT-X",
-                wave_id="W1",
-            )
-        )
+        await service.start_wave(_wave_req(ticket_id="INIT-ACME-001:W0", wave_id="W1"))
+
+
+def test_wave_start_missing_targeting_fields() -> None:
+    with pytest.raises(PydanticValidationError):
+        WaveStartRequest.model_validate({"org": "acme", "repo": "widget"})
+
+
+def test_wave_start_invalid_initiative_id() -> None:
+    with pytest.raises(PydanticValidationError):
+        _wave_req(initiative_id="INIT-X")
 
 
 @pytest.mark.asyncio
-async def test_wave_start_missing_identity() -> None:
-    service = _service()
-    with pytest.raises(ValidationError, match="ticket_id"):
-        await service.start_wave(WaveStartRequest(org="acme", repo="widget"))
+async def test_wave_start_stub_notifier_422(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.configs.orchestration_settings import OrchestrationSettings
 
-
-@pytest.mark.asyncio
-async def test_wave_start_stub_notifier_422() -> None:
+    monkeypatch.setenv("GATEFLOW_NOTIFIER", "slack")
+    OrchestrationSettings._instances.pop("OrchestrationSettings", None)
     service = _service(notifier_id="slack")
     with pytest.raises(UnprocessableEntityError):
-        await service.start_wave(
-            WaveStartRequest(
-                org="acme",
-                repo="widget",
-                initiative_id="INIT-X",
-                wave_id="W0",
-            )
-        )
+        await service.start_wave(_wave_req())
 
 
 @pytest.mark.asyncio
@@ -184,35 +176,9 @@ async def test_wave_start_missing_cursor_api_key_422(
     CursorAgentSettings.reset_instance()
     service = _service()
     with pytest.raises(UnprocessableEntityError) as exc_info:
-        await service.start_wave(
-            WaveStartRequest(
-                org="acme",
-                repo="widget",
-                initiative_id="INIT-X",
-                wave_id="W0",
-            )
-        )
+        await service.start_wave(_wave_req())
     failures = exc_info.value.details.get("failures", [])
     assert any(f.get("config_key") == "CURSOR_API_KEY" for f in failures)
-
-
-@pytest.mark.asyncio
-async def test_wave_start_unknown_override_node_422() -> None:
-    from src.models.programme_config_models import NodeOverride
-
-    ProgrammeConfig.get_instance().model.overrides["not-a-real-node"] = NodeOverride(
-        profile="default"
-    )
-    service = _service()
-    with pytest.raises(UnprocessableEntityError, match="Unknown override node"):
-        await service.start_wave(
-            WaveStartRequest(
-                org="acme",
-                repo="widget",
-                initiative_id="INIT-X",
-                wave_id="W0",
-            )
-        )
 
 
 @pytest.mark.asyncio
@@ -222,18 +188,11 @@ async def test_wave_start_concurrent_409() -> None:
         org="acme",
         repo="widget",
         status_type=RunStatusType.ACTIVE,
-        initiative_id="INIT-X",
+        initiative_id="INIT-ACME-001",
         wave_id="W0",
         retry_counter=0,
         notify_pending=False,
     )
     service = _service(active=active)
     with pytest.raises(ConflictError):
-        await service.start_wave(
-            WaveStartRequest(
-                org="acme",
-                repo="widget",
-                initiative_id="INIT-X",
-                wave_id="W0",
-            )
-        )
+        await service.start_wave(_wave_req())

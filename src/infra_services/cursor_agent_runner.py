@@ -13,7 +13,6 @@ from src.infra_services.base_infra_service import BaseInfraService
 from src.logging import get_logger
 from src.models.control_plane_models import AgentRunResult
 from src.models.policy_types import AgentRunOutcomeType
-from src.models.programme_config_models import ProgrammeConfig
 
 logger = get_logger()
 
@@ -55,15 +54,17 @@ class CursorAgentRunner(BaseInfraService):
         model_provider: Optional[str],
         model_profile: str,
     ) -> tuple[str, Optional[str], str]:
-        programme_config = ProgrammeConfig.get_instance()
-        resolved_runner = runner or programme_config.runner.default
-        profile_models = programme_config.model.profiles
-        resolved_model_id = model_id or profile_models.get(
-            model_profile, profile_models.get("default")
-        )
+        """Require explicit runner/model from the dispatch plan (no programme YAML)."""
+        _ = model_profile
+        if not runner or not str(runner).strip():
+            raise ValueError("runner is required for CursorAgentRunner (API dispatch plan)")
+        if not model_id or not str(model_id).strip():
+            raise ValueError("model_id is required for CursorAgentRunner (API dispatch plan)")
+        resolved_runner = str(runner).strip()
+        resolved_model_id = str(model_id).strip()
         resolved_provider = model_provider or (
             resolved_model_id.split("/", maxsplit=1)[0]
-            if resolved_model_id and "/" in resolved_model_id
+            if "/" in resolved_model_id
             else resolved_runner
         )
         return resolved_runner, resolved_model_id, resolved_provider

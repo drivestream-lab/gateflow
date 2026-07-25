@@ -1,15 +1,20 @@
-"""HandoffReader — resolve ref + scan globs for latest handoff YAML block."""
+"""HandoffReader — scan skill-convention globs for latest handoff YAML block."""
 
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 import yaml
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.models.handoff_models import HandoffEnvelope
-from src.models.programme_config_models import ProgrammeConfig
+
+# Paths skills document for durable handoff artifacts (not programme.yaml).
+DEFAULT_ARTIFACT_GLOBS: tuple[str, ...] = (
+    "docs/specification/reports/**/*",
+    "prd/reports/**/*",
+)
 
 _HANDOFF_BLOCK_RE = re.compile(
     r"```ya?ml\s*\n(?P<body>handoff:\s*\n.*?)```",
@@ -18,38 +23,21 @@ _HANDOFF_BLOCK_RE = re.compile(
 
 
 class HandoffReader(BaseBusinessService):
-    """Locate and parse the latest durable handoff envelope under configured globs."""
+    """Locate and parse the latest durable handoff envelope under convention globs."""
 
     @inject
     def __init__(self) -> None:
         super().__init__()
 
-    def resolve_git_ref(
-        self,
-        *,
-        pr_head_sha: Optional[str],
-        default_branch: str,
-        programme_config: Optional[ProgrammeConfig] = None,
-    ) -> str:
-        """PR trigger → pr head; issue without PR → configured fallback (default branch)."""
-        config = programme_config or ProgrammeConfig.get_instance()
-        if pr_head_sha:
-            if config.handoff.ref == "pr_head":
-                return pr_head_sha
-            return pr_head_sha
-        if config.handoff.ref_fallback == "default_branch":
-            return default_branch
-        return config.handoff.ref_fallback
-
     def find_latest_handoff(
         self,
         workspace_root: Path,
-        programme_config: Optional[ProgrammeConfig] = None,
+        artifact_globs: Optional[Sequence[str]] = None,
     ) -> HandoffEnvelope:
         """Scan artifact globs for the newest file containing a handoff YAML block."""
-        config = programme_config or ProgrammeConfig.get_instance()
+        patterns = tuple(artifact_globs) if artifact_globs is not None else DEFAULT_ARTIFACT_GLOBS
         candidates: list[tuple[float, Path, str]] = []
-        for pattern in config.handoff.artifact_globs:
+        for pattern in patterns:
             for path in workspace_root.glob(pattern):
                 if not path.is_file():
                     continue
@@ -60,7 +48,7 @@ class HandoffReader(BaseBusinessService):
                 candidates.append((path.stat().st_mtime, path, block))
 
         if not candidates:
-            raise ValueError("No durable handoff YAML block found under configured artifact_globs")
+            raise ValueError("No durable handoff YAML block found under artifact globs")
 
         candidates.sort(key=lambda item: item[0], reverse=True)
         _, path, block = candidates[0]
@@ -80,7 +68,6 @@ class HandoffReader(BaseBusinessService):
         match = _HANDOFF_BLOCK_RE.search(text)
         if match:
             return match.group("body")
-        # Also accept a raw YAML file that is only the handoff document
         stripped = text.lstrip()
         if stripped.startswith("handoff:"):
             return text
