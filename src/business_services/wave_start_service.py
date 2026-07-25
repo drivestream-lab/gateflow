@@ -7,7 +7,6 @@ from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.metrics_emitter import MetricsEmitter
-from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.trigger_router import API_TRIGGER_EVENT
 from src.business_services.workflow_engine import WorkflowEngine
@@ -19,8 +18,8 @@ from src.exceptions.app_exceptions import (
     ValidationError,
 )
 from src.infra_services.postgres_service import PostgresService
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.adapter_models import WaveStartRequest, WaveStartResponse
-from src.models.programme_config_models import ProgrammeConfig
 from src.models.run_store_models import JobCreate, JobPayloadDocument, RunCreate
 from src.models.run_store_types import JobStatusType, RunStatusType
 
@@ -45,18 +44,36 @@ class WaveStartService(BaseBusinessService):
         self._metrics_emitter = metrics_emitter
         self._run_repository = run_repository
         self._job_repository = job_repository
+        self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_wave(self, request: WaveStartRequest) -> WaveStartResponse:
-        """Validate identity + slots + concurrency; create run and enqueue job."""
-        programme_config = ProgrammeConfig.get_instance()
+        """Validate identity + Enter-at + slots + concurrency; create run and enqueue."""
         initiative_id, wave_id, issue_number = self._resolve_identity(request)
+        _ = request.head_branch()
 
-        runner_ids, runner_keys = self._required_runners(programme_config)
+        try:
+            self._workflow_engine.require_orchestrated_skill(request.start_node)
+        except ValueError as exc:
+            raise ValidationError(
+                message=str(exc),
+                field_errors={"start_node": str(exc)},
+            ) from exc
+
+        for node_id in request.node_dispatch:
+            try:
+                self._workflow_engine.require_orchestrated_skill(node_id)
+            except ValueError as exc:
+                raise ValidationError(
+                    message=str(exc),
+                    field_errors={"node_dispatch": str(exc)},
+                ) from exc
+
+        dispatch_plan = request.build_dispatch_plan()
         slot_result = self._slot_validator.validate_for_run(
-            runner_ids=runner_ids,
-            notifier_id=programme_config.notifier.default,
-            runner_config_keys=runner_keys,
-            notifier_config_key="notifier.default",
+            runner_ids=[request.runner],
+            notifier_id=self._orchestration.notifier,
+            runner_config_keys={request.runner: "runner"},
+            notifier_config_key="GATEFLOW_NOTIFIER",
         )
         if not slot_result.ok:
             raise UnprocessableEntityError(
@@ -67,8 +84,6 @@ class WaveStartService(BaseBusinessService):
                     ]
                 },
             )
-
-        self._validate_model_overrides(programme_config)
 
         delivery_id = f"api-wave-start-{uuid4()}"
         try:
@@ -124,6 +139,10 @@ class WaveStartService(BaseBusinessService):
                                 "repo": request.repo,
                                 "initiative_id": initiative_id,
                                 "wave_id": wave_id,
+                                "branch_slug": request.branch_slug,
+                                "base_branch": request.base_branch,
+                                "start_node": request.start_node,
+                                "dispatch_plan": dispatch_plan.model_dump(mode="json"),
                                 "pr_number": request.pr_number,
                                 "issue_number": issue_number,
                                 "workspace_path": request.workspace_path,
@@ -147,6 +166,9 @@ class WaveStartService(BaseBusinessService):
             job_id=str(job.id),
             initiative_id=initiative_id,
             wave_id=wave_id,
+            start_node=request.start_node,
+            runner=request.runner,
+            model_id=request.model_id,
         )
         return WaveStartResponse(
             run_id=str(run.id),
@@ -154,114 +176,35 @@ class WaveStartService(BaseBusinessService):
             status=RunStatusType.ACTIVE.value,
         )
 
-    def _resolve_identity(
-        self, request: WaveStartRequest
-    ) -> tuple[Optional[str], Optional[str], Optional[int]]:
-        has_ticket = request.ticket_id is not None and str(request.ticket_id).strip() != ""
-        has_pair = bool(request.initiative_id and request.wave_id)
-        if not has_ticket and not has_pair:
-            raise ValidationError(
-                message="Provide ticket_id or initiative_id+wave_id",
-                field_errors={
-                    "ticket_id": "required unless initiative_id and wave_id are set",
-                    "initiative_id": "required with wave_id unless ticket_id is set",
-                },
-            )
-
+    def _resolve_identity(self, request: WaveStartRequest) -> tuple[str, str, Optional[int]]:
+        """Resolve initiative/wave; ticket_id optional and must agree when set."""
         initiative_id = request.initiative_id
         wave_id = request.wave_id
         issue_number = request.issue_number
+        has_ticket = request.ticket_id is not None and str(request.ticket_id).strip() != ""
 
         if has_ticket:
             ticket = str(request.ticket_id).strip()
             if ":" in ticket:
                 parsed_initiative, parsed_wave = ticket.split(":", 1)
-                if has_pair and (
-                    parsed_initiative != request.initiative_id or parsed_wave != request.wave_id
-                ):
+                if parsed_initiative != initiative_id or parsed_wave != wave_id:
                     raise ValidationError(
                         message="Dual identity disagree: ticket metadata does not match initiative_id/wave_id",
                         details={
                             "ticket_id": ticket,
-                            "initiative_id": request.initiative_id,
-                            "wave_id": request.wave_id,
+                            "initiative_id": initiative_id,
+                            "wave_id": wave_id,
                         },
                     )
-                initiative_id = initiative_id or parsed_initiative
-                wave_id = wave_id or parsed_wave
             elif ticket.isdigit():
                 issue_number = issue_number if issue_number is not None else int(ticket)
-                if has_pair:
-                    # Numeric ticket without forge lookup cannot prove agreement.
-                    raise ValidationError(
-                        message=(
-                            "Dual identity with numeric ticket_id is unresolvable without "
-                            "forge metadata; use ticket_id as initiative_id:wave_id or "
-                            "omit one identity form"
-                        ),
-                        details={"ticket_id": ticket},
-                    )
-            elif has_pair:
+            else:
                 raise ValidationError(
                     message="Unresolvable ticket_id for dual identity agreement check",
                     details={"ticket_id": ticket},
                 )
 
         return initiative_id, wave_id, issue_number
-
-    def _required_runners(
-        self, programme_config: ProgrammeConfig
-    ) -> tuple[list[str], dict[str, str]]:
-        runner_ids = [programme_config.runner.default]
-        keys = {programme_config.runner.default: "runner.default"}
-        for node_id, override in programme_config.model.overrides.items():
-            if override.runner:
-                runner_ids.append(override.runner)
-                keys[override.runner] = f"model.overrides.{node_id}.runner"
-        return runner_ids, keys
-
-    def _validate_model_overrides(self, programme_config: ProgrammeConfig) -> None:
-        profiles = programme_config.model.profiles
-        if "default" not in profiles:
-            raise UnprocessableEntityError(
-                message="model.profiles.default is required",
-                details={"config_key": "model.profiles.default"},
-            )
-        if not str(profiles["default"]).strip():
-            raise UnprocessableEntityError(
-                message="Unresolvable model for default profile",
-                details={"config_key": "model.profiles.default"},
-            )
-
-        known_nodes = self._workflow_engine.known_node_ids()
-        for node_id, override in programme_config.model.overrides.items():
-            if not node_id or node_id not in known_nodes:
-                raise UnprocessableEntityError(
-                    message="Unknown override node",
-                    details={
-                        "config_key": f"model.overrides.{node_id}",
-                        "node_id": node_id,
-                    },
-                )
-            if override.profile and override.profile not in profiles:
-                raise UnprocessableEntityError(
-                    message="Unknown model profile in override",
-                    details={
-                        "config_key": f"model.overrides.{node_id}.profile",
-                        "node_id": node_id,
-                        "profile": override.profile,
-                    },
-                )
-            try:
-                resolve_node_dispatch(programme_config, node_id)
-            except ValueError as exc:
-                raise UnprocessableEntityError(
-                    message=str(exc),
-                    details={
-                        "config_key": f"model.overrides.{node_id}",
-                        "node_id": node_id,
-                    },
-                ) from exc
 
 
 def get_wave_start_service() -> WaveStartService:

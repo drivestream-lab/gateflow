@@ -1,15 +1,13 @@
 """PolicyEngine — dispatch / stop / block against pin + handoff (no allowlists)."""
 
-from typing import Optional
-
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.workflow_engine import WorkflowEngine
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.control_plane_models import PolicyDecision, TriggerContext
 from src.models.handoff_models import HandoffEnvelope
 from src.models.policy_types import PolicyDecisionType
-from src.models.programme_config_models import ProgrammeConfig
 
 _STOP_NODE_TYPES = frozenset(
     {
@@ -33,18 +31,17 @@ class PolicyEngine(BaseBusinessService):
         self,
         handoff: HandoffEnvelope,
         trigger: TriggerContext,
-        programme_config: Optional[ProgrammeConfig] = None,
         retry_counter: int = 0,
     ) -> PolicyDecision:
-        """TDD §3.3 — dispatch only skill + orchestrated; never silent on pin failure."""
+        """Dispatch only skill + orchestrated; never silent on pin failure."""
         _ = trigger  # reserved for future repo/initiative policy signals
-        config = programme_config or ProgrammeConfig.get_instance()
+        orchestration = OrchestrationSettings.get_instance()
 
-        if handoff.outcome == "findings" and retry_counter >= config.retry.findings_budget:
+        if handoff.outcome == "findings" and retry_counter >= orchestration.findings_budget:
             return PolicyDecision(
                 decision=PolicyDecisionType.STOP,
                 block_reason=(
-                    f"Retry budget exhausted: findings_budget={config.retry.findings_budget} "
+                    f"Retry budget exhausted: findings_budget={orchestration.findings_budget} "
                     f"retry_counter={retry_counter} last_stage={handoff.stage}"
                 ),
                 retry_counter=retry_counter,

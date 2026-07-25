@@ -28,7 +28,7 @@ from src.models.control_plane_models import (
     RunMetricsResponse,
     RunStatusResponse,
 )
-from src.models.programme_config_models import ProgrammeConfig
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.run_store_models import RunEventCreate
 from src.models.run_store_types import RunOutcomeType
 
@@ -136,7 +136,11 @@ class MetricsEmitter(BaseBusinessService):
                 run_id=run_id,
                 event_type="stage_completed",
                 workflow_node=workflow_node,
-                outcome_type=RunOutcomeType.SUCCESS if outcome == "success" else None,
+                outcome_type=(
+                    RunOutcomeType.SUCCESS
+                    if outcome == "success"
+                    else RunOutcomeType.FAILED if outcome == "failed" else None
+                ),
                 payload={
                     "event_type": "stage_completed",
                     "duration_ms": duration_ms,
@@ -152,6 +156,7 @@ class MetricsEmitter(BaseBusinessService):
             run_id=str(run_id),
             workflow_node=workflow_node,
             duration_ms=duration_ms,
+            outcome=outcome,
             runner=runner,
             model_id=model_id,
         )
@@ -178,6 +183,7 @@ class MetricsEmitter(BaseBusinessService):
             issue_number=run.issue_number,
             initiative_id=run.initiative_id,
             wave_id=run.wave_id,
+            wave_duration_ms=run.wave_duration_ms,
             retry_counter=run.retry_counter,
             notify_pending=run.notify_pending,
             created_at=run.created_at,
@@ -253,6 +259,7 @@ class MetricsEmitter(BaseBusinessService):
                 outcome_type=run.outcome_type.value if run.outcome_type else None,
                 initiative_id=run.initiative_id,
                 wave_id=run.wave_id,
+                wave_duration_ms=run.wave_duration_ms,
                 pr_number=run.pr_number,
                 issue_number=run.issue_number,
                 created_at=run.created_at.isoformat() if run.created_at else None,
@@ -266,11 +273,10 @@ class MetricsEmitter(BaseBusinessService):
     async def aggregate_run_metrics(
         self,
         session: AsyncSession,
-        programme_config: Optional[ProgrammeConfig] = None,
     ) -> RunMetricsResponse:
         """Compute p50/p95 by workflow_node, runner, and model_id within retention."""
-        config = programme_config or ProgrammeConfig.get_instance()
-        cutoff = datetime.now(UTC) - timedelta(days=config.metrics.retention_days)
+        orchestration = OrchestrationSettings.get_instance()
+        cutoff = datetime.now(UTC) - timedelta(days=orchestration.metrics_retention_days)
         stmt = (
             select(RunEventSchema)
             .where(RunEventSchema.event_type == "stage_completed")
@@ -298,7 +304,7 @@ class MetricsEmitter(BaseBusinessService):
             for node, durations in sorted(by_node.items())
         ]
         return RunMetricsResponse(
-            retention_days=config.metrics.retention_days,
+            retention_days=orchestration.metrics_retention_days,
             by_workflow_node=aggregates,
             by_runner=_bucket_durations(rows, key_field="runner"),
             by_model_id=_bucket_durations(rows, key_field="model_id"),

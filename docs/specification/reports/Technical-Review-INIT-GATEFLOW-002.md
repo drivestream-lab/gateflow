@@ -46,15 +46,15 @@ Accepted ADR-001/003/004 or platform layering.
 | `src/business_services/trigger_router.py` | label-centric | API identity path; disable label authorize for 002 | Preconditions / concurrent |
 | `src/business_services/wave_start_service.py` | new | Orchestrate validate → optional PR prep enqueue | Wave-start use case |
 | `src/business_services/slot_validator.py` + registry | new | Fail-closed selection (ADR-006) | Required slot validation |
-| `src/business_services/run_orchestrator.py` | exists | PR-at-start; per-node runner; no board calls | Run lifecycle |
-| `src/business_services/notifier.py` | GitHub-only | Registry-selected notifier | Event → adapter |
+| `src/business_services/run_orchestrator.py` | exists | PR-at-start; Enter-at walker until gate; per-node plan | Run lifecycle |
+| `src/business_services/notifier.py` | GitHub-only | Registry-selected notifier (`GATEFLOW_NOTIFIER`) | Event → adapter |
 | `src/business_services/metrics_emitter.py` | by node | Multi-dim aggregates + api_trigger events | Metrics |
 | `src/business_services/board_service.py` | new | Board use cases → ForgeClient only | Board API orchestration |
 | `src/infra_services/forge_client.py` | comments | PR create/update + board ops; no `gh` | Forge I/O |
 | `src/infra_services/cursor_agent_runner.py` | stub | Stay infra; register as `cursor` | AgentRunner |
 | `src/infra_services/*_stub_runner.py` / notifier stubs | new | OpenCode, Claude, Slack, Teams stubs | Honest stubs |
-| `src/models/*` | exists | Wave/board/run list DTOs; override shape | Pydantic contracts |
-| `config/programme.yaml` | exists | `notifier.*`, `pr.*`, structured overrides; deprecate label trigger for 002 | Programme knobs (ADR-004) |
+| `src/models/*` | exists | Wave/board/run list DTOs; dispatch plan | Pydantic contracts |
+| `src/configs/orchestration_settings.py` | exists | `GATEFLOW_NOTIFIER`, hop cap, findings, metrics retention | Ops knobs (ADR-004 evolved) |
 | `src/database/postgres/schema|repository` | exists | `wave_id`, richer PR refs as needed | Persistence |
 | `postgres_migrations/versions/` | human-owned | Human DDL for new columns | Migrations |
 | Webhook path | exists | May remain for non-start events; **must not** start waves via label for 002 | Ingress |
@@ -91,18 +91,29 @@ GitHub webhook ──────┘  (no label wave-start for 002)
 
 | Field | Shape | Invariant |
 |-------|-------|-----------|
-| `ticket_id` | optional string/int forge issue id | At least one of ticket **or** (initiative_id + wave_id) |
-| `initiative_id` | optional string | Required with `wave_id` if no ticket |
-| `wave_id` | optional string (e.g. `W0`) | Required with `initiative_id` if no ticket |
+| `initiative_id` | string | **Required.** `INIT-{COMPONENT}-{NUMBER}` (COMPONENT 2–16 uppercase, NUMBER 1–7 digits) |
+| `wave_id` | string | **Required.** `W{n}` / `w{n}` (normalized to lowercase in PR head) |
+| `branch_slug` | string | **Required.** lowercase kebab for PR head |
+| `base_branch` | string | **Required.** PR merge base (e.g. `develop`) |
+| `start_node` | string | **Required.** Pin node id; must be `type: skill` + `dispatch: orchestrated` |
+| `runner` | string | **Required.** AgentRunner adapter id for start_node (e.g. `cursor`) |
+| `model_id` | string | **Required.** Model id string (e.g. `cursor/auto`) |
+| `node_dispatch` | optional map | Per-node `{ runner, model_id }`; unset nodes **inherit** start runner/model |
 | `org` / `repo` | strings | Target repository |
-| `workspace_path` | optional string | Worker workspace; required before dispatch if not derivable |
-| `pr_number` / `issue_number` | optional ints | Concurrent-scope helpers when known |
+| `ticket_id` | optional string | If `initiative_id:wave_id` form, must **agree**; numeric → `issue_number` |
+| `workspace_path` | optional string | Worker workspace |
+| `pr_number` / `issue_number` | optional ints | If `pr_number` set, bind that PR (skip create) |
 
-**Dual identity rule:** if ticket **and** initiative+wave provided, they **must
-agree** (resolved ticket metadata matches initiative/wave) or **400**.
+**PR head:** `feature/{initiative_id}-{wave_token}-{branch_slug}`  
+**Enter-at:** Hop 1 dispatches `start_node` (ignore handoff for node choice). Hop 2+ use handoff+pin.
+
+**Fail-fast:** missing/invalid targeting or non-orchestrated `start_node` → **400**; stub runner → **422**. No programme `runner`/`model`/`pr.*` fallback.
+
+**Dual identity rule:** if ticket **and** initiative+wave provided in `initiative:wave` form, they **must
+agree** or **400**.
 
 **Return (2xx):** `{ run_id, job_id?, status }`  
-**Errors:** 401 token; 400 identity; 409/422 precondition/stub/config list; 503 store down.
+**Errors:** 401 token; 400 identity/targeting/start_node; 409/422 precondition/stub; 503 store down.
 
 **Invariants:** no board API calls; no AgentRunner in request path; label not accepted.
 
@@ -138,19 +149,21 @@ config keys used.
 **Return:** ok | failures `[{slot_kind, adapter_id, config_key, reason}]`  
 **Invariant:** any `implemented=false` required slot → failure; unused stubs ignored.
 
-### 3.5 RunOrchestrator → ForgeClient (FR-19)
+### 3.5 RunOrchestrator → ForgeClient (FR-19) + Enter-at walker (FR-15/16)
 
-**Methods:** `create_or_update_pull_request`, `post_comment` (existing)  
-**Arguments:** org/repo, branch name from `pr.branch_prefix` + run id, title/body
-from programme templates (Q-2), base branch.  
-**Invariant:** same naming for success and failure paths; no auto-merge; no
-gate-approval labels; no board link from orchestrator.
+**Methods:** `ensure_branch_from_base`, `create_or_update_pull_request`, `post_comment`  
+**PR Arguments:** org/repo; head from caller identity; base from `base_branch`; title/body fixed in orchestrator.  
+**Walker:** Hop 1 = payload `start_node` (Enter-at; ignore handoff for node choice). After each stage, ingest handoff facts (`stage` must match node just run); PolicyEngine + pin `outcomes` decide DISPATCH / STOP / BLOCK (`next_candidates` not authority). Continue while DISPATCH to orchestrated skill; stop at human-checkpoint / terminal / non-orchestrated / external-action / findings budget. Hard cap: `GATEFLOW_MAX_ORCHESTRATED_HOPS`. Runner/model from job `dispatch_plan` (inherit) each hop.  
+**Invariant:** same PR naming success/failure; no programme YAML; no auto-merge; no board link from orchestrator.
 
 ### 3.6 BoardService → ForgeClient (FR-24)
 
 **Methods:** update issue/project status; create issue; list issues; link PR.  
 **Invariant:** no WorkManifest/governance parsing; production uses App token path
-(ADR-003); never shell `gh`.
+(ADR-003); never shell `gh`.  
+**Credential strategy:** outbound Bearer resolution is TDD-only under
+`Technical-Review-INIT-GATEFLOW-001.md` §3.5a (`GITHUB_AUTH_MODE` + TokenProvider
+inside ForgeClient). Board/PR/comment callers do not select PAT vs App.
 
 ### 3.7 Trigger / label policy (S-1)
 
@@ -168,9 +181,10 @@ still ack/idempotent-store non-start events. Programme config may retain
 | C-1 / F13-1 / Q-6 | ADR_REQUIRED | `docs/specification/adr/adr-005-programme-token-control-plane-mutations.md` | Widen programme-token zone to documented reads+writes (paths stay TDD) | Accepted | `sha256:7591cf39fb78ecc2fb1f5e0c55f52456a0ac0fef5cf93936bb1e8a30c1f4427d` |
 | S-6 / F13-2 | ADR_REQUIRED | `docs/specification/adr/adr-006-adapter-registry-fail-closed.md` | Business registry + fail-closed before accept (adapter catalogue stays TDD) | Accepted | `sha256:cfeb47a726ee66023f549bd08ebc3ca2b46c478100cf5caf7b81111238102230` |
 | ForgeClient widen (S-3) | TDD_ONLY | §3.5–3.6 | Extend ForgeClient under ADR-003; no new ADR | Resolved | N/A |
+| Forge auth mode (Q-1 impl) | TDD_ONLY | INIT-001 §3.5a (cross-ref) | Required `pat`\|`app` TokenProvider via InfraModule; prod forbids PAT; not ADR-006 slots | Resolved | N/A |
 | Label removal (S-1) | TDD_ONLY | §3.7 | Disable label wave-start for 002 | Resolved | N/A |
 | Q-1 paths/schemas | TDD_ONLY | §3.1–3.3 | `/api/v1/waves|runs|metrics|board` | Resolved | N/A |
-| Q-2 PR naming | TDD_ONLY | §9 | `pr.branch_prefix`, title/body templates in programme config | Resolved | N/A |
+| Q-2 PR naming | TDD_ONLY | §3.1 / §8 / §9 | Caller-owned `initiative_id`+`wave_id`+`branch_slug`+`base_branch`; head template; no programme `pr.*` | Resolved | N/A |
 | Q-3 board filters | TDD_ONLY | §3.3 | Narrow filter set listed | Resolved | N/A |
 | Q-4 App permissions | DEFERRED_WITH_DEFAULT | §9 | Proceed W0/W1; **block W2 exit** until permission matrix confirmed | Deferred | N/A |
 | Q-5 PE alert channel | DEFERRED_WITH_DEFAULT | §9 | `notify_pending` + status API only until dedicated alert | Deferred | N/A |
@@ -188,7 +202,7 @@ and the INIT spec — matching Accepted ADR-002/003 style.
 | ADR-001 | **constrains** — keep API + worker + Postgres jobs |
 | ADR-002 | **constrains** — JWT/webhook unchanged; programme row **superseded by ADR-005** |
 | ADR-003 | **constrains** — adapters stay infra; registry policy in ADR-006 |
-| ADR-004 | **constrains** — programme config stays in gateflow repo |
+| ADR-004 | **constrains** — ops knobs via env / code constants (programme.yaml removed) |
 
 **Derived counts:** ADR_REQUIRED 2 · TDD_ONLY 5 · DEFERRED_WITH_DEFAULT 3 · Draft ADR files created 2 · Missing/broken 0
 
@@ -251,26 +265,33 @@ No silent swallow — failures log ERROR with `exc_info` when handled and re-rai
 | Schema / data type | Owner (defines + validates) | Validation layer | Versioning |
 |--------------------|----------------------------|------------------|------------|
 | Wave start / board / run list request-response models | `src/models/` | API edge (`model_validate`) | Amend-by-PE per INIT |
-| Programme config (`notifier`, `pr.*`, structured overrides) | `programme_config_models.py` | Startup load (ADR-004) | File + Pydantic; breaking keys changelog |
+| Orchestration settings (`GATEFLOW_*`) | `orchestration_settings.py` | Settings load | Env; breaking keys changelog |
 | RunStore ORM ↔ DTOs | repositories | Repo boundary | Human Alembic |
 | Metrics event payload JSONB | models + MetricsEmitter | Repo validate | Additive event_type strings |
 | Handoff envelope | pinned skills contract | HandoffReader | Pin `v0.5.0-rc.2` |
 
-**Config shape change (FR-16):** `model.overrides` becomes
-`dict[str, NodeOverride]` where `NodeOverride` has optional `profile` and
-`runner` (string ids). Legacy `dict[str, str]` profile-only values **accepted
-during migration** via validator coerce-to-object (TDD_ONLY) then prefer object form.
+**PR targeting + Enter-at (Q-2 / FR-15–16):**
 
-**PR config (Q-2):**
+Caller supplies on `POST /waves/start` (required):
 
-```yaml
-pr:
-  branch_prefix: gateflow/run-
-  title_template: "[gateflow] {initiative_id} {wave_id} {run_id_short}"
-  body_template: "Run `{run_id}` — status API supplementary."
+```json
+{
+  "initiative_id": "INIT-GATEFLOW-003",
+  "wave_id": "W1",
+  "branch_slug": "engineering-lane",
+  "base_branch": "develop",
+  "start_node": "pre-implement",
+  "runner": "cursor",
+  "model_id": "cursor/auto",
+  "org": "drivestream-lab",
+  "repo": "gateflow"
+}
 ```
 
-Same templates for success and failure paths.
+Head: `feature/INIT-GATEFLOW-003-w1-scenario-b`.  
+**No `programme.yaml`.** Env: `GATEFLOW_NOTIFIER`, `GATEFLOW_FINDINGS_BUDGET`,
+`GATEFLOW_METRICS_RETENTION_DAYS`, `GATEFLOW_MAX_ORCHESTRATED_HOPS`. Handoff
+globs: code constants in `HandoffReader`.
 
 ---
 
@@ -283,7 +304,7 @@ Same templates for success and failure paths.
 | S-1 | PE | resolved | Label trigger | Disable label wave-start for 002; webhook non-start OK | plan W0 | — | §3.7 |
 | S-3 | PE | resolved | ForgeClient PR/board | Extend infra client; no NEW-ADR | plan W1/W2 | — | ADR-003 + §3.5–3.6 |
 | Q-1 | PE | resolved | HTTP paths/schemas | §3.1–3.3 catalog | plan W0 | — | this TDD |
-| Q-2 | PE | resolved | PR naming templates | Programme `pr.*` keys; §8 defaults | plan W1 | — | §8 |
+| Q-2 | PE | resolved | PR naming / base | Caller-owned wave-start fields; TDD §3.1/§8; no programme `pr.*` | plan W1+ | — | §3.1 §8 |
 | Q-3 | PE | resolved | Board list filters | Narrow set in §3.3 | plan W2 | — | §3.3 |
 | Q-4 | PE | deferred | App/Projects permissions | Confirm matrix before **W2 exit**; W0/W1 proceed | W2 exit | Narrow board MVP if Projects unavailable | Spec A-4 |
 | Q-5 | PE | deferred | PE alert on PR failure | status API + `notify_pending` only | W1 | Dedicated alert later | Spec Q-5 |

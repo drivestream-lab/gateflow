@@ -45,9 +45,38 @@ TDD), not architectural options.
 - Programme behaviour knobs change via PR without code edits.
 - Meta/harness shared config schema is deferred (W2+ revisit).
 
+## Evolution (INIT-GATEFLOW-002 Enter-at)
+
+Accepted product evolution (TDD-002 / FR-15–16):
+
+- **Removed from programme YAML:** `trigger`, `runner`, `model`, `pr.*`,
+  `retry.findings_budget`, `metrics.retention_days`.
+- **Wave-start API owns:** PR targeting, `start_node`, runner/model dispatch plan.
+- **Env owns:** `GATEFLOW_FINDINGS_BUDGET`, `GATEFLOW_METRICS_RETENTION_DAYS`.
+- **Programme YAML retained (interim):** `notifier`, `handoff.artifact_globs`,
+  `tools.slots`.
+
+Pin `prayog-skills/workflow.yaml` remains SSOT for process graph and `dispatch`.
+
+## Evolution (programme.yaml removed)
+
+Accepted follow-on (pin walker / no YAML):
+
+- **`config/programme.yaml` deleted** — Option B file no longer exists.
+- **Env owns:** `GATEFLOW_NOTIFIER`, `GATEFLOW_FINDINGS_BUDGET`,
+  `GATEFLOW_METRICS_RETENTION_DAYS`, `GATEFLOW_MAX_ORCHESTRATED_HOPS`.
+- **Code constants own:** handoff artifact globs in `HandoffReader` (match skill
+  durable-handoff convention).
+- **`tools.slots` / StageToolResolver removed** (ToolProvider `none` remains
+  product intent without programme slot map).
+- Pin remains SSOT for graph + `dispatch`; wave-start API remains SSOT for
+  Enter-at and runner/model plan.
+
+Secrets stay env / secret store only (unchanged).
+
 ## Revisit triggers
 
-- Shared multi-repo programme config moves to meta/harness.
+- Shared multi-repo programme overlays move to meta/harness.
 - Per-initiative overlays become required.
 
 ## Acceptance finalization

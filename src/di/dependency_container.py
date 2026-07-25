@@ -34,7 +34,6 @@ def configure_container() -> Injector:
     from src.business_services.policy_engine import PolicyEngine
     from src.business_services.run_orchestrator import RunOrchestrator
     from src.business_services.slot_validator import SlotValidator
-    from src.business_services.stage_tool_resolver import StageToolResolver
     from src.business_services.trigger_router import TriggerRouter
     from src.business_services.wave_start_service import WaveStartService
     from src.business_services.webhook_ingress_service import WebhookIngressService
@@ -83,7 +82,6 @@ def configure_container() -> Injector:
             PolicyEngine,
             Notifier,
             MetricsEmitter,
-            StageToolResolver,
             AdapterRegistry,
             SlotValidator,
             WaveStartService,

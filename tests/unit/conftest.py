@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app import create_app
 from src.configs.base_settings import BaseSettings
 from src.di.dependency_container import configure_container, reset_container
-from src.models.programme_config_models import ProgrammeConfig
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +20,9 @@ def reset_settings() -> None:
     os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
     os.environ.setdefault("JWT_ALGORITHM", "HS256")
     os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "test-webhook-secret")
+    # Force PAT mode for in-process tests — do not inherit app mode from developer .env
+    os.environ["GITHUB_AUTH_MODE"] = "pat"
+    os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "test-forge-pat"
     # Force test token — do not inherit a different value from a sourced .env
     os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
     for name in (
@@ -31,9 +33,10 @@ def reset_settings() -> None:
         "TelemetrySettings",
         "GithubSettings",
         "ProgrammeAuthSettings",
+        "OrchestrationSettings",
+        "CursorAgentSettings",
     ):
         BaseSettings._instances.pop(name, None)
-    ProgrammeConfig.reset_instance()
 
 
 @pytest.fixture

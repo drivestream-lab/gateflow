@@ -8,9 +8,15 @@ import pytest
 from src.infra_services.forge_client import ForgeClient
 
 
+def _forge_client() -> ForgeClient:
+    token_provider = AsyncMock()
+    token_provider.get_token = AsyncMock(return_value="test-token")
+    return ForgeClient(token_provider=token_provider)
+
+
 @pytest.mark.asyncio
 async def test_create_issue_posts_json() -> None:
-    client = ForgeClient()
+    client = _forge_client()
     http = MagicMock()
     created = MagicMock()
     created.raise_for_status = MagicMock()
@@ -28,7 +34,7 @@ async def test_create_issue_posts_json() -> None:
 
 @pytest.mark.asyncio
 async def test_update_issue_status_patches_state_and_column() -> None:
-    client = ForgeClient()
+    client = _forge_client()
     http = MagicMock()
     current = MagicMock()
     current.raise_for_status = MagicMock()
@@ -55,7 +61,7 @@ async def test_update_issue_status_patches_state_and_column() -> None:
 
 @pytest.mark.asyncio
 async def test_link_pull_request_posts_comment() -> None:
-    client = ForgeClient()
+    client = _forge_client()
     http = MagicMock()
     posted = MagicMock()
     posted.raise_for_status = MagicMock()
@@ -78,10 +84,9 @@ def test_forge_client_source_has_no_gh_subprocess() -> None:
         "from subprocess",
         "Popen(",
         "os.system(",
-        'shutil.which("gh")',
-        "shutil.which('gh')",
-        '["gh"',
-        "['gh'",
+        "shell=True",
+        '"gh "',
+        "'gh '",
     )
-    for token in forbidden:
-        assert token not in source, f"forbidden transport token found: {token}"
+    for needle in forbidden:
+        assert needle not in source, f"forbidden pattern in ForgeClient: {needle}"

@@ -35,6 +35,7 @@ class RunSchema(PostgresBaseModel):
     issue_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     initiative_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     wave_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    wave_duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     retry_counter: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notify_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

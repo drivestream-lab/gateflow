@@ -1,11 +1,13 @@
 """Live verify: board dumb primitives (FR-24) + auth (ADR-005).
 
 Requires running API and PROGRAMME_SERVICE_TOKEN. Forge-backed create/list/
-status/link run when GITHUB_PERSONAL_ACCESS_TOKEN (or App token path) is
-configured; otherwise auth + validation edges are asserted and forge I/O is
-skipped (unit owns ForgeClient board methods).
+status/link run when outbound forge auth is configured for the active mode
+(`GITHUB_AUTH_MODE=pat` + PAT, or `=app` + App id/PEM); otherwise auth +
+validation edges are asserted and forge I/O is skipped (unit owns ForgeClient
+board methods).
 
 Usage:
+  cp tests/config.yaml.example tests/config.yaml
   set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_board
 """
@@ -17,9 +19,11 @@ import uuid
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config
 
 
 def main() -> int:
+    cfg = load_tests_config()
     base_url = require_base_url()
     token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
     if not token:
@@ -27,8 +31,8 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    org = os.environ.get("GATEFLOW_VERIFY_ORG", "drivestream-lab")
-    repo = os.environ.get("GATEFLOW_VERIFY_REPO", "gateflow")
+    org = cfg.verify.org
+    repo = cfg.verify.repo
     list_url = f"{base_url}/api/v1/board/tickets"
     create_url = list_url
 
@@ -53,11 +57,20 @@ def main() -> int:
                 return 1
             print("[OK] PATCH /api/v1/board/tickets/1/status empty body fields → 400")
 
-            forge_token = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
-            if not forge_token:
+            auth_mode = (os.environ.get("GITHUB_AUTH_MODE") or "").strip().lower()
+            forge_ready = False
+            if auth_mode == "pat" and os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN"):
+                forge_ready = True
+            elif (
+                auth_mode == "app"
+                and os.environ.get("GITHUB_APP_ID")
+                and os.environ.get("GITHUB_PRIVATE_KEY_PATH")
+            ):
+                forge_ready = True
+            if not forge_ready:
                 print(
                     "[OK] board auth + validation edges passed "
-                    "(skip forge mutations — GITHUB_PERSONAL_ACCESS_TOKEN unset)"
+                    "(skip forge mutations — set GITHUB_AUTH_MODE=pat|app with matching creds)"
                 )
                 return 0
 

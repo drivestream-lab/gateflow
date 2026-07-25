@@ -1,30 +1,20 @@
 """Unit tests for CursorAgentRunner local SDK + unit doubles (INIT-GATEFLOW-003 W0)."""
 
 from collections.abc import Iterator
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.configs.cursor_agent_settings import CursorAgentSettings
-from src.configs.programme_config_loader import load_programme_config
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
 from src.models.policy_types import AgentRunOutcomeType
-from src.models.programme_config_models import ProgrammeConfig
-
-
-@pytest.fixture(autouse=True)
-def _programme_config() -> ProgrammeConfig:
-    ProgrammeConfig.reset_instance()
-    return load_programme_config(Path("config/programme.yaml"))
 
 
 @pytest.fixture(autouse=True)
 def _reset_cursor_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     CursorAgentSettings.reset_instance()
     monkeypatch.setenv("CURSOR_API_KEY", "")
-    monkeypatch.delenv("GATEFLOW_AGENT_STUB", raising=False)
     yield
     CursorAgentSettings.reset_instance()
 
@@ -49,20 +39,6 @@ async def test_mock_skill_prefix_stub_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_gateflow_agent_stub_env_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GATEFLOW_AGENT_STUB", "1")
-    runner = CursorAgentRunner()
-    await runner.initialize()
-    result = await runner.run_skill(
-        workspace_path="/tmp",
-        skill_id="loop-spec",
-        prompt_context={},
-        model_profile="default",
-    )
-    assert result.outcome == AgentRunOutcomeType.SUCCESS
-
-
-@pytest.mark.asyncio
 async def test_real_skill_without_key_fails() -> None:
     runner = CursorAgentRunner()
     await runner.initialize()
@@ -71,6 +47,8 @@ async def test_real_skill_without_key_fails() -> None:
         skill_id="loop-spec",
         prompt_context={},
         model_profile="default",
+        runner="cursor",
+        model_id="cursor/auto",
     )
     assert result.outcome == AgentRunOutcomeType.FAILED
     assert result.error_message is not None
@@ -112,6 +90,7 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
             prompt_context={"wave": "W0"},
             model_profile="default",
             runner="cursor",
+            model_id="cursor/auto",
         )
 
     assert result.outcome == AgentRunOutcomeType.SUCCESS
@@ -162,6 +141,8 @@ async def test_live_local_sdk_failed_status(monkeypatch: pytest.MonkeyPatch) -> 
             skill_id="loop-spec",
             prompt_context={},
             model_profile="default",
+            runner="cursor",
+            model_id="cursor/auto",
         )
 
     assert result.outcome == AgentRunOutcomeType.FAILED

@@ -2,11 +2,14 @@
 
 import os
 import uuid
+from pathlib import Path
+
 import dotenv
 import uvicorn
+
 from src.app import create_app
-from src.logging import get_logger, setup_logging, LoggingContext
 from src.configs.app_settings import AppSettings
+from src.logging import LoggingContext, get_logger, setup_logging
 
 startup_correlation_id = str(uuid.uuid4())
 dotenv_path = os.path.join(os.getcwd(), ".env")
@@ -23,13 +26,43 @@ def get_application():
         return create_app()
 
 
+def _dev_reload_excludes(root: Path) -> list[str]:
+    """Absolute dir excludes — FileFilter matches against Path.parents."""
+    exclude_dirs = [
+        root / ".venv",
+        root / "tests",
+        root / "logs",
+        root / "docs",
+        root / "prayog-skills",
+        root / ".gateflow",
+        root / ".git",
+        root / "postgres_migrations",
+        root / "__pycache__",
+    ]
+    return [str(path) for path in exclude_dirs if path.exists()]
+
+
 if __name__ == "__main__":
+    root = Path.cwd()
     logger.info("Starting gateflow application", host=settings.host, port=settings.port)
-    uvicorn.run(
-        "src.main:get_application",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.is_development,
-        log_level=settings.log_level.lower(),
-        factory=True,
-    )
+    if settings.is_development:
+        uvicorn.run(
+            "src.main:get_application",
+            host=settings.host,
+            port=settings.port,
+            reload=True,
+            reload_dirs=[str(root / "src"), str(root)],
+            reload_includes=["*.py", ".env"],
+            reload_excludes=_dev_reload_excludes(root),
+            log_level=settings.log_level.lower(),
+            factory=True,
+        )
+    else:
+        uvicorn.run(
+            "src.main:get_application",
+            host=settings.host,
+            port=settings.port,
+            reload=False,
+            log_level=settings.log_level.lower(),
+            factory=True,
+        )

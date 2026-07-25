@@ -8,6 +8,7 @@ from injector import inject
 from src.configs.app_settings import AppSettings, Environment
 from src.configs.github_settings import GithubSettings
 from src.infra_services.base_infra_service import BaseInfraService
+from src.infra_services.github_token_provider import GithubTokenProvider
 from src.logging import get_logger
 
 logger = get_logger()
@@ -37,28 +38,32 @@ class ForgeClient(BaseInfraService):
     """GitHub REST client for comments and audited writes."""
 
     @inject
-    def __init__(self) -> None:
+    def __init__(self, token_provider: GithubTokenProvider) -> None:
         super().__init__()
         self._settings = GithubSettings.get_instance()
         self._app_settings = AppSettings.get_instance()
+        self._token_provider = token_provider
         self._client: Optional[httpx.AsyncClient] = None
         self._initialized = False
 
     async def initialize(self) -> None:
-        token = self._resolve_token()
+        token = await self._token_provider.get_token()
         headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
+            "Authorization": f"Bearer {token}",
         }
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
         self._client = httpx.AsyncClient(
             base_url=self._settings.api_base_url.rstrip("/"),
             headers=headers,
             timeout=30.0,
         )
         self._initialized = True
-        logger.info("ForgeClient initialized", api_base_url=self._settings.api_base_url)
+        logger.info(
+            "ForgeClient initialized",
+            api_base_url=self._settings.api_base_url,
+            auth_mode=self._settings.auth_mode.value,
+        )
 
     async def close(self) -> None:
         if self._client is not None:
@@ -69,22 +74,108 @@ class ForgeClient(BaseInfraService):
     async def health_check(self) -> bool:
         return self._initialized and self._client is not None
 
-    def _resolve_token(self) -> Optional[str]:
-        """App installation token preferred; scoped PAT only when non-prod configured."""
-        pat = self._settings.personal_access_token
-        if pat is not None and self._app_settings.environment != Environment.PRODUCTION:
-            return pat.get_secret_value()
-        # Production App token minting deferred — caller must configure PAT for non-prod W0.
-        if pat is not None:
-            raise RuntimeError(
-                "GITHUB_PERSONAL_ACCESS_TOKEN is not allowed in production (ADR-003)"
-            )
-        return None
-
     def _require_client(self) -> httpx.AsyncClient:
         if self._client is None:
             raise RuntimeError("ForgeClient not initialized")
         return self._client
+
+    @staticmethod
+    def _git_ref_get_path(owner: str, repo: str, branch: str) -> str:
+        """GET a branch tip (singular ``ref`` collection)."""
+        return f"/repos/{owner}/{repo}/git/ref/heads/{branch}"
+
+    @staticmethod
+    def _git_ref_update_path(owner: str, repo: str, branch: str) -> str:
+        """PATCH/DELETE a branch tip (plural ``refs`` collection)."""
+        return f"/repos/{owner}/{repo}/git/refs/heads/{branch}"
+
+    async def ensure_branch_from_base(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        branch: str,
+        base: str,
+        bootstrap_commit_message: Optional[str] = None,
+    ) -> bool:
+        """Ensure ``branch`` exists and differs from ``base`` so a PR can open.
+
+        Creates the ref from ``base`` when missing. If head and base share the
+        same commit SHA, creates an empty bootstrap commit (same tree, new
+        commit) so GitHub accepts ``POST /pulls`` ("No commits between…" 422).
+
+        Returns True if a new ref was created, False if the branch already existed.
+        """
+        client = self._require_client()
+        base_path = self._git_ref_get_path(owner, repo, base)
+        base_ref = await client.get(base_path)
+        base_ref.raise_for_status()
+        base_sha = str(base_ref.json()["object"]["sha"])
+
+        head_path = self._git_ref_get_path(owner, repo, branch)
+        existing = await client.get(head_path)
+        created_ref = False
+        if existing.status_code == 404:
+            created = await client.post(
+                f"/repos/{owner}/{repo}/git/refs",
+                json={"ref": f"refs/heads/{branch}", "sha": base_sha},
+            )
+            created.raise_for_status()
+            created_ref = True
+            head_sha = str(created.json()["object"]["sha"])
+            logger.info(
+                "ForgeClient branch created from base",
+                owner=owner,
+                repo=repo,
+                branch=branch,
+                base=base,
+                sha=base_sha,
+                operation="ensure_branch_from_base",
+            )
+        elif existing.status_code != 200:
+            existing.raise_for_status()
+            head_sha = ""  # raise_for_status always raises on error status
+        else:
+            head_sha = str(existing.json()["object"]["sha"])
+            logger.info(
+                "ForgeClient branch already exists",
+                owner=owner,
+                repo=repo,
+                branch=branch,
+                operation="ensure_branch_from_base",
+            )
+
+        if head_sha != base_sha:
+            return created_ref
+
+        parent = await client.get(f"/repos/{owner}/{repo}/git/commits/{head_sha}")
+        parent.raise_for_status()
+        tree_sha = str(parent.json()["tree"]["sha"])
+        message = bootstrap_commit_message or f"chore(gateflow): bootstrap branch {branch}"
+        commit = await client.post(
+            f"/repos/{owner}/{repo}/git/commits",
+            json={
+                "message": message,
+                "tree": tree_sha,
+                "parents": [head_sha],
+            },
+        )
+        commit.raise_for_status()
+        new_sha = str(commit.json()["sha"])
+        updated = await client.patch(
+            self._git_ref_update_path(owner, repo, branch),
+            json={"sha": new_sha, "force": False},
+        )
+        updated.raise_for_status()
+        logger.info(
+            "ForgeClient bootstrap empty commit on branch",
+            owner=owner,
+            repo=repo,
+            branch=branch,
+            sha=new_sha,
+            operation="ensure_branch_from_base",
+        )
+        return created_ref
 
     async def post_comment(self, owner: str, repo: str, issue_number: int, body: str) -> str:
         """Post a PR/issue comment. Returns comment id as string."""
@@ -178,7 +269,7 @@ class ForgeClient(BaseInfraService):
     def assert_no_gh_cli_transport(self) -> None:
         """FR-25/26a — production forge path must not shell to gh."""
         # Runtime guard for misconfiguration / future regressions. Production
-        # transport is httpx REST only; PAT is already rejected in _resolve_token.
+        # transport is httpx REST only; PAT mode is rejected at token-provider bind.
         if self._app_settings.environment == Environment.PRODUCTION:
             logger.debug(
                 "ForgeClient production transport check passed",

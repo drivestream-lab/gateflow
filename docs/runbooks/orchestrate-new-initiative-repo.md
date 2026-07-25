@@ -1,4 +1,4 @@
-# Runbook — Orchestrate a new initiative repo (W1 / FR-19)
+# Runbook — Orchestrate a new initiative repo (FR-19)
 
 Authorize Gateflow wave runs on a programme repository without editing
 WorkflowEngine source.
@@ -8,50 +8,49 @@ WorkflowEngine source.
 1. Use org App **gateflow-dev** / **gateflow-prod** (one App per environment).
 2. Install on **Selected** repos including the new initiative repo (and meta if needed).
 3. Confirm webhook URL points at this environment’s `POST /webhooks/github`.
-4. Put secrets in env only (never in `config/programme.yaml`):
+4. Put secrets in env only (never commit secrets to the repo):
    - `GITHUB_WEBHOOK_SECRET`
-   - `GITHUB_APP_ID`
-   - `GITHUB_PRIVATE_KEY_PATH`
-   - `PROGRAMME_SERVICE_TOKEN` (status/metrics reads)
+   - `GITHUB_AUTH_MODE=app` (production / App path) or `pat` (non-prod only)
+   - `GITHUB_APP_ID` + `GITHUB_PRIVATE_KEY_PATH` when mode is `app`
+   - `GITHUB_PERSONAL_ACCESS_TOKEN` when mode is `pat`
+   - `PROGRAMME_SERVICE_TOKEN` (wave-start / status / metrics)
+   - `CURSOR_API_KEY` when using live Cursor AgentRunner
 
-## 2. Programme config
+## 2. Env knobs (no programme.yaml)
 
-Edit `config/programme.yaml` in **gateflow** (not harness/meta YAML):
+Ops and notifier knobs live in **env** (see `.env.example`):
 
-| Key | Purpose |
+| Env | Purpose |
 |-----|---------|
-| `trigger.label` | Label that authorizes a wave (default `gateflow:run-wave`) |
-| `handoff.*` | Ref strategy + artifact globs for durable handoff blocks |
-| `retry.findings_budget` | Findings loop budget |
-| `metrics.retention_days` | Retention hint for aggregates |
-| `runner.default` / `model.profiles` | H1 defaults |
-| `tools.slots` | H1 empty `{}` |
+| `GATEFLOW_NOTIFIER` | Notifier adapter id (e.g. `github_comment`) |
+| `GATEFLOW_FINDINGS_BUDGET` | Findings loop budget (default 3) |
+| `GATEFLOW_METRICS_RETENTION_DAYS` | Metrics lookback days (default 90) |
+| `GATEFLOW_MAX_ORCHESTRATED_HOPS` | Hard cap on orchestrated stages per job (default 20) |
 
-Restart API and worker after config changes.
+Handoff artifact scan uses **code-constant globs** in `HandoffReader` (skill
+durable-handoff convention). There is no `config/programme.yaml`.
+
+Wave-start API owns PR targeting (`initiative_id`, `wave_id`, `branch_slug`,
+`base_branch`) and Enter-at dispatch (`start_node`, `runner`, `model_id`,
+optional `node_dispatch`). Restart API and worker after env changes.
 
 ## 3. Skills pin
 
 Ensure `.harness-pin.yaml` / `prayog-skills` pin matches product target
-(`v0.5.0-rc.2`). PolicyEngine loads `prayog-skills/workflow.yaml` +
-`delivery-contract.yaml` — no hardcoded node allowlists.
+(`v0.5.0-rc.2`). PolicyEngine / WorkflowEngine load `prayog-skills/workflow.yaml`
++ `delivery-contract.yaml` — no hardcoded node allowlists. `start_node` must be
+a pin `skill` with `dispatch: orchestrated`.
 
-## 4. Authorize a run
+## 4. Authorize a run (API wave-start)
 
-1. Open a PR (or issue) on the installed repo with a durable `handoff:` block
-   under configured globs.
-2. Apply the programme trigger label.
-3. Confirm API returns 202 for the webhook delivery.
-4. Confirm worker claims the job and posts Forge comments (start/stop) when
-   credentials allow.
-5. Read status: `GET /api/v1/runs/{run_id}` with `Authorization: Bearer $PROGRAMME_SERVICE_TOKEN`.
+1. Ensure workspace has pin + optional durable handoff under skill globs
+   (hop 1 Enter-at ignores handoff for **node choice**; later hops use handoff
+   facts + pin `outcomes` via PolicyEngine until a gate).
+2. `POST /api/v1/waves/start` with programme token and Enter-at body
+   (`start_node`, `runner`, `model_id`, PR targeting fields).
+3. Worker walks orchestrated skills until STOP/BLOCK or hop cap; comments land
+   on the run PR opened at start.
 
-## 5. Stop conditions PE should expect
+## 5. Verify
 
-- Concurrent active run for same PR/issue → block comment, no dispatch
-- `human-checkpoint` / unresolved blockers / non-orchestrated skill → stop + comment
-- AgentRunner failure → run `failed`, no workflow advance
-- Findings budget exhausted → stop + comment (no auto-issue)
-
-## 6. Halt dispatch
-
-Disable the App webhook or stop the worker process. Runs remain in Postgres.
+Follow `tests/README.md` (`verify_wave_start`, optional worker prove-it).

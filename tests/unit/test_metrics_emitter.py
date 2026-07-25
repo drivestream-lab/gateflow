@@ -8,20 +8,6 @@ import pytest
 
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.database.postgres.schema.run_store_schema import RunEventSchema
-from src.models.programme_config_models import ProgrammeConfig
-
-
-@pytest.fixture(autouse=True)
-def _programme_config() -> None:
-    ProgrammeConfig.reset_instance()
-    ProgrammeConfig.set_instance(
-        ProgrammeConfig.model_validate(
-            {
-                "notifier": {"default": "github_comment"},
-                "metrics": {"retention_days": 90},
-            }
-        )
-    )
 
 
 @pytest.mark.asyncio
@@ -93,3 +79,33 @@ async def test_record_api_trigger_appends_event() -> None:
     event = run_event_repo.append_event.await_args.args[1]
     assert event.event_type == "api_trigger"
     assert event.payload["event_type"] == "api_trigger"
+
+
+@pytest.mark.asyncio
+async def test_record_stage_duration_failed_outcome() -> None:
+    from src.models.run_store_types import RunOutcomeType
+
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    emitter = MetricsEmitter(
+        run_repository=MagicMock(),
+        run_event_repository=run_event_repo,
+        stage_repository=MagicMock(),
+    )
+    run_id = uuid4()
+    await emitter.record_stage_duration(
+        MagicMock(),
+        run_id,
+        "pre-implement",
+        42,
+        outcome="failed",
+        runner="cursor",
+        model_id="cursor/auto",
+        model_profile="auto",
+    )
+    event = run_event_repo.append_event.await_args.args[1]
+    assert event.event_type == "stage_completed"
+    assert event.outcome_type == RunOutcomeType.FAILED
+    assert event.payload["outcome"] == "failed"
+    assert event.payload["duration_ms"] == 42
+    assert event.payload["runner"] == "cursor"

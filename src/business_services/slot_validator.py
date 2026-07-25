@@ -26,7 +26,7 @@ class SlotValidator(BaseBusinessService):
         notifier_id: str,
         *,
         runner_config_keys: dict[str, str] | None = None,
-        notifier_config_key: str = "notifier.default",
+        notifier_config_key: str = "GATEFLOW_NOTIFIER",
     ) -> SlotValidationResult:
         """Return ok or structured failures for any unimplemented required slot.
 

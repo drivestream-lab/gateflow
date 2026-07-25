@@ -3,6 +3,9 @@
 Requires running API + migrated Postgres.
 Needs GITHUB_WEBHOOK_SECRET and PROGRAMME_SERVICE_TOKEN in the environment.
 
+Engineering-lane (long live Cursor) is **not** in this aggregator — run
+``python -m tests.verify.verify_engineering_lane`` separately.
+
 Usage:
   set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_all

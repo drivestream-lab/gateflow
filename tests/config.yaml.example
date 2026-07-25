@@ -1,0 +1,31 @@
+# Copy to tests/config.yaml (gitignored) for local live debug / verify.
+# Verify scripts read this file — not .env — for URLs and flow flags.
+# App secrets (PROGRAMME_SERVICE_TOKEN, CURSOR_API_KEY, forge creds) stay in .env.
+
+forge:
+  org: drivestream-lab
+  repo: gateflow
+  base_branch: develop
+  # Optional: leave empty to use a generated probe branch
+  # probe_branch_prefix: gateflow/debug-probe-
+
+verify:
+  base_url: http://127.0.0.1:8080
+  org: drivestream-lab
+  repo: gateflow
+  # Set true when a worker is running and you want PR / live lane asserts
+  require_worker: false
+  # Workspace for wave-start (empty → process cwd)
+  workspace: ""
+  # Engineering lane (orchestrated coding wave) — opt-in long live Cursor.
+  # Keep false for routine verify_all smoke. Run separately:
+  #   .venv/bin/python -m tests.verify.verify_engineering_lane
+  engineering_lane: false
+  # Evidence file path (absolute recommended). Relative paths join workspace/cwd.
+  # Verify mkdir -p the parent; the live agent writes the file.
+  engineering_lane_evidence: /absolute/path/to/run_gateflow/evidence/engineering-lane-live.json
+  engineering_lane_timeout_s: 3600
+  # Enter-at for engineering-lane prove-it (full chain from pre-implement)
+  start_node: pre-implement
+  runner: cursor
+  model_id: cursor/auto

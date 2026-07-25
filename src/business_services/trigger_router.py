@@ -13,7 +13,6 @@ from src.models.control_plane_models import (
     TriggerAuthorizationResult,
     TriggerContext,
 )
-from src.models.programme_config_models import ProgrammeConfig
 from src.models.policy_types import WavePreconditionIdType
 
 API_TRIGGER_EVENT = "api_trigger"
@@ -130,10 +129,8 @@ class TriggerRouter(BaseBusinessService):
         event_type: str,
         delivery_id: str,
         payload: dict[str, Any],
-        programme_config: Optional[ProgrammeConfig] = None,
     ) -> TriggerAuthorizationResult:
         """Run precondition checklist. Label wave-start is disabled for 002."""
-        _ = programme_config or ProgrammeConfig.get_instance()
         failures: list[PreconditionFailure] = []
         context = self.extract_trigger_context(event_type, delivery_id, payload)
         is_api = event_type == API_TRIGGER_EVENT or payload.get("trigger_source") == "api"

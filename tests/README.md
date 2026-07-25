@@ -7,7 +7,9 @@ tests/
   unit/        Pure unit tests — no real infra, no network calls.
                Run: make test
   verify/      Live verify scripts (not collected by make test).
+  debug/       Exploratory live scripts (e.g. ForgeClient .env probe).
   _helpers/    Shared fixtures and helpers (e.g. verify preflight).
+  config.yaml.example  Committed example — copy to config.yaml (gitignored)
 ```
 
 ## Running
@@ -23,12 +25,19 @@ make check && make test
 #    docs/specification/reports/DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md)
 # .venv/bin/python -m src.main
 # optional worker: .venv/bin/python -m src.worker_main
+# Prefer: make run  (API + worker; required for wave-start / engineering-lane)
 # set -a && source .env && set +a
 #   needs GITHUB_WEBHOOK_SECRET + PROGRAMME_SERVICE_TOKEN
 # .venv/bin/python -m tests.verify.verify_all
 #
 # Individual scripts:
 # .venv/bin/python -m tests.verify.verify_health
+#
+# ForgeClient .env probe (no API server required — uses PAT/App from .env):
+#   cp tests/config.yaml.example tests/config.yaml   # optional org/repo
+#   set -a && source .env && set +a
+#   .venv/bin/python -m tests.debug.debug_forge_client
+#   GATEFLOW_FORGE_PROBE_CLEANUP=0  # leave PR/branch open for inspection
 # .venv/bin/python -m tests.verify.verify_webhook
 # .venv/bin/python -m tests.verify.verify_status_metrics
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
@@ -37,7 +46,18 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_wave_smoke   # label ingress ack only
 #
 # Full PR-at-start live assert (optional):
-#   GATEFLOW_VERIFY_WORKER=1 with worker + forge credentials running
+#   set verify.require_worker: true in tests/config.yaml with worker + forge creds
+```
+
+## Configuration split
+
+| Concern | Where |
+|---------|--------|
+| App runtime (DB, Redis, forge auth, Cursor key, programme token, findings/metrics) | `.env` (from `.env.example`) |
+| Live verify URLs, org/repo, worker/engineering-lane flags, evidence path, Enter-at defaults | `tests/config.yaml` (from `tests/config.yaml.example`) |
+
+```bash
+cp tests/config.yaml.example tests/config.yaml
 ```
 
 See also: `docs/runbooks/w1-runtime-api-worker.md`,
@@ -48,12 +68,10 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Health | `python -m tests.verify.verify_health` (in `verify_all`) | `tests/unit/test_health.py` |
-| Programme config | — | `tests/unit/test_programme_config.py` |
 | RunStore DTOs | — | `tests/unit/test_run_store_models.py` |
 | Webhook signature / idempotency | `python -m tests.verify.verify_webhook` (in `verify_all`) | `tests/unit/test_webhook_ingress.py` |
 | Trigger / policy | — | `tests/unit/test_trigger_policy.py` |
-| Orchestrator paths | — | `tests/unit/test_run_orchestrator.py` |
-| Tools none | — | `tests/unit/test_stage_tools.py` |
+| Orchestrator walker | — | `tests/unit/test_run_orchestrator.py` |
 | Programme-token status/metrics | `python -m tests.verify.verify_status_metrics` (in `verify_all`) | `tests/unit/test_programme_token_api.py` |
 | Labelled wave enqueue smoke | `python -m tests.verify.verify_wave_smoke` (superseded as primary) | — |
 | Full live smoke | `python -m tests.verify.verify_all` | — |
@@ -65,9 +83,9 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
-| Programme config notifier + override coerce | — | `test_programme_config` |
+| Env notifier (`GATEFLOW_NOTIFIER`) | — | `test_wave_start`, `test_slot_validator` |
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
-| API wave-start (FR-15) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
+| API wave-start Enter-at (FR-15) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
 | Stub fail-closed (FR-18) | — | `test_slot_validator`, `test_wave_start` |
@@ -76,8 +94,9 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
-| Per-node runner/model resolve + persist (FR-16) | — | `test_node_model_resolver`, `test_run_orchestrator` |
-| PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `GATEFLOW_VERIFY_WORKER=1`) | `test_forge_client`, `test_run_orchestrator` |
+| Dispatch plan resolve + persist (FR-16) | — | `test_node_model_resolver`, `test_run_orchestrator` |
+| Pin walker until gate + hop cap | — | `test_run_orchestrator` (multi-hop / hop-cap) |
+| PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `verify.require_worker: true`) | `test_pr_branch_naming`, `test_forge_client`, `test_run_orchestrator` |
 | Metrics dims + api_trigger (FR-21/22) | `verify_pr_thread` + `verify_status_metrics` | `test_metrics_emitter` |
 | Cursor stub happy path (V-3) | — | `test_cursor_agent_runner` |
 
@@ -86,6 +105,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Board APIs create/list/status/link (FR-24) | `verify_board` (in `verify_all`) | `test_board_service`, `test_forge_client_board` |
+| Forge auth modes `pat` \| `app` (ADR-003) | `verify_board` when mode+creds set | `test_github_token_provider`, `test_forge_client` |
 | Worker isolation — zero board mutations | — | `test_process_job_never_calls_board_forge_mutations` |
 | Production gh-free path (FR-25/26a) | inspection checklist | `test_forge_client_source_has_no_gh_subprocess` |
 | Laptop gh vs deploy ForgeClient (FR-26b) | docs inspection | — |
@@ -95,9 +115,48 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | CursorAgentSettings (`CURSOR_API_KEY`) | — | `test_cursor_agent_settings` |
-| Local cursor-sdk AgentRunner (mocked) | Scenario B = W1 | `test_cursor_agent_runner` |
+| Local cursor-sdk AgentRunner (mocked) | engineering-lane = W1 | `test_cursor_agent_runner` |
 | Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
 | Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
+
+## Feature map (INIT-GATEFLOW-003 — W1)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Docker/image cursor-sdk bridge spike | inspection | `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` |
+| Failure-path stage + duration_ms | — | `test_run_orchestrator`, `test_metrics_emitter` |
+| `runs.wave_duration_ms` + run detail | engineering-lane verify (opt-in) | `test_run_orchestrator` |
+| Engineering-lane live Cursor prove-it | `python -m tests.verify.verify_engineering_lane` (opt-in; **not** in `verify_all`) | — |
+
+### Engineering-lane live verify prereqs
+
+Pin chain (Enter-at `pre-implement`):  
+`pre-implement` → `loop-spec` → `verify` → `ground-spec` → STOP at `wave-human-decision`.
+
+App secrets in `.env`; verify flags in `tests/config.yaml`. Shared Postgres/Redis via
+`POSTGRES_*` / `REDIS_*` — do not require `docker compose` when those already
+point at shared infra.
+
+```bash
+# Ensure migration applied (wave_duration_ms):
+# ./scripts/run_postgres_migration.sh head
+
+cp tests/config.yaml.example tests/config.yaml
+# edit tests/config.yaml:
+#   verify.engineering_lane: true
+#   verify.require_worker: true
+#   verify.engineering_lane_evidence: /absolute/path/...
+#   verify.start_node: pre-implement
+
+# Terminal — API + worker
+make run
+
+# Separate terminal — lane prove-it only (do not mix with verify_all while Cursor runs)
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_engineering_lane
+```
+
+Keep `verify.engineering_lane: false` for routine smoke.
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

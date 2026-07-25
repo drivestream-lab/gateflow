@@ -11,7 +11,6 @@ from src.business_services.notifier import Notifier
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
-from src.business_services.stage_tool_resolver import StageToolResolver
 from src.business_services.trigger_router import TriggerRouter
 from src.business_services.wave_start_service import WaveStartService
 from src.business_services.webhook_ingress_service import WebhookIngressService
@@ -28,7 +27,6 @@ class BusinessServicesModule(Module):
         binder.bind(PolicyEngine, scope=singleton)
         binder.bind(Notifier, scope=singleton)
         binder.bind(MetricsEmitter, scope=singleton)
-        binder.bind(StageToolResolver, scope=singleton)
         binder.bind(AdapterRegistry, scope=singleton)
         binder.bind(SlotValidator, scope=singleton)
         binder.bind(WaveStartService, scope=singleton)

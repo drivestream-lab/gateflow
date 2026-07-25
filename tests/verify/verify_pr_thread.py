@@ -5,11 +5,13 @@ Requires running API + migrated Postgres and PROGRAMME_SERVICE_TOKEN.
 Asserts:
   - GET /metrics/runs exposes by_runner and by_model_id keys
   - Wave-start records an api_trigger event on the run timeline
-  - When GATEFLOW_VERIFY_WORKER=1 and a worker has claimed the job, run
-    detail includes pr_number (PR-at-start). Without worker, PR assert is
-    skipped with a note (unit tests own ForgeClient call-order).
+  - When tests/config.yaml verify.require_worker is true and a worker has
+    claimed the job, run detail includes pr_number (PR-at-start). Without
+    worker, PR assert is skipped with a note (unit tests own ForgeClient
+    call-order).
 
 Usage:
+  cp tests/config.yaml.example tests/config.yaml
   set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_pr_thread
 """
@@ -22,9 +24,11 @@ import uuid
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config
 
 
 def main() -> int:
+    cfg = load_tests_config()
     base_url = require_base_url()
     token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
     if not token:
@@ -32,7 +36,7 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    initiative_id = f"INIT-VERIFY-PR-{uuid.uuid4().hex[:8]}"
+    initiative_id = f"INIT-VFYPR-{uuid.uuid4().int % 10_000_000}"
     wave_id = "W1"
 
     try:
@@ -54,10 +58,15 @@ def main() -> int:
                 f"{base_url}/api/v1/waves/start",
                 headers=headers,
                 json={
-                    "org": "drivestream-lab",
-                    "repo": "gateflow",
+                    "org": cfg.verify.org,
+                    "repo": cfg.verify.repo,
                     "initiative_id": initiative_id,
                     "wave_id": wave_id,
+                    "branch_slug": "verify-pr-thread",
+                    "base_branch": cfg.forge.base_branch,
+                    "start_node": cfg.verify.start_node,
+                    "runner": cfg.verify.runner,
+                    "model_id": cfg.verify.model_id,
                 },
             )
             if started.status_code not in {200, 201}:
@@ -80,12 +89,7 @@ def main() -> int:
                 return 1
             print("[OK] run timeline includes api_trigger")
 
-            verify_worker = os.environ.get("GATEFLOW_VERIFY_WORKER", "").strip() in {
-                "1",
-                "true",
-                "yes",
-            }
-            if verify_worker:
+            if cfg.verify.require_worker:
                 deadline = time.time() + 30.0
                 pr_number = detail_body.get("pr_number")
                 while pr_number is None and time.time() < deadline:
@@ -98,7 +102,7 @@ def main() -> int:
                     pr_number = detail_body.get("pr_number")
                 if pr_number is None:
                     print(
-                        "[ERROR] GATEFLOW_VERIFY_WORKER=1 but pr_number still missing "
+                        "[ERROR] verify.require_worker=true but pr_number still missing "
                         "after wait — is worker running with forge credentials?"
                     )
                     return 1
@@ -106,7 +110,7 @@ def main() -> int:
             else:
                 print(
                     "[OK] PR-at-start live assert skipped "
-                    "(set GATEFLOW_VERIFY_WORKER=1 with worker for full PR check)"
+                    "(set verify.require_worker: true in tests/config.yaml for full PR check)"
                 )
 
     except httpx.HTTPError as exc:

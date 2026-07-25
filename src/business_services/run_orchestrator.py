@@ -1,4 +1,4 @@
-"""RunOrchestrator — job → trigger → policy → PR-at-start → dispatch (FR-16/19)."""
+"""RunOrchestrator — Enter-at + pin-driven walker until gate (FR-15/16/19)."""
 
 import time
 from datetime import UTC, datetime
@@ -15,8 +15,9 @@ from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.notifier import Notifier
 from src.business_services.policy_engine import PolicyEngine
-from src.business_services.stage_tool_resolver import StageToolResolver
 from src.business_services.trigger_router import TriggerRouter
+from src.business_services.workflow_engine import WorkflowEngine
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.database.postgres.repository.run_store_repository import (
     RunEventRepository,
     RunRepository,
@@ -27,9 +28,10 @@ from src.infra_services.forge_client import ForgeClient
 from src.infra_services.launchpad_client import LaunchpadClient
 from src.infra_services.postgres_service import PostgresService
 from src.models.control_plane_models import RunEventComment, RunProcessSummary
-from src.models.handoff_models import HandoffEnvelope
+from src.models.dispatch_plan_models import DispatchPlan, ResolvedNodeDispatch
+from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
-from src.models.programme_config_models import ProgrammeConfig
+from src.models.pr_branch_naming import build_wave_head_branch, validate_base_branch
 from src.models.run_store_models import (
     JobModel,
     RunCreate,
@@ -42,7 +44,7 @@ from src.models.run_store_types import RunOutcomeType, RunStatusType
 
 
 class RunOrchestrator(BaseBusinessService):
-    """Process claimed jobs through trigger, policy, PR-at-start, and agent dispatch."""
+    """Process jobs: trigger → PR-at-start → Enter-at → walk pin until gate."""
 
     @inject
     def __init__(
@@ -50,10 +52,10 @@ class RunOrchestrator(BaseBusinessService):
         postgres_service: PostgresService,
         trigger_router: TriggerRouter,
         policy_engine: PolicyEngine,
+        workflow_engine: WorkflowEngine,
         handoff_reader: HandoffReader,
         notifier: Notifier,
         metrics_emitter: MetricsEmitter,
-        stage_tool_resolver: StageToolResolver,
         launchpad_client: LaunchpadClient,
         cursor_agent_runner: CursorAgentRunner,
         forge_client: ForgeClient,
@@ -65,20 +67,20 @@ class RunOrchestrator(BaseBusinessService):
         self._postgres_service = postgres_service
         self._trigger_router = trigger_router
         self._policy_engine = policy_engine
+        self._workflow_engine = workflow_engine
         self._handoff_reader = handoff_reader
         self._notifier = notifier
         self._metrics_emitter = metrics_emitter
-        self._stage_tool_resolver = stage_tool_resolver
         self._launchpad_client = launchpad_client
         self._cursor_agent_runner = cursor_agent_runner
         self._forge_client = forge_client
         self._run_repository = run_repository
         self._run_event_repository = run_event_repository
         self._stage_repository = stage_repository
+        self._orchestration = OrchestrationSettings.get_instance()
 
     async def process_job(self, job: JobModel) -> RunProcessSummary:
-        """Run trigger → handoff → policy → PR-at-start → optional dispatch."""
-        programme_config = ProgrammeConfig.get_instance()
+        """Authorize, ensure PR, Enter-at, then hop until STOP/BLOCK/fail."""
         payload = job.payload.model_dump()
         event_type = job.payload.event_type
         delivery_id = job.payload.delivery_id
@@ -89,7 +91,6 @@ class RunOrchestrator(BaseBusinessService):
                 event_type=event_type,
                 delivery_id=delivery_id,
                 payload=payload,
-                programme_config=programme_config,
             )
             if not auth.authorized or auth.context is None:
                 failure = auth.failures[0] if auth.failures else None
@@ -142,17 +143,13 @@ class RunOrchestrator(BaseBusinessService):
             run_id = run.id
 
             notify_pending = False
-            run, notify_pending = await self._ensure_run_pr(
-                session,
-                run,
-                programme_config=programme_config,
-                payload=payload,
-                notify_pending=notify_pending,
-            )
-            issue_ref = run.pr_number or context.pr_number or context.issue_number
-
             try:
-                handoff = self._resolve_handoff(payload, context.workspace_path, programme_config)
+                run, notify_pending = await self._ensure_run_pr(
+                    session,
+                    run,
+                    payload=payload,
+                    notify_pending=notify_pending,
+                )
             except ValueError as exc:
                 return await self._finalize_run(
                     session,
@@ -163,31 +160,24 @@ class RunOrchestrator(BaseBusinessService):
                     workflow_node=None,
                     dispatched=False,
                     notify_pending=notify_pending,
-                    issue_ref=issue_ref,
+                    issue_ref=run.pr_number or context.pr_number or context.issue_number,
                     org=context.org,
                     repo=context.repo,
                 )
+            issue_ref = run.pr_number or context.pr_number or context.issue_number
 
-            decision = self._policy_engine.evaluate_dispatch(
-                handoff=handoff,
-                trigger=context,
-                programme_config=programme_config,
-                retry_counter=run.retry_counter,
-            )
-
-            if decision.decision in {PolicyDecisionType.STOP, PolicyDecisionType.BLOCK}:
-                outcome = (
-                    RunOutcomeType.BLOCKED
-                    if decision.decision == PolicyDecisionType.BLOCK
-                    else RunOutcomeType.STOPPED
-                )
+            start_node_id = payload.get("start_node")
+            dispatch_plan_raw = payload.get("dispatch_plan")
+            if not start_node_id or not isinstance(dispatch_plan_raw, dict):
                 return await self._finalize_run(
                     session,
                     run,
-                    status_type=RunStatusType.STOPPED,
-                    outcome_type=outcome,
-                    stop_reason=decision.block_reason or decision.decision.value,
-                    workflow_node=decision.next_node.node_id if decision.next_node else None,
+                    status_type=RunStatusType.FAILED,
+                    outcome_type=RunOutcomeType.FAILED,
+                    stop_reason=(
+                        "Enter-at requires start_node and dispatch_plan on the job payload"
+                    ),
+                    workflow_node=None,
                     dispatched=False,
                     notify_pending=notify_pending,
                     issue_ref=issue_ref,
@@ -195,32 +185,9 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                 )
 
-            assert decision.next_node is not None
-            next_node = decision.next_node
-            started_at = datetime.now(UTC)
-            started_notify = await self._post_run_event(
-                context.org,
-                context.repo,
-                issue_ref,
-                run_id,
-                next_node.node_id,
-                RunEventNameType.STAGE_STARTED,
-                outcome=None,
-                duration_ms=None,
-                timestamp=started_at,
-            )
-            notify_pending = notify_pending or started_notify
-
-            workspace_path = context.workspace_path or str(Path.cwd())
-            await self._launchpad_client.sync_harness(workspace_path)
-            _tool_context = self._stage_tool_resolver.resolve(
-                next_node.node_id,
-                programme_config=programme_config,
-            )
-            _ = _tool_context
-
             try:
-                resolved = resolve_node_dispatch(programme_config, next_node.node_id)
+                next_node = self._workflow_engine.require_orchestrated_skill(str(start_node_id))
+                dispatch_plan = DispatchPlan.model_validate(dispatch_plan_raw)
             except ValueError as exc:
                 return await self._finalize_run(
                     session,
@@ -228,7 +195,7 @@ class RunOrchestrator(BaseBusinessService):
                     status_type=RunStatusType.FAILED,
                     outcome_type=RunOutcomeType.FAILED,
                     stop_reason=str(exc),
-                    workflow_node=next_node.node_id,
+                    workflow_node=str(start_node_id),
                     dispatched=False,
                     notify_pending=notify_pending,
                     issue_ref=issue_ref,
@@ -236,52 +203,173 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                 )
 
-            if resolved.runner != "cursor":
-                return await self._finalize_run(
+            workspace_path = context.workspace_path or str(Path.cwd())
+            await self._launchpad_client.sync_harness(workspace_path)
+
+            dispatched_any = False
+            hop_count = 0
+            retry_counter = int(run.retry_counter or 0)
+            last_node_id = next_node.node_id
+
+            while True:
+                hop_count += 1
+                if hop_count > self._orchestration.max_orchestrated_hops:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=(
+                            f"Max orchestrated hops exceeded "
+                            f"(GATEFLOW_MAX_ORCHESTRATED_HOPS="
+                            f"{self._orchestration.max_orchestrated_hops})"
+                        ),
+                        workflow_node=last_node_id,
+                        dispatched=dispatched_any,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                try:
+                    resolved = resolve_node_dispatch(dispatch_plan, next_node.node_id)
+                except ValueError as exc:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=str(exc),
+                        workflow_node=next_node.node_id,
+                        dispatched=dispatched_any,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                if resolved.runner != "cursor":
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=(
+                            f"No AgentRunner wired for adapter {resolved.runner!r} "
+                            f"(Cursor path only)"
+                        ),
+                        workflow_node=next_node.node_id,
+                        dispatched=dispatched_any,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                stage_summary = await self._run_orchestrated_stage(
                     session,
-                    run,
-                    status_type=RunStatusType.FAILED,
-                    outcome_type=RunOutcomeType.FAILED,
-                    stop_reason=(
-                        f"No AgentRunner wired for adapter {resolved.runner!r} "
-                        f"(W1 Cursor path only)"
-                    ),
-                    workflow_node=next_node.node_id,
-                    dispatched=False,
-                    notify_pending=notify_pending,
+                    run=run,
+                    run_id=run_id,
+                    context_org=context.org,
+                    context_repo=context.repo,
                     issue_ref=issue_ref,
-                    org=context.org,
-                    repo=context.repo,
+                    next_node=next_node,
+                    resolved=resolved,
+                    workspace_path=workspace_path,
+                    payload=payload,
+                    initiative_id=context.initiative_id,
+                )
+                notify_pending = notify_pending or stage_summary["notify_pending"]
+                dispatched_any = True
+                last_node_id = next_node.node_id
+
+                if not stage_summary["success"]:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=stage_summary["stop_reason"] or "Agent run failed",
+                        workflow_node=next_node.node_id,
+                        dispatched=True,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                try:
+                    handoff = self._ingest_handoff_after_stage(
+                        payload=payload,
+                        workspace_path=workspace_path,
+                        expected_stage=next_node.node_id,
+                    )
+                except ValueError as exc:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=str(exc),
+                        workflow_node=next_node.node_id,
+                        dispatched=True,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                if handoff.outcome == "findings":
+                    retry_counter += 1
+                    await self._run_repository.update_run(
+                        session,
+                        run_id,
+                        RunUpdate(retry_counter=retry_counter),
+                    )
+
+                decision = self._policy_engine.evaluate_dispatch(
+                    handoff,
+                    context,
+                    retry_counter=retry_counter,
                 )
 
-            prompt_context: dict[str, Any] = {
-                "initiative_id": context.initiative_id or payload.get("initiative_id"),
-                "handoff_stage": handoff.stage,
-                "handoff_outcome": handoff.outcome,
-            }
-            if isinstance(payload.get("prompt_context"), dict):
-                prompt_context.update(payload["prompt_context"])
+                if decision.decision == PolicyDecisionType.DISPATCH and decision.next_node:
+                    next_node = decision.next_node
+                    self.logger.info(
+                        "Walker continuing to next orchestrated node",
+                        run_id=str(run_id),
+                        next_node=next_node.node_id,
+                        hop_count=hop_count,
+                    )
+                    continue
 
-            t0 = time.monotonic()
-            agent_result = await self._cursor_agent_runner.run_skill(
-                workspace_path=workspace_path,
-                skill_id=next_node.node_id,
-                prompt_context=prompt_context,
-                model_profile=resolved.model_profile,
-                runner=resolved.runner,
-                model_id=resolved.model_id,
-                model_provider=resolved.model_provider,
-            )
-            duration_ms = int((time.monotonic() - t0) * 1000)
+                if decision.decision == PolicyDecisionType.BLOCK:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.BLOCKED,
+                        stop_reason=decision.block_reason or "Policy BLOCK",
+                        workflow_node=(
+                            decision.next_node.node_id if decision.next_node else last_node_id
+                        ),
+                        dispatched=True,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
 
-            if agent_result.outcome.value != "success":
+                # STOP at gate (checkpoint / manual / terminal / findings budget)
+                stop_node = decision.next_node.node_id if decision.next_node else last_node_id
                 return await self._finalize_run(
                     session,
                     run,
-                    status_type=RunStatusType.FAILED,
-                    outcome_type=RunOutcomeType.FAILED,
-                    stop_reason=agent_result.error_message or "Agent run failed",
-                    workflow_node=next_node.node_id,
+                    status_type=RunStatusType.STOPPED,
+                    outcome_type=RunOutcomeType.STOPPED,
+                    stop_reason=decision.block_reason or f"Stopped at gate node {stop_node}",
+                    workflow_node=stop_node,
                     dispatched=True,
                     notify_pending=notify_pending,
                     issue_ref=issue_ref,
@@ -289,76 +377,131 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                 )
 
-            await self._metrics_emitter.record_stage_duration(
-                session,
-                run_id,
-                next_node.node_id,
-                duration_ms,
-                outcome="success",
-                runner=resolved.runner,
-                model_id=resolved.model_id,
-                model_profile=resolved.model_profile,
-            )
-            await self._stage_repository.create_stage(
-                session,
-                StageCreate(
-                    run_id=run_id,
-                    workflow_node=next_node.node_id,
-                    outcome_type=RunOutcomeType.SUCCESS,
-                    started_at=started_at,
-                    ended_at=datetime.now(UTC),
-                    runner=resolved.runner,
-                    model_profile=resolved.model_profile,
-                    model_id=resolved.model_id,
-                    model_provider=resolved.model_provider,
-                ),
-            )
-            completed_notify = await self._post_run_event(
-                context.org,
-                context.repo,
-                issue_ref,
-                run_id,
-                next_node.node_id,
-                RunEventNameType.STAGE_COMPLETED,
-                outcome=RunOutcomeType.SUCCESS.value,
-                duration_ms=duration_ms,
-                timestamp=datetime.now(UTC),
-            )
-            notify_pending = notify_pending or completed_notify
+    async def _run_orchestrated_stage(
+        self,
+        session: AsyncSession,
+        *,
+        run: RunModel,
+        run_id: UUID,
+        context_org: str,
+        context_repo: str,
+        issue_ref: Optional[int],
+        next_node: ResolvedWorkflowNode,
+        resolved: ResolvedNodeDispatch,
+        workspace_path: str,
+        payload: dict[str, Any],
+        initiative_id: Optional[str],
+    ) -> dict[str, Any]:
+        """Execute one Cursor stage; return success flag and notify_pending."""
+        _ = run
+        started_at = datetime.now(UTC)
+        notify_pending = await self._post_run_event(
+            context_org,
+            context_repo,
+            issue_ref,
+            run_id,
+            next_node.node_id,
+            RunEventNameType.STAGE_STARTED,
+            outcome=None,
+            duration_ms=None,
+            timestamp=started_at,
+        )
 
-            updated = await self._run_repository.update_run(
-                session,
-                run_id,
-                RunUpdate(
-                    status_type=RunStatusType.COMPLETED,
-                    outcome_type=RunOutcomeType.SUCCESS,
-                    workflow_node=next_node.node_id,
-                    notify_pending=notify_pending,
-                ),
-            )
-            if updated is None:
-                raise RuntimeError(f"Run {run_id} missing after dispatch success")
+        prompt_context: dict[str, Any] = {
+            "initiative_id": initiative_id or payload.get("initiative_id"),
+            "start_node": next_node.node_id,
+            "workflow_node": next_node.node_id,
+        }
+        if isinstance(payload.get("prompt_context"), dict):
+            prompt_context.update(payload["prompt_context"])
 
-            self.logger.info(
-                "Run dispatch completed",
-                run_id=str(run_id),
-                workflow_node=next_node.node_id,
-                runner=resolved.runner,
-                model_profile=resolved.model_profile,
-                duration_ms=duration_ms,
-            )
-            return RunProcessSummary(
+        t0 = time.monotonic()
+        agent_result = await self._cursor_agent_runner.run_skill(
+            workspace_path=workspace_path,
+            skill_id=next_node.node_id,
+            prompt_context=prompt_context,
+            model_profile=resolved.model_profile,
+            runner=resolved.runner,
+            model_id=resolved.model_id,
+            model_provider=resolved.model_provider,
+        )
+        duration_ms = int((time.monotonic() - t0) * 1000)
+
+        stage_outcome = (
+            RunOutcomeType.SUCCESS
+            if agent_result.outcome.value == "success"
+            else RunOutcomeType.FAILED
+        )
+        metrics_outcome = "success" if stage_outcome == RunOutcomeType.SUCCESS else "failed"
+        ended_at = datetime.now(UTC)
+        await self._metrics_emitter.record_stage_duration(
+            session,
+            run_id,
+            next_node.node_id,
+            duration_ms,
+            outcome=metrics_outcome,
+            runner=resolved.runner,
+            model_id=resolved.model_id,
+            model_profile=resolved.model_profile,
+        )
+        await self._stage_repository.create_stage(
+            session,
+            StageCreate(
                 run_id=run_id,
-                terminal_status=RunStatusType.COMPLETED.value,
-                dispatched=True,
+                workflow_node=next_node.node_id,
+                outcome_type=stage_outcome,
+                started_at=started_at,
+                ended_at=ended_at,
+                runner=resolved.runner,
+                model_profile=resolved.model_profile,
+                model_id=resolved.model_id,
+                model_provider=resolved.model_provider,
+            ),
+        )
+        completed_notify = await self._post_run_event(
+            context_org,
+            context_repo,
+            issue_ref,
+            run_id,
+            next_node.node_id,
+            RunEventNameType.STAGE_COMPLETED,
+            outcome=stage_outcome.value,
+            duration_ms=duration_ms,
+            timestamp=ended_at,
+        )
+        notify_pending = notify_pending or completed_notify
+        return {
+            "success": stage_outcome == RunOutcomeType.SUCCESS,
+            "notify_pending": notify_pending,
+            "stop_reason": agent_result.error_message,
+            "duration_ms": duration_ms,
+        }
+
+    def _ingest_handoff_after_stage(
+        self,
+        *,
+        payload: dict[str, Any],
+        workspace_path: str,
+        expected_stage: str,
+    ) -> HandoffEnvelope:
+        """Read durable handoff (or payload override); validate stage matches node just run."""
+        handoff_raw = payload.get("handoff")
+        if isinstance(handoff_raw, dict):
+            handoff = HandoffEnvelope.model_validate(handoff_raw)
+        else:
+            handoff = self._handoff_reader.find_latest_handoff(Path(workspace_path))
+        if handoff.stage != expected_stage:
+            raise ValueError(
+                f"Handoff stage {handoff.stage!r} does not match executed node "
+                f"{expected_stage!r}"
             )
+        return handoff
 
     async def _ensure_run_pr(
         self,
         session: AsyncSession,
         run: RunModel,
         *,
-        programme_config: ProgrammeConfig,
         payload: dict[str, Any],
         notify_pending: bool,
     ) -> tuple[RunModel, bool]:
@@ -369,32 +512,51 @@ class RunOrchestrator(BaseBusinessService):
             return run, notify_pending
 
         run_id_str = str(run.id)
-        run_id_short = run_id_str.replace("-", "")[:8]
-        initiative_id = run.initiative_id or str(payload.get("initiative_id") or "unknown")
-        wave_id = run.wave_id or str(payload.get("wave_id") or "unknown")
-        template_vars = {
-            "initiative_id": initiative_id,
-            "wave_id": wave_id,
-            "run_id": run_id_str,
-            "run_id_short": run_id_short,
-        }
-        pr_cfg = programme_config.pr
-        title = pr_cfg.title_template.format(**template_vars)
-        body = pr_cfg.body_template.format(**template_vars)
-        head = f"{pr_cfg.branch_prefix}{run_id_short}"
+        initiative_id = run.initiative_id or payload.get("initiative_id")
+        wave_id = run.wave_id or payload.get("wave_id")
+        branch_slug = payload.get("branch_slug")
+        base_branch = payload.get("base_branch")
+        if not initiative_id or not wave_id or not branch_slug or not base_branch:
+            raise ValueError(
+                "PR-at-start requires initiative_id, wave_id, branch_slug, and "
+                "base_branch on the wave-start job payload (caller-owned targeting)"
+            )
+
         try:
+            head = build_wave_head_branch(
+                str(initiative_id),
+                str(wave_id),
+                str(branch_slug),
+            )
+            base = validate_base_branch(str(base_branch))
+        except ValueError as exc:
+            raise ValueError(f"Invalid PR targeting for run start: {exc}") from exc
+
+        title = f"[gateflow] {initiative_id} {wave_id} {branch_slug}"
+        body = (
+            f"Run `{run_id_str}` — status API supplementary.\n\n" f"Head `{head}` → base `{base}`."
+        )
+        try:
+            await self._forge_client.ensure_branch_from_base(
+                run.org,
+                run.repo,
+                branch=head,
+                base=base,
+            )
             pr_number = await self._forge_client.create_or_update_pull_request(
                 run.org,
                 run.repo,
                 title=title,
                 body=body,
                 head=head,
-                base=pr_cfg.base_branch,
+                base=base,
             )
         except Exception as exc:
             self.logger.error(
                 "PR open/update failed at run start",
                 run_id=run_id_str,
+                head=head,
+                base=base,
                 error=str(exc),
                 exc_info=True,
             )
@@ -417,24 +579,9 @@ class RunOrchestrator(BaseBusinessService):
             run_id=run_id_str,
             pr_number=pr_number,
             head=head,
+            base=base,
         )
         return updated, notify_pending
-
-    def _resolve_handoff(
-        self,
-        payload: dict[str, Any],
-        workspace_path: Optional[str],
-        programme_config: ProgrammeConfig,
-    ) -> HandoffEnvelope:
-        handoff_raw = payload.get("handoff")
-        if isinstance(handoff_raw, dict):
-            return HandoffEnvelope.model_validate(handoff_raw)
-        if workspace_path:
-            return self._handoff_reader.find_latest_handoff(
-                Path(workspace_path),
-                programme_config=programme_config,
-            )
-        raise ValueError("Handoff required — set workspace_path or payload.handoff for tests")
 
     async def _post_run_event(
         self,
@@ -460,6 +607,16 @@ class RunOrchestrator(BaseBusinessService):
         )
         return await self._notifier.post_run_event_comment(org, repo, issue_ref, comment)
 
+    @staticmethod
+    def _compute_wave_duration_ms(run: RunModel, ended_at: datetime) -> Optional[int]:
+        if run.created_at is None:
+            return None
+        started = run.created_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=UTC)
+        end = ended_at if ended_at.tzinfo is not None else ended_at.replace(tzinfo=UTC)
+        return max(0, int((end - started).total_seconds() * 1000))
+
     async def _finalize_run(
         self,
         session: AsyncSession,
@@ -478,6 +635,9 @@ class RunOrchestrator(BaseBusinessService):
         if run.id is None:
             raise RuntimeError("Run missing id during finalize")
 
+        ended_at = datetime.now(UTC)
+        wave_duration_ms = self._compute_wave_duration_ms(run, ended_at)
+
         await self._run_event_repository.append_event(
             session,
             RunEventCreate(
@@ -485,7 +645,11 @@ class RunOrchestrator(BaseBusinessService):
                 event_type="run_stopped",
                 workflow_node=workflow_node,
                 outcome_type=outcome_type,
-                payload={"stop_reason": stop_reason, "event_type": "run_stopped"},
+                payload={
+                    "stop_reason": stop_reason,
+                    "event_type": "run_stopped",
+                    "wave_duration_ms": wave_duration_ms,
+                },
             ),
         )
 
@@ -501,8 +665,8 @@ class RunOrchestrator(BaseBusinessService):
                 workflow_node,
                 RunEventNameType.RUN_STOPPED,
                 outcome=outcome_type.value,
-                duration_ms=None,
-                timestamp=datetime.now(UTC),
+                duration_ms=wave_duration_ms,
+                timestamp=ended_at,
             )
             notify_pending = notify_pending or stopped_notify
 
@@ -513,6 +677,7 @@ class RunOrchestrator(BaseBusinessService):
                 status_type=status_type,
                 outcome_type=outcome_type,
                 workflow_node=workflow_node,
+                wave_duration_ms=wave_duration_ms,
                 notify_pending=notify_pending,
             ),
         )
@@ -523,6 +688,7 @@ class RunOrchestrator(BaseBusinessService):
             outcome_type=outcome_type.value,
             stop_reason=stop_reason,
             dispatched=dispatched,
+            wave_duration_ms=wave_duration_ms,
         )
         return RunProcessSummary(
             run_id=run.id,

@@ -10,10 +10,8 @@ from fastapi.testclient import TestClient
 
 from src.app import create_app
 from src.configs.base_settings import BaseSettings
-from src.configs.programme_config_loader import load_programme_config
 from src.di.dependency_container import configure_container, reset_container
 from src.models.control_plane_models import RunMetricsResponse, RunStatusResponse
-from src.models.programme_config_models import ProgrammeConfig
 
 
 @pytest.fixture
@@ -25,8 +23,6 @@ def programme_client(
     os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
     BaseSettings._instances.pop("ProgrammeAuthSettings", None)
 
-    ProgrammeConfig.reset_instance()
-    load_programme_config()
     reset_container()
     metrics_emitter = MagicMock()
     metrics_emitter.get_run_status = AsyncMock(

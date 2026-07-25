@@ -62,11 +62,11 @@ def test_required_stub_notifier_fails(validator: SlotValidator) -> None:
     result = validator.validate_for_run(
         runner_ids=["cursor"],
         notifier_id="slack",
-        notifier_config_key="notifier.default",
+        notifier_config_key="GATEFLOW_NOTIFIER",
     )
     assert result.ok is False
     assert result.failures[0].adapter_id == "slack"
-    assert result.failures[0].config_key == "notifier.default"
+    assert result.failures[0].config_key == "GATEFLOW_NOTIFIER"
 
 
 def test_unknown_adapter_fails(validator: SlotValidator) -> None:
