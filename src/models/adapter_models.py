@@ -71,7 +71,7 @@ class WaveStartRequest(BaseModel):
         description="Wave id such as W0 / W1",
     )
     branch_slug: str = Field(
-        description="Lowercase kebab slug for the wave head branch, e.g. engineering-lane",
+        description="Lowercase kebab slug for the wave head branch, e.g. implement-lane",
     )
     base_branch: str = Field(
         description="PR base branch (merge target), e.g. develop",

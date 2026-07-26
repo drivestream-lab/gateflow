@@ -107,9 +107,9 @@ green. (Full Scenario prove-it is W1/W2.)
 
 ---
 
-### Phase W1 — Scenario B prove-it + cycle-time + Docker spike
+### Phase W1 — Implement-lane prove-it + cycle-time + Docker spike
 
-**GOAL-W1:** Live Cursor on Scenario B skill set (`pre-implement`, `loop-spec`,
+**GOAL-W1:** Live Cursor on **implement lane** skill set (`pre-implement`, `loop-spec`,
 `verify`, `ground-spec`) with live coding-work evidence; auth/start/crash
 fail-fast; stage duration on success **and** failure; `runs.wave_duration_ms`;
 Docker/bridge spike passed before live prove-it exit.
@@ -119,7 +119,7 @@ Docker/bridge spike passed before live prove-it exit.
 | TASK-W1-01 | Docker/image spike: `cursor-sdk` in Gateflow-like image + `CURSOR_API_KEY` + cwd; document bridge/Node needs | REQ-27 | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` | Spike pass recorded; blockers listed if fail | inspection | — | TDD §3.3 | `feature/INIT-GATEFLOW-003-w1-scenario-b` |
 | TASK-W1-02 | Orchestrator: persist `StageCreate` + `record_stage_duration` on AgentRunner **failure**; timeouts/crash → `failed` no advance | REQ-29, REQ-30 | drivestream-lab/gateflow | same | Failure path has stage + duration_ms event; unit covers FF-05 | `make check && make test` | fail-fast; repository boundary | ADR-001 | same |
 | TASK-W1-03 | Human Alembic + ORM/DTO/API: `runs.wave_duration_ms`; compute on finalize from accept→stop/fail; expose on run detail | REQ-30 | drivestream-lab/gateflow | same | Column present after human migration; run detail shows field | `make check && make test` | human migrations only; pydantic models | ADR-001 | same |
-| TASK-W1-04 | Live Scenario B prove-it verify script (worker + key + stub unset); assert RunStore `runner=cursor` + workspace coding work | REQ-27, REQ-31 | drivestream-lab/gateflow | same | Documented verify green on local stack | `make check && make test` ; `.venv/bin/python -m tests.verify.verify_scenario_b` (name may vary) | testing-verify-flows; no stub env | ADR-003 | `feature/INIT-GATEFLOW-003-w1-verify` |
+| TASK-W1-04 | Live **implement-lane** prove-it verify script (worker + key + stub unset); assert RunStore `runner=cursor` + workspace coding work | REQ-27, REQ-31 | drivestream-lab/gateflow | same | Documented verify green on local stack | `make check && make test` ; `.venv/bin/python -m tests.verify.verify_implement_lane` | testing-verify-flows; no stub env | ADR-003 | `feature/INIT-GATEFLOW-003-w1-verify` |
 | TASK-W1-05 | Unit tests for wave_duration_ms + failure metrics; update verify_all/README/as-built W1 | REQ-30 | drivestream-lab/gateflow | same | Tests + docs updated | `make check && make test` | SDD as-built | — | same |
 
 #### Files (W1)
@@ -130,7 +130,7 @@ Docker/bridge spike passed before live prove-it exit.
 | FILE-W1-02 | `src/business_services/run_orchestrator.py`, `metrics_emitter.py` | edit |
 | FILE-W1-03 | `src/database/postgres/schema/run_store_schema.py`, models, repo, runs routes | edit |
 | FILE-W1-04 | `postgres_migrations/versions/` | **human** creates revision |
-| FILE-W1-05 | `tests/verify/verify_scenario_b.py`, `verify_all.py` | create/edit |
+| FILE-W1-05 | `tests/verify/verify_implement_lane.py`, `verify_all.py` | create/edit |
 | FILE-W1-06 | `tests/unit/test_run_orchestrator.py`, `test_metrics_emitter.py` | edit |
 | FILE-W1-07 | `tests/README.md`, as-built | edit |
 
@@ -139,21 +139,23 @@ Docker/bridge spike passed before live prove-it exit.
 | ID | Layer | Command | Proves |
 |----|-------|---------|--------|
 | TEST-W1-U | unit | `make test` | REQ-29/30 failure path + wave duration |
-| TEST-W1-V | live verify | `.venv/bin/python -m tests.verify.verify_scenario_b` | REQ-27 Scenario B |
+| TEST-W1-V | live verify | `.venv/bin/python -m tests.verify.verify_implement_lane` | REQ-27 implement lane |
 | TEST-W1-SPIKE | inspection | Docker spike note | TDD §3.3 |
 
 ---
 
-### Phase W2 — Scenario A prove-it + metrics honesty
+### Phase W2 — Spec-lane prove-it + metrics honesty
 
-**GOAL-W2:** After prayog-skills CTR-01 (Scenario A `dispatch: orchestrated`), live
-Cursor prove-it on Scenario A set; post–Gate 2 Scenario A still runnable; metrics
-`by_runner` cursor p50/p95 with samples; as-built complete.
+**GOAL-W2:** After prayog-skills CTR-01 (**spec lane** `dispatch: orchestrated`) and
+next-PRD dogfood context, live Cursor prove-it on spec-lane set; post–Gate 2
+spec-lane still runnable; metrics `by_runner` cursor p50/p95 with samples;
+as-built complete. Gateflow names: **spec lane** / **implement lane** (legacy
+Scenario A / B).
 
 | Task | Description | Implements | Codebase | Spec path | Done when | Verify command | MDC notes | ADR notes | Branch |
 |------|-------------|------------|----------|-----------|-----------|----------------|-----------|-----------|--------|
-| TASK-W2-01 | Confirm CTR-01 pin: Scenario A skills orchestrated (consume pin; no Gateflow allowlist) | REQ-27, REQ-31 | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` | Pin fixtures show orchestrated; PolicyEngine dispatches without hardcoded list | `make check && make test` | no allowlists | ADR-006 (dispatch SSOT = pin) | `feature/INIT-GATEFLOW-003-w2-scenario-a` |
-| TASK-W2-02 | Live verify Scenario A set + post–Gate 2 one-node re-run; coding-work evidence | REQ-27 | drivestream-lab/gateflow | same | Verify green after supporting pin | `.venv/bin/python -m tests.verify.verify_scenario_a` (name may vary) | testing-verify-flows | — | same |
+| TASK-W2-01 | Confirm CTR-01 pin: **spec-lane** skills orchestrated (consume pin; no Gateflow allowlist) | REQ-27, REQ-31 | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` | Pin fixtures show orchestrated; PolicyEngine dispatches without hardcoded list | `make check && make test` | no allowlists | ADR-006 (dispatch SSOT = pin) | `feature/INIT-GATEFLOW-003-w2-spec-lane` |
+| TASK-W2-02 | Live verify **spec lane** + post–Gate 2 one-node re-run; coding-work evidence (next PRD dogfood) | REQ-27 | drivestream-lab/gateflow | same | Verify green after supporting pin + PRD | `.venv/bin/python -m tests.verify.verify_spec_lane` (name may vary) | testing-verify-flows | — | same |
 | TASK-W2-03 | Assert metrics `by_runner` includes cursor p50/p95 when samples exist (unit + verify_status_metrics) | REQ-30 | drivestream-lab/gateflow | same | Assertions green with ≥1 sample | `make check && make test` ; `.venv/bin/python -m tests.verify.verify_status_metrics` | — | TDD PE-3 | `feature/INIT-GATEFLOW-003-w2-verify` |
 | TASK-W2-04 | As-built + tests README INIT-003 complete; ground-ready | REQ-31 | drivestream-lab/gateflow | same | as-built W2 complete | inspection | SDD | — | same |
 
@@ -162,7 +164,7 @@ Cursor prove-it on Scenario A set; post–Gate 2 Scenario A still runnable; metr
 | ID | Path | Action |
 |----|------|--------|
 | FILE-W2-01 | pin fixtures / unit pin tests | edit |
-| FILE-W2-02 | `tests/verify/verify_scenario_a.py`, `verify_all.py` | create/edit |
+| FILE-W2-02 | `tests/verify/verify_spec_lane.py`, `verify_all.py` | create/edit |
 | FILE-W2-03 | `tests/unit/test_metrics_emitter.py`, verify_status_metrics | edit |
 | FILE-W2-04 | as-built, `tests/README.md` | edit |
 
@@ -171,7 +173,7 @@ Cursor prove-it on Scenario A set; post–Gate 2 Scenario A still runnable; metr
 | ID | Layer | Command | Proves |
 |----|-------|---------|--------|
 | TEST-W2-U | unit | `make test` | REQ-27 pin consume; REQ-30 by_runner |
-| TEST-W2-V | live verify | Scenario A + status/metrics | REQ-27, REQ-30 |
+| TEST-W2-V | live verify | Spec lane + status/metrics | REQ-27, REQ-30 |
 
 ---
 
@@ -183,7 +185,7 @@ Cursor prove-it on Scenario A set; post–Gate 2 Scenario A still runnable; metr
 | DEP-02 | W0 merged (SDK + start-gate) | W1 |
 | DEP-03 | W0 laptop spike + W1 Docker spike | W1 Scenario B exit |
 | DEP-04 | W1 merged | W2 |
-| DEP-05 | prayog-skills CTR-01 Scenario A `dispatch: orchestrated` | W2 Scenario A prove-it |
+| DEP-05 | prayog-skills CTR-01 **spec lane** `dispatch: orchestrated` (+ next PRD dogfood) | W2 spec-lane prove-it |
 | DEP-06 | Human Alembic for `wave_duration_ms` | W1 store/API tasks |
 | DEP-07 | `CURSOR_API_KEY` + model entitlement for programme account | W1/W2 live verify |
 
@@ -196,7 +198,7 @@ Cursor prove-it on Scenario A set; post–Gate 2 Scenario A still runnable; metr
 | RISK-01 | `cursor-sdk` bridge/Node bits break Docker worker | TASK-W1-01 spike before Scenario B exit; document image deps |
 | RISK-02 | Stub env accidentally used as live exit evidence | Start-gate quarantine; verify scripts require stub unset |
 | RISK-03 | Long agent turns exceed job timeouts | Explicit SDK/orchestrator timeouts; tune in W1 |
-| RISK-04 | Scenario A blocked on skills pin | DEP-05; hold W2 prove-it; gateflow still ships W0/W1 |
+| RISK-04 | Spec lane blocked on skills pin / next PRD | DEP-05; hold live prove-it; gateflow still ships W0/W1 + W2 prep |
 | RISK-05 | Registry `implemented=True` honesty regression | TASK-W0-03 + unit tests; ADR-006 |
 | RISK-06 | Human forgets Alembic for wave_duration_ms | DDL note in PR; database-migrations.mdc |
 

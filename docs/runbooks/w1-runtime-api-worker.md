@@ -13,7 +13,7 @@ or AgentRunner inline.
 ## Local stack
 
 ```bash
-# Preferred — API + worker (ADR-001). Needed for wave-start / engineering-lane verify.
+# Preferred — API + worker (ADR-001). Needed for wave-start / implement-lane verify.
 make run
 
 # Or separate terminals:

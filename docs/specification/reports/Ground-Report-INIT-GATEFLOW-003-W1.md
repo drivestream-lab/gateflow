@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Wave | W1 — engineering-lane prove-it + cycle-time + Docker spike |
+| Wave | W1 — implement-lane prove-it + cycle-time + Docker spike |
 | Spec | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` |
 | Date | 2026-07-25 |
 | Branch | `feature/INIT-GATEFLOW-003-w1-ground-report` — wave-signoff (implementation already on `develop` via #44) |
@@ -24,13 +24,14 @@ Contracts: 1 kept, 0 broken (layered architecture)
 $ make test
 110 passed in ~1.3s
 
-$ .venv/bin/python -m tests.verify.verify_engineering_lane
-# tests/config.yaml: verify.engineering_lane: true, require_worker: true
+$ .venv/bin/python -m tests.verify.verify_implement_lane
+# tests/config.yaml: verify.implement_lane: true, require_worker: true
 # CURSOR_API_KEY + PROGRAMME_SERVICE_TOKEN; make run (API + worker)
+# (legacy alias: verify_engineering_lane → same entrypoint)
 [OK] four cursor stages success; terminal status=stopped (wave-human-decision)
 [OK] wave_duration_ms present
 [OK] evidence file present
-[OK] verify_engineering_lane passed
+[OK] verify_implement_lane passed
 
 Live RunStore evidence (ds_gateflow_db):
   run_id=de780ba2-7841-4827-ad69-362358a8176d

@@ -27,6 +27,16 @@ allowlist. Unsupported / not-live runners and Cursor auth/start/crash **fail
 fast**. Stage and wave **cycle-time** fields are persisted and exposed on existing
 run/metrics APIs, including **p50/p95** for `runner=cursor`.
 
+### Engineering lane naming
+
+| Gateflow name | Meaning | Legacy PRD label | Pin nodes (today) |
+|---------------|---------|------------------|-------------------|
+| **spec lane** | PRD → repo spec / feasibility / TDD / plan | Scenario A | `spec-draft` … `spec-implementation-plan` (`manual` until CTR-01) |
+| **implement lane** | coding wave through ground + wave signoff | Scenario B / engineering-lane | `pre-implement` … `ground-spec` (`orchestrated`) |
+
+Use **spec lane** / **implement lane** in Gateflow docs and verify. Keep Scenario A/B
+only where citing the upstream PRD verbatim.
+
 **Out of scope for this repo:** gateflow-ops BFF/UI; Launchpad product features;
 cloud Cursor agents; live OpenCode / Claude Code / Slack / Teams; rebuilding
 wave-start / PR-at-start / board / ForgeClient platform from 001/002; pin
@@ -40,19 +50,20 @@ today:** `CursorAgentRunner` uses live local `cursor-sdk` with `CURSOR_API_KEY`;
 unit tests may use `mock-*` skill ids only. Stage timestamps + `runner` /
 `model_profile` / `model_id` and metrics p50/p95 by node/runner/`model_id` exist;
 **wave cycle-time field** and **live Cursor prove-it** are W1 exit. Pin
-`v0.5.0-rc.2`: engineering-lane skills already `dispatch: orchestrated`; Scenario A
-eng skills remain `manual` until prayog-skills supporting pin edit.
+`v0.5.0-rc.2`: **implement-lane** skills already `dispatch: orchestrated`; **spec-lane**
+skills remain `manual` until prayog-skills supporting pin edit (after next PRD
+dogfood / CTR-01).
 
 **Delivery waves (product-normative; exact split may adjust in plan):** W0 live
-Cursor skeleton + config/credential fail-fast; W1 engineering-lane prove-it + crash/auth
-fail-fast + stage/wave cycle-time; W2 Scenario A prove-it (after pin support) +
-post–Gate 2 Scenario A still runnable + metrics p50/p95 for `runner=cursor`.
+Cursor skeleton + config/credential fail-fast; W1 **implement-lane** prove-it + crash/auth
+fail-fast + stage/wave cycle-time; W2 **spec-lane** prove-it (after pin support + next
+PRD dogfood) + post–Gate 2 spec-lane still runnable + metrics p50/p95 for `runner=cursor`.
 
 ## Functional requirements
 
 | ID | Requirement | PRD source | Acceptance criteria | Evidence type |
 |----|-------------|-----------|---------------------|---------------|
-| REQ-27 | Make **Cursor AgentRunner live** in the worker: for every resolved `dispatch: orchestrated` skill with resolved `runner: cursor`, invoke a **live** Cursor agent that performs **live coding work** in the workspace (stand-in / stub / empty success does **not** satisfy). Gateflow must **not** hardcode a node allowlist — pin `dispatch` is SSOT. **Prove-it (engineering lane):** skill set `pre-implement`, `loop-spec`, `verify`, `ground-spec` (W1) walked until `wave-human-decision`; intermediate handoffs use `human_checkpoint: false` so the walker continues. Scenario A skill set `spec-draft`, `initiative-feasibility`, `spec-technical-review`, `spec-implementation-plan` when those nodes are `orchestrated` in the pin (W2; pin content owned by prayog-skills). Intended programme config `cursor` + `auto` (overridable). After Gate 2 opens, Scenario A remains triggerable when orchestrated. Human-checkpoints at wave gates are **expected stops**, not AgentRunner failures. Harness/skills/MDC remain from programme pin / existing Launchpad sync. Supersedes INIT-002 FR-17 **product meaning** of “Cursor implemented” for live exit. | PRD §2 FR-27, US-1; Success Criteria; Decisions #8/#12; A5/A6; impact-map gateflow scope | Orchestrated ⇒ AgentRunner invoked with no hardcoded node list; live Cursor produces workspace coding work + RunStore stages with `runner=cursor` for the engineering-lane set; after supporting pin, same for Scenario A set; human-checkpoint at wave gate → stopped (not `failed`); post–Gate 2 Scenario A node still dispatchable when orchestrated; `GATEFLOW_AGENT_STUB` / `mock-*` stand-in must not be the production `runner=cursor` success path (see Q-3). | unit + integration + live verify |
+| REQ-27 | Make **Cursor AgentRunner live** in the worker: for every resolved `dispatch: orchestrated` skill with resolved `runner: cursor`, invoke a **live** Cursor agent that performs **live coding work** in the workspace (stand-in / stub / empty success does **not** satisfy). Gateflow must **not** hardcode a node allowlist — pin `dispatch` is SSOT. **Prove-it (implement lane):** skill set `pre-implement`, `loop-spec`, `verify`, `ground-spec` (W1) walked until `wave-human-decision`; intermediate handoffs use `human_checkpoint: false` so the walker continues. **Prove-it (spec lane):** skill set `spec-draft`, `initiative-feasibility`, `spec-technical-review`, `spec-implementation-plan` when those nodes are `orchestrated` in the pin (W2; pin content owned by prayog-skills; live dogfood waits on next PRD). Intended programme config `cursor` + `auto` (overridable). After Gate 2 opens, spec-lane remains triggerable when orchestrated. Human-checkpoints at wave gates are **expected stops**, not AgentRunner failures. Harness/skills/MDC remain from programme pin / existing Launchpad sync. Supersedes INIT-002 FR-17 **product meaning** of “Cursor implemented” for live exit. Legacy PRD labels: implement lane = Scenario B; spec lane = Scenario A. | PRD §2 FR-27, US-1; Success Criteria; Decisions #8/#12; A5/A6; impact-map gateflow scope | Orchestrated ⇒ AgentRunner invoked with no hardcoded node list; live Cursor produces workspace coding work + RunStore stages with `runner=cursor` for the implement-lane set; after supporting pin, same for spec-lane set; human-checkpoint at wave gate → stopped (not `failed`); post–Gate 2 spec-lane node still dispatchable when orchestrated; `GATEFLOW_AGENT_STUB` / `mock-*` stand-in must not be the production `runner=cursor` success path (see Q-3). | unit + integration + live verify |
 | REQ-28 | Resolve runner (and model id) from the **wave-start dispatch plan** (API `runner` / `model_id` + optional `node_dispatch`; inherit start defaults for unset nodes — INIT-002 FR-16). Selecting OpenCode, Claude Code, or any **unknown / not-live** runner id required for the run **blocks at start** with structured error naming runner id + field — **never** silent substitute with Cursor. Extends INIT-002 FR-18 honesty for “not live” vs stub. **Not** resolved from programme YAML. | PRD §2 FR-28, US-2; Programme Config (evolved); Decision #10; Error Handling | Request with required `opencode` / `claude` / unknown → reject/fail at start; 0 Cursor dispatches; 0 silent fallback; PolicyEngine does not hardcode brand allowlists. | unit |
 | REQ-29 | **Fail fast** on missing/invalid Cursor credentials/auth material, inability to start Cursor, timeout, or crash: stop run; `outcome: failed`; record + notify as today; **no pretend success**; no workflow advance on AgentRunner failure. Adds wave-run precondition **#12** when resolved runner is `cursor`. | PRD §2 FR-29, US-2; Error Handling; wave-run precondition #12; Decision #9 | Absent/invalid Cursor auth → fail before or at AgentRunner start; start/timeout/crash → `failed` + PR/status visibility; 0 invented successful coding stages. | unit + live verify |
 | REQ-30 | Persist and expose **defined cycle-time metrics**: every live Cursor orchestrated stage records `started_at`, `ended_at`, `duration_ms`, `runner`, `model_profile`, `model_id`, `outcome`; every run that dispatches live Cursor records **wave cycle time** from API accept/enqueue to stop at next contract node **or** terminal `failed` (`wave_duration_ms` on the run — TDD §3.4); metrics API returns **p50 and p95** stage `duration_ms` for `runner=cursor` via the existing **`by_runner`** aggregate dimension (select row `key=cursor`; no new query param required for 003 — TDD PE-3) and by `workflow_node` when data exists. Extends INIT-002 FR-20/FR-21; sponsor SLA thresholds are **not** exit gates. | PRD §2 FR-30, US-3; §4 Cycle-time metrics; Success Criteria; Decision #11 | 100% live Cursor stages have named fields (success **and** AgentRunner failure); `wave_duration_ms` present on qualifying runs; `GET /metrics/runs` `by_runner` includes cursor p50/p95 when ≥1 sample; fields queryable via existing run/metrics APIs (no ops UI). | unit + live verify |
@@ -86,7 +97,7 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 | REQ-29 | Missing/invalid Cursor credentials | Fail fast; run `failed` or start rejected; notify/PR as today; 0 pretend success stages | unit + live verify |
 | REQ-29 | Cursor cannot start | Stop; `failed`; no workflow advance; PR + RunStore | unit + live verify |
 | REQ-29 | Cursor timeout / crash mid-stage | Stop; `failed`; no workflow advance; PR + RunStore | unit + live verify |
-| REQ-27 | Human-checkpoint / gate between Scenario A or B skills | **Expected stop** — not AgentRunner failure; prove-it may resume after human or use multiple runs | unit + live verify |
+| REQ-27 | Human-checkpoint / gate between spec-lane or implement-lane skills | **Expected stop** — not AgentRunner failure; prove-it may resume after human or use multiple runs | unit + live verify |
 | REQ-27 | Cursor completes then contract stop reached | Stop at contract node (automation success path); human owns next step | unit (inherit) |
 | REQ-30 | Metrics persist failure | Do not invent success metrics; preserve run outcome; flag for ops | unit |
 | inherit | INIT-002 auth / precondition / ForgeClient / stub failures | Unchanged from INIT-GATEFLOW-002 Error Handling | unit |
@@ -95,7 +106,7 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 ## Out of scope for this repo
 
 - **gateflow-ops** BFF/UI (deferred; cycle-time via existing APIs) — impact-map §3
-- **prayog-skills** pin `dispatch: orchestrated` edits for Scenario A (supporting delivery in that repo; gateflow **consumes** pin only) — CTR-01
+- **prayog-skills** pin `dispatch: orchestrated` edits for **spec lane** (supporting delivery in that repo; gateflow **consumes** pin only) — CTR-01
 - **launchpad** product features (existing harness sync only; Decision #7)
 - Cloud Cursor agents / cloud agent runtime
 - Live OpenCode / Claude Code; live Slack / Teams notifiers
@@ -111,8 +122,8 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 
 | Contract ID | Provider / owner | Consumer / owner | Entry point | Input shape | Output shape | Invariants | Errors | Compatibility / versioning | Contract-test location |
 |-------------|------------------|------------------|-------------|-------------|--------------|------------|--------|----------------------------|------------------------|
-| CTR-01 | prayog-skills / prayog-pe-team | gateflow / prayog-pe-team | Pinned `workflow.yaml` + `dispatch`; Scenario A nodes become `orchestrated` for 003 exit | `handoff.stage`, `handoff.outcome`, `dispatch` | Next node + orchestrated eligibility | Orchestrated ⇒ triggerable; no Gateflow allowlist; missing `dispatch` ⇒ manual | Pin unavailable ⇒ block + notify | Pin content change (no version-bump exit gate); consumer still `.harness-pin.yaml` | Planned: unit pin fixtures + W2 live verify after skills pin |
-| CTR-02 | Cursor SDK (external) / prayog-pe-team | gateflow / prayog-pe-team | Live AgentRunner in worker (`run_skill` FR-6 I/O) | workspace, skill_id, prompt_context, model profile, credentials | `AgentRunResult` + live coding work | Local/non-cloud worker path only this INIT; no pretend success | Auth/start/timeout/crash ⇒ `failed` (REQ-29) | New live path; supersedes stub for `runner=cursor` | Planned: unit + live verify engineering-lane / Scenario A |
+| CTR-01 | prayog-skills / prayog-pe-team | gateflow / prayog-pe-team | Pinned `workflow.yaml` + `dispatch`; **spec-lane** nodes become `orchestrated` for 003 exit | `handoff.stage`, `handoff.outcome`, `dispatch` | Next node + orchestrated eligibility | Orchestrated ⇒ triggerable; no Gateflow allowlist; missing `dispatch` ⇒ manual | Pin unavailable ⇒ block + notify | Pin content change (no version-bump exit gate); consumer still `.harness-pin.yaml` | Planned: unit pin fixtures + W2 live verify after skills pin |
+| CTR-02 | Cursor SDK (external) / prayog-pe-team | gateflow / prayog-pe-team | Live AgentRunner in worker (`run_skill` FR-6 I/O) | workspace, skill_id, prompt_context, model profile, credentials | `AgentRunResult` + live coding work | Local/non-cloud worker path only this INIT; no pretend success | Auth/start/timeout/crash ⇒ `failed` (REQ-29) | New live path; supersedes stub for `runner=cursor` | Planned: unit + live verify implement-lane / spec-lane |
 | CTR-03 | gateflow / prayog-pe-team | clients / tools / future gateflow-ops | Run detail + metrics APIs (extends FR-20/21) | Programme token + filters | Stage/wave cycle-time fields; p50/p95 for `runner=cursor` | Fields match §4 normative defs; no ops UI required | 401/400/503 per existing API errors | Additive over INIT-002 metrics | Planned: `tests/unit/` + `tests/verify/` |
 | CTR-04 | launchpad / prayog-pe-team | gateflow / prayog-pe-team | Worker harness sync pre-dispatch | Workspace / pin | Synced harness tree | Sync before AgentRunner; Launchpad does **not** select Cursor | Sync failure ⇒ run `failed` + notify | Unchanged from 001/002 | Worker integration / verify (inherit) |
 | CTR-05 | gateflow / prayog-pe-team | GitHub (forge) | ForgeClient + Notifier | PR/comment payloads | Forge resource ids | Unchanged from 002; no auto-merge; no gate-approval labels | Retry + `notify_pending` | Unchanged | Unit + verify (inherit) |
@@ -126,9 +137,9 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 | Performance / capacity | Define and ship cycle-time metrics (REQ-30); numeric sponsor SLAs are **not** exit gates this INIT. | unit + live verify (metrics presence) |
 | Observability | Structured loguru logging with correlation id; RunStore stage + wave cycle-time fields; metrics p50/p95 for `runner=cursor`; PR/status visibility on failures. | inspection + verify |
 | Privacy / data handling | Programme-token holders can read runs/metrics; Cursor credentials not logged in full; no cross-run workspace leakage. | inspection |
-| Migration / compatibility | Additive over INIT-002 RunStore/metrics; human-owned Alembic if new columns (e.g. wave duration — Q-2); pin consumer remains compatible when Scenario A becomes orchestrated. | inspection + migration review |
+| Migration / compatibility | Additive over INIT-002 RunStore/metrics; human-owned Alembic if new columns (e.g. wave duration — Q-2); pin consumer remains compatible when **spec lane** becomes orchestrated. | inspection + migration review |
 | Rollback / recovery | Stop worker or disable Cursor credentials / set not-live to halt live dispatches; runs reconstructable from Postgres + status API; stand-in path must not silently re-enable as live success (Q-3). | runbook inspection |
-| Operations / support | Document Cursor secret injection (Q-1), prove-it Scenario A/B runbooks, and cycle-time field names; PE owns credential ops. | docs + verify |
+| Operations / support | Document Cursor secret injection (Q-1), prove-it **spec-lane / implement-lane** runbooks, and cycle-time field names; PE owns credential ops. | docs + verify |
 
 ## Assumptions
 
@@ -138,8 +149,8 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 | A-2 | Cursor agent can run in Gateflow’s programme-like worker (non-cloud) | PRD A2 User-confirmed | PE | confirmed | Only cloud path available |
 | A-3 | Programme can supply Cursor auth material to the worker without repo commits | PRD A3; TDD §3.1 `CURSOR_API_KEY` / `CursorAgentSettings` | PE | confirmed | Secret injection impossible |
 | A-4 | Existing metrics/run APIs can expose new cycle-time fields without gateflow-ops UI | PRD A4; CTR-03 | PE | confirmed | Product requires new UI for exit |
-| A-5 | Prove-it uses Scenario A and B skill **sets** as named in PRD; orchestrated ⇒ triggered; live coding work evidence; intended `cursor` + `auto` | PRD A5; Decision #8 | PE | confirmed | Product changes skill sets |
-| A-6 | Engineering-lane skills already orchestrated in today’s pin; Scenario A **must** be orchestrated in pin for 003 exit (prayog-skills supporting) | PRD A6; local pin `v0.5.0-rc.2` (A=manual, engineering-lane=orchestrated) | PE | confirmed | Pin retracts Scenario A orchestrated |
+| A-5 | Prove-it uses **spec-lane** and **implement-lane** skill **sets** (PRD Scenario A/B); orchestrated ⇒ triggered; live coding work evidence; intended `cursor` + `auto` | PRD A5; Decision #8 | PE | confirmed | Product changes skill sets |
+| A-6 | **Implement-lane** skills already orchestrated in today’s pin; **spec lane** **must** be orchestrated in pin for 003 exit (prayog-skills supporting) | PRD A6; local pin `v0.5.0-rc.2` (spec=manual, implement=orchestrated) | PE | confirmed | Pin retracts spec-lane orchestrated |
 | A-7 | ADR-001 dual API+worker + Postgres RunStore and ADR-006 fail-closed registry remain topology/selection rules | Accepted ADRs | Eng | confirmed | ADR superseded |
 | A-8 | FR-6 AgentRunner I/O remains the adapter contract; REQ-27 is live Cursor fulfillment | PRD §3; Scope boundary | Eng | confirmed | FR-6 I/O redesign |
 
@@ -165,7 +176,7 @@ Inherits INIT-GATEFLOW-002 wave-run preconditions. Additional / clarified:
 | D7 Cross-repository contracts | PASS | CTR-01…CTR-05 with shapes/invariants/tests planned |
 | D8 NFR applicability | PASS | All eight NFR rows populated |
 | D9 As-built alignment | PASS | Overview distinguishes stub Cursor + existing metrics vs new live path + wave cycle-time |
-| D10 Dependency order | PASS | Aligns with map §7: W0 → W1 engineering-lane → skills pin → W2 Scenario A → ops deferred |
+| D10 Dependency order | PASS | Aligns with map §7: W0 → W1 implement-lane → skills pin → W2 spec-lane → ops deferred |
 | D11 Zero unresolved blockers | PASS | No blocking questions; Q-1…Q-4 have safe defaults |
 | D12 Output completeness | PASS | Header, REQ/NFR/contracts/questions, D-summary, PR readiness, handoff envelope present |
 
@@ -215,7 +226,7 @@ INIT-GATEFLOW-003 — Live Cursor AgentRunner (gateflow only)
 
 ## Summary
 
-- 5 REQs (REQ-27…REQ-31) for live Cursor AgentRunner, fail-fast unsupported runners + Cursor auth/crash, stage/wave cycle-time + p50/p95, reuse 001/002 control plane, Scenario A/B prove-it
+- 5 REQs (REQ-27…REQ-31) for live Cursor AgentRunner, fail-fast unsupported runners + Cursor auth/crash, stage/wave cycle-time + p50/p95, reuse 001/002 control plane, spec-lane / implement-lane prove-it
 - Open engineering questions (non-blocking): Q-4 (INIT-002 meta #10 reconcile); Q-1…Q-3 resolved in TDD (A1: no new ADR)
 
 ## Gate 2 — spec package readiness

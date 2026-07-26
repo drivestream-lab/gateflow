@@ -273,7 +273,7 @@ class CursorAgentRunner(BaseInfraService):
             f"Execute the Gateflow skill `{skill_id}` in this workspace.\n"
             f"Prompt context (JSON): {context_json}\n"
             "\n"
-            "Durable handoff rules for orchestrated engineering-lane skills "
+            "Durable handoff rules for orchestrated implement-lane skills "
             "(`pre-implement`, `loop-spec`, `verify`, `ground-spec`):\n"
             "- Write a durable handoff YAML block with stage equal to this skill id.\n"
             "- Set outcome from the skill result (usually pass).\n"
