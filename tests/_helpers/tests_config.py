@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ForgeProbeConfig(BaseModel):
@@ -36,18 +36,46 @@ class VerifyConfig(BaseModel):
         default="",
         description="Wave-start workspace; empty means process cwd",
     )
-    engineering_lane: bool = Field(
+    implement_lane: bool = Field(
         default=False,
-        description="Opt-in long live Cursor engineering-lane prove-it",
+        description="Opt-in long live Cursor implement-lane prove-it",
     )
-    engineering_lane_evidence: str = Field(
+    implement_lane_evidence: str = Field(
         default="",
-        description="Evidence JSON path for engineering lane (absolute preferred)",
+        description="Evidence JSON path for implement lane (absolute preferred)",
     )
-    engineering_lane_timeout_s: float = Field(default=3600.0, ge=1.0)
+    implement_lane_timeout_s: float = Field(default=3600.0, ge=1.0)
+    # Spec-lane verify harness (W2) — flags reserved; live prove-it waits on PRD + pin.
+    spec_lane: bool = Field(
+        default=False,
+        description="Opt-in long live Cursor spec-lane prove-it (W2)",
+    )
+    spec_lane_evidence: str = Field(
+        default="",
+        description="Evidence JSON path for spec lane (absolute preferred)",
+    )
+    spec_lane_timeout_s: float = Field(default=3600.0, ge=1.0)
     start_node: str = Field(default="pre-implement")
     runner: str = Field(default="cursor")
     model_id: str = Field(default="cursor/auto")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_legacy_engineering_lane_keys(cls, data: Any) -> Any:
+        """Accept deprecated engineering_lane* keys from older tests/config.yaml."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        legacy_map = {
+            "engineering_lane": "implement_lane",
+            "engineering_lane_evidence": "implement_lane_evidence",
+            "engineering_lane_timeout_s": "implement_lane_timeout_s",
+        }
+        for old, new in legacy_map.items():
+            if old in out and new not in out:
+                out[new] = out[old]
+            out.pop(old, None)
+        return out
 
     @field_validator("base_url")
     @classmethod

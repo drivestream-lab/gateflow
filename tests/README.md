@@ -1,5 +1,14 @@
 # Tests for gateflow
 
+## Lane naming (engineering)
+
+| Name | Legacy | Pin skills (today) | Verify |
+|------|--------|--------------------|--------|
+| **spec lane** | Scenario A | `spec-draft` … `spec-implementation-plan` (still `manual` until pin) | `verify_spec_lane` (W2; awaits PRD + pin) |
+| **implement lane** | Scenario B / engineering-lane | `pre-implement` … `ground-spec` (`orchestrated`) | `verify_implement_lane` |
+
+Both are engineering lanes. Prefer the new names in docs and config.
+
 ## Structure
 
 ```
@@ -25,7 +34,7 @@ make check && make test
 #    docs/specification/reports/DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md)
 # .venv/bin/python -m src.main
 # optional worker: .venv/bin/python -m src.worker_main
-# Prefer: make run  (API + worker; required for wave-start / engineering-lane)
+# Prefer: make run  (API + worker; required for wave-start / implement-lane)
 # set -a && source .env && set +a
 #   needs GITHUB_WEBHOOK_SECRET + PROGRAMME_SERVICE_TOKEN
 # .venv/bin/python -m tests.verify.verify_all
@@ -54,11 +63,14 @@ make check && make test
 | Concern | Where |
 |---------|--------|
 | App runtime (DB, Redis, forge auth, Cursor key, programme token, findings/metrics) | `.env` (from `.env.example`) |
-| Live verify URLs, org/repo, worker/engineering-lane flags, evidence path, Enter-at defaults | `tests/config.yaml` (from `tests/config.yaml.example`) |
+| Live verify URLs, org/repo, worker/implement-lane flags, evidence path, Enter-at defaults | `tests/config.yaml` (from `tests/config.yaml.example`) |
 
 ```bash
 cp tests/config.yaml.example tests/config.yaml
 ```
+
+Legacy `verify.engineering_lane*` keys in an old `tests/config.yaml` still map to
+`implement_lane*` via the config loader.
 
 See also: `docs/runbooks/w1-runtime-api-worker.md`,
 `docs/runbooks/laptop-gh-vs-deploy-forgeclient.md`.
@@ -115,7 +127,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | CursorAgentSettings (`CURSOR_API_KEY`) | — | `test_cursor_agent_settings` |
-| Local cursor-sdk AgentRunner (mocked) | engineering-lane = W1 | `test_cursor_agent_runner` |
+| Local cursor-sdk AgentRunner (mocked) | implement-lane = W1 | `test_cursor_agent_runner` |
 | Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
 | Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
 
@@ -125,10 +137,10 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 |------------|---------------|--------|
 | Docker/image cursor-sdk bridge spike | inspection | `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` |
 | Failure-path stage + duration_ms | — | `test_run_orchestrator`, `test_metrics_emitter` |
-| `runs.wave_duration_ms` + run detail | engineering-lane verify (opt-in) | `test_run_orchestrator` |
-| Engineering-lane live Cursor prove-it | `python -m tests.verify.verify_engineering_lane` (opt-in; **not** in `verify_all`) | — |
+| `runs.wave_duration_ms` + run detail | implement-lane verify (opt-in) | `test_run_orchestrator` |
+| Implement-lane live Cursor prove-it | `python -m tests.verify.verify_implement_lane` (opt-in; **not** in `verify_all`) | — |
 
-### Engineering-lane live verify prereqs
+### Implement-lane live verify prereqs
 
 Pin chain (Enter-at `pre-implement`):  
 `pre-implement` → `loop-spec` → `verify` → `ground-spec` → STOP at `wave-human-decision`.
@@ -143,9 +155,9 @@ point at shared infra.
 
 cp tests/config.yaml.example tests/config.yaml
 # edit tests/config.yaml:
-#   verify.engineering_lane: true
+#   verify.implement_lane: true
 #   verify.require_worker: true
-#   verify.engineering_lane_evidence: /absolute/path/...
+#   verify.implement_lane_evidence: /absolute/path/...
 #   verify.start_node: pre-implement
 
 # Terminal — API + worker
@@ -153,10 +165,10 @@ make run
 
 # Separate terminal — lane prove-it only (do not mix with verify_all while Cursor runs)
 set -a && source .env && set +a
-.venv/bin/python -m tests.verify.verify_engineering_lane
+.venv/bin/python -m tests.verify.verify_implement_lane
 ```
 
-Keep `verify.engineering_lane: false` for routine smoke.
+Keep `verify.implement_lane: false` for routine smoke.
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.
