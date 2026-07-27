@@ -4,7 +4,7 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-005-BOUNDINPUT |
 | Spec | `docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md` |
-| Spec digest | `sha256:e0eb225ace9c2d49f5cf04d36f6fc5647e5c79fcdff749a52c2492881b725b3f` |
+| Spec digest | `sha256:5b01b3a4593f2b2d93b6aface73ca170d5a0cefdc2d29fd5fae9c849af82b066` |
 | Feasibility report | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md` |
 | Feasibility digest | `sha256:e34b9f54fdb509cc4847f6300ae2c68546999485c68f781fca3a1c92499dd15a` |
 | PRD digest | `sha256:40fb856dd5068290c1d14f010239e6206bee2625aaf6a6e3970d769e9bb5e970` |
@@ -37,11 +37,11 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 
 | Module | Current state | Change | Owns |
 |--------|---------------|--------|------|
-| `src/business_services/prompt_resolver.py` | **new** | Resolve pin package, validate schema, render `{{var}}` | Prompt SSOT consume (ADR-007) |
+| `src/business_services/prompt_resolver.py` | **new** | Resolve pin package, validate schema, render `{{var}}` | Brief construction (ADR-007) |
 | `src/models/prompt_package_models.py` | **new** | Pydantic for schema.yaml + bind map + resolve result | Data contracts |
-| `src/infra_services/cursor_agent_runner.py` | invent-prose `_build_prompt` | Accept pre-rendered `message`; remove packaged-skill invent-prose path | AgentRunner infra (ADR-003) |
-| `src/business_services/run_orchestrator.py` | ambient ingest + prompt_context JSON | Define/store `handoff_path`; bind → resolve → render → thin `run_skill`; persist prompt ids; W1 ingest from stored path | Run lifecycle |
-| `src/business_services/handoff_reader.py` | glob/mtime SSOT | Add `read_path(path)`; packaged automate must not use ambient as SSOT | Handoff parse |
+| `src/infra_services/cursor_agent_runner.py` | invent-prose `_build_prompt` | Accept pre-rendered `message`; remove packaged-skill invent-prose path | AgentRunner infra (ADR-003 / ADR-007) |
+| `src/business_services/run_orchestrator.py` | ambient ingest + prompt_context JSON | Define/store `handoff_path`; bind → resolve → render → thin `run_skill`; persist prompt ids; W1 ingest from stored path | Run lifecycle (ADR-008 ingest authority) |
+| `src/business_services/handoff_reader.py` | glob/mtime SSOT | Add `read_path(path)`; packaged automate must not use ambient as SSOT | Handoff parse (ADR-008) |
 | `src/business_services/wave_start_service.py` | `ticket_id` optional | Reject empty `ticket_id` for packaged-skill automate before enqueue | Accept boundary |
 | `src/models/adapter_models.py` | `WaveStartRequest` | Keep field name `ticket_id`; enforce non-empty for automate (service and/or model) | API body |
 | `src/models/run_store_models.py` | no prompt/handoff fields | Add `handoff_path` on run; `prompt_id`/`prompt_revision` on stage | DTOs |
@@ -49,7 +49,7 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 | `src/database/postgres/repository/run_store_repository.py` | exists | Map new columns | Persistence |
 | `postgres_migrations/versions/` | human-owned | Human Alembic for new columns | DDL (ADR-001) |
 | `src/di/modules/business_services_module.py` | exists | Bind PromptResolver singleton | DI |
-| `src/infra_services/launchpad_client.py` | sync stub | **unchanged** this INIT — pin resolve uses workspace tree (ADR-007) | Harness stub |
+| `src/infra_services/launchpad_client.py` | sync stub | **unchanged** this INIT — pin resolve uses workspace tree (TDD §3.1) | Harness stub |
 | `src/business_services/policy_engine.py` | exists | **unchanged** — dispatch eligibility orthogonal | Pin walker |
 | `tests/unit/test_prompt_resolver.py` | **new** | Resolve/validate/render/fail-closed/anti-hardcode | Unit |
 | `tests/unit/test_handoff_workflow.py` | glob tests | Add `read_path` + isolation; stop treating ambient as automate SSOT | Unit |
@@ -63,10 +63,11 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 |-----|-------------|
 | ADR-001 | Postgres RunStore + human Alembic for new columns |
 | ADR-002 / ADR-005 | Programme-token wave-start zone unchanged |
-| ADR-003 | PromptResolver = **business**; AgentRunner = **infra**; no SDK types in business |
-| ADR-004 | No programme.yaml revive; pin filesystem consume only |
+| ADR-003 | AgentRunner stays **infra**; brief construction stays **business** (ADR-007) |
+| ADR-004 | No programme.yaml revive; pin filesystem consume only (paths in TDD) |
 | ADR-006 | Fail-closed honesty unchanged; Cursor-only this INIT |
-| ADR-007 | **Draft** — Option B (this TDD) |
+| ADR-007 | **Draft** — business owns invocation brief; AgentRunner message-only |
+| ADR-008 | **Draft** — packaged-skill automate handoff SSOT = run-stored Gateflow locator |
 
 **Boundary diagram (text):**
 
@@ -167,7 +168,11 @@ enqueue when the start path will automate a packaged skill (all current
 
 ### 3.4 Handoff baton (REQ-8a / REQ-8b, Q-3)
 
-**Define (W0):** on run create/continue, before first packaged AgentRunner call:
+**Authority (ADR-008):** packaged-skill automate ingest SSOT is a Gateflow-defined,
+run-scoped locator stored on the run — not ambient glob/mtime discovery.
+
+**Concrete representation (TDD_ONLY):** on run create/continue, before first
+packaged AgentRunner call:
 
 ```text
 handoff_path = {workspace_root}/.gateflow/runs/{run_id}/handoff.md
@@ -208,16 +213,23 @@ Human Alembic revision owns DDL; agents update ORM/DTO only.
 
 ## 4. ADR resolutions
 
+Every feasibility `NEW-ADR` appears once. FF-06 is split into **two** architectural
+decisions (brief/message ownership vs handoff ingest authority). Product path
+strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3, §9).
+
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| FF-06 | ADR_REQUIRED | `docs/specification/adr/adr-007-bound-input-prompt-and-handoff-baton.md` | Option B — business PromptResolver; message-only AgentRunner; workspace-absolute per-run handoff path + ingest-only | Draft | `sha256:78ce6c96214b2b5927a9cc3e82504f983479ea30171ba55e3a41dee477bfe199` |
+| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Draft | `sha256:5720cf5b07aad7f88c98295c63d96f04307c26f6cbf7bb7fd6278aecaa32034b` |
+| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Draft | `sha256:68e37f3b9bc7f6c83c844015f75dd1f2051f5d380ccb2d48f9f12cc92bd52cd0` |
+| Q-3 path string | TDD_ONLY | §3.4 | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute | Resolved | N/A |
+| Q-1 / Q-2 / Q-4 / FF-05 / FF-09 / FF-02 / FF-03 | TDD_ONLY | §3 / §5 / §9 | Field maps, columns, prove-it, pin search roots, invent-prose removal shape | Resolved | N/A |
 
 **Derived counts:**
 
-- ADR_REQUIRED: 1
-- TDD_ONLY: 6 (Q-1, Q-2, Q-4, FF-05, FF-09, FF-02/03 implementation shape)
+- ADR_REQUIRED: 2
+- TDD_ONLY: 7 (Q-1, Q-2, Q-3, Q-4, FF-05, FF-09, FF-02/03)
 - DEFERRED_WITH_DEFAULT: 0
-- Draft ADR files created: 1
+- Draft ADR files created: 2
 - Missing/broken ADR files: 0
 
 ---
@@ -286,15 +298,15 @@ Human Alembic revision owns DDL; agents update ORM/DTO only.
 
 | Finding ID | Owner | Status | Question | Resolution | Required by | Default if deferred | Evidence / reference |
 |------------|-------|--------|----------|------------|-------------|---------------------|----------------------|
-| FF-06 | PE | resolved | PromptResolver layer + handoff_path representation | ADR-007 Option B | plan | N/A — ADR Draft | §2–§4; ADR-007 |
+| FF-06 | PE | resolved | Brief ownership + handoff ingest authority | ADR-007 Option B + ADR-008 Option B (architecture); concrete path/columns in TDD | plan | N/A — ADR Drafts | §4; ADR-007; ADR-008 |
 | Q-1 | PE | resolved | ticket field naming | Keep `ticket_id`; bind as `ticket`; require non-empty for automate | W0 | same | §3.3 |
 | Q-2 | PE | resolved | RunStore field names | `runs.handoff_path`; `stages.prompt_id`; `stages.prompt_revision` | W0 | same | §3.5 |
-| Q-3 | PE | resolved | handoff_path concrete form | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute | W0 | same | §3.4; ADR-007 |
+| Q-3 | PE | resolved | handoff_path concrete form | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute (**TDD_ONLY**; ADR-008 owns authority only) | W0 | same | §3.4 |
 | Q-4 | PE | resolved | Prove-it skill id | `pre-implement` (pin orchestrated + package present) | W0 | same | §5 |
 | FF-05 | PE | resolved | Verify policy | Extend `verify_implement_lane` with prompt_id/revision asserts | W0 | same | §5 |
-| FF-09 | PE | resolved | Pin root while Launchpad stub | Search `prayog-skills/skills/{development,requirements}/{skill_id}/prompts/` under workspace | W0 | same | §3.1; ADR-007 |
+| FF-09 | PE | resolved | Pin root while Launchpad stub | Search `prayog-skills/skills/{development,requirements}/{skill_id}/prompts/` under workspace | W0 | same | §3.1 |
 | FF-02 | PE | resolved | Invent-prose removal shape | Message-only `run_skill`; delete/unused `_build_prompt` on packaged path; anti-hardcode unit | W0 | same | §3.2 |
-| FF-03 | PE | resolved | Ambient ingest | W0 may still use ambient until W1; W1 switches packaged automate to `read_path` only | W1 | same | §3.4 |
+| FF-03 | PE | resolved | Ambient ingest | W0 may still use ambient until W1; W1 switches packaged automate to `read_path` only (ADR-008) | W1 | same | §3.4 |
 | FF-08 | PE | resolved | Optional ticket_id | Enforce non-empty at WaveStartService for automate | W0 | same | §3.3 |
 
 ---
@@ -329,7 +341,7 @@ Human Alembic revision owns DDL; agents update ORM/DTO only.
 |------|--------|
 | All T1–T11 checks | PASS |
 | Engineering decisions resolved | 10 resolved, 0 deferred |
-| Draft ADR files written | 1 / 1 required (`adr-007-…`) |
+| Draft ADR files written | 2 / 2 required (`adr-007-…`, `adr-008-…`) |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
 | Ready for PE review | **YES** |
@@ -343,7 +355,7 @@ Human Alembic revision owns DDL; agents update ORM/DTO only.
 |-------|--------|-------|
 | T1 Module boundaries | PASS | PromptResolver business; runner infra; RunStore; handoff read_path |
 | T2 Interface contracts | PASS | §3.1–§3.6 shapes and invariants |
-| T3 NEW-ADR dispositions | PASS | FF-06 → ADR_REQUIRED ADR-007 Draft |
+| T3 NEW-ADR dispositions | PASS | FF-06 → ADR-007 + ADR-008 Draft (architecture-only); product detail TDD_ONLY |
 | T4 Test policy | PASS | Unit exact render; live field asserts; AI text not exact |
 | T5 Error handling | PASS | Fail closed matrix §6 |
 | T6 Observability | PASS | §7 structured fields |
@@ -351,7 +363,7 @@ Human Alembic revision owns DDL; agents update ORM/DTO only.
 | T8 Dependency graph | PASS | api → business → repo; infra injected; no cycle |
 | T9 Engineering questions zero | PASS | Q-1…Q-4 + FF-* PE items resolved |
 | T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan false |
-| T11 ADR artifact integrity | PASS | Draft ADR-007 file exists and linked |
+| T11 ADR artifact integrity | PASS | Draft ADR-007 + ADR-008 exist and linked; no product catalogue in ADRs |
 
 ---
 
@@ -373,16 +385,16 @@ Required reviewers:
 Review deadline: 2026-08-03
 PE review checklist:
   [ ] T1 Module boundaries — PromptResolver business vs AgentRunner infra
-  [ ] T2 Interface contracts — message-only runner; handoff path shape
-  [ ] T3 ADR-007 Draft — Option B acceptable
+  [ ] T2 Interface contracts — message-only runner; handoff path shape (TDD)
+  [ ] T3 ADR-007 / ADR-008 Draft — architecture-only Option B acceptable
   [ ] T4 Test policy — exact render + live prompt_id asserts
   [ ] T9 Zero unresolved PE items
-  [ ] T11 ADR artifact integrity
+  [ ] T11 ADR artifact integrity — no product bind/path catalogue in ADRs
 
 PE action (artifact acceptance — mid-lane):
   Review/comment or Request changes → update TDD/ADR
   Explicitly state when decisions are ready for acceptance
-  Update ADR-007 + TDD Status Draft → Accepted; commit to spec branch
+  Update ADR-007 + ADR-008 + TDD Status Draft → Accepted; commit to spec branch
   Label remains spec-pending
 
 After artifact acceptance:
@@ -399,16 +411,18 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:9ca2c9528dd7254e9843eb843ee5023259b25b9ab454877f6e4f010bae004b76
+    digest: sha256:4c9e1ad7a6a9b33b8e7cb3b529d9cd260f5e08fea199e0b27ded84f095420f48
   blockers: []
   signals:
     ready_for_pe_review: true
     ready_for_plan: false
     new_adr: true
     adr_required_paths:
-      - docs/specification/adr/adr-007-bound-input-prompt-and-handoff-baton.md
+      - docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
+      - docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
     adr_required_digests:
-      - sha256:78ce6c96214b2b5927a9cc3e82504f983479ea30171ba55e3a41dee477bfe199
+      - sha256:5720cf5b07aad7f88c98295c63d96f04307c26f6cbf7bb7fd6278aecaa32034b
+      - sha256:68e37f3b9bc7f6c83c844015f75dd1f2051f5d380ccb2d48f9f12cc92bd52cd0
     draft_verdict: PASS
     meta_pr_head_sha: 0b6b11e4470517842affb894d7ea581c3819ead3
     map_revision: 1
