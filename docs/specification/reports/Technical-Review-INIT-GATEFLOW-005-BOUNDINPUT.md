@@ -18,7 +18,7 @@
 | Initiative segment | `INIT-GATEFLOW-005-BOUNDINPUT` |
 | Status | **Accepted** — PE @nikd10x 2026-07-27 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/52); ADR-007 + ADR-008 Accepted (architecture-only Option B); product path/bind/columns remain TDD. **TDD_ONLY revision (same day):** Q-3 handoff baton uses configured `GATEFLOW_HANDOFF_ROOT`, not `{workspace}/.gateflow/` |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR #52; architecture package attested on tip; mid-lane only (not Gate 2) |
-| Approved head | `d3c2177be2956dadeab8223ed5e3f2643d37957c` |
+| Approved head | `a008af2f44c57204fb1dfd663cef40d266ff2ac6` |
 | Review deadline | 2026-08-03 |
 | Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team |
 
@@ -229,8 +229,8 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:1dfacc990ae0f8c570eb02b0b41c3ee1a1359d37d3aa5e573a2309c18c2b8f9b` |
-| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:ea3cfea1b2df4aba9d794dfc10a2e148d4d670fe6326abb6c86031960c36a61a` |
+| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:fd8f11f61be203db409e1dc23df12f78f26dfe5b75c819fce22e0723b0225d89` |
+| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:cc94079602762d58622d321f4bdefacf2c54fcd0a6511da3415daacb48b52cad` |
 | Q-3 path string | TDD_ONLY | §3.4 | `{GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md` — required configured absolute root outside repo by default | Resolved | N/A |
 | Q-1 / Q-2 / Q-4 / FF-05 / FF-09 / FF-02 / FF-03 | TDD_ONLY | §3 / §5 / §9 | Field maps, columns, prove-it, pin search roots, invent-prose removal shape | Resolved | N/A |
 
@@ -422,7 +422,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:f53cbf99ee62f90e571ec768ba22fcfad78357d13d34298b2e428eeea100cd64
+    digest: sha256:227913ee27946184d3353c5212245e28434922d127e4a4f3d511e0bc0e5e3ac6
   blockers: []
   signals:
     ready_for_pe_review: true
@@ -433,8 +433,8 @@ handoff:
       - docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
       - docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
     adr_required_digests:
-      - sha256:1dfacc990ae0f8c570eb02b0b41c3ee1a1359d37d3aa5e573a2309c18c2b8f9b
-      - sha256:ea3cfea1b2df4aba9d794dfc10a2e148d4d670fe6326abb6c86031960c36a61a
+      - sha256:fd8f11f61be203db409e1dc23df12f78f26dfe5b75c819fce22e0723b0225d89
+      - sha256:cc94079602762d58622d321f4bdefacf2c54fcd0a6511da3415daacb48b52cad
     adr_status: Accepted
     draft_verdict: PASS
     pe_acceptor: nikd10x

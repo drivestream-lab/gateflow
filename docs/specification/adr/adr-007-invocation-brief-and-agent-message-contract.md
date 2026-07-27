@@ -8,7 +8,7 @@
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md` |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR https://github.com/drivestream-lab/gateflow/pull/52 |
-| Approved head | `d3c2177be2956dadeab8223ed5e3f2643d37957c` |
+| Approved head | `a008af2f44c57204fb1dfd663cef40d266ff2ac6` |
 | Relates to | Extends ADR-003 (slot ownership unchanged); does not move AgentRunner into business |
 
 ## Context
