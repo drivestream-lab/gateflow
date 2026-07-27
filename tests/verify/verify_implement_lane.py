@@ -116,6 +116,7 @@ def main() -> int:
                     "repo": cfg.verify.repo,
                     "initiative_id": initiative_id,
                     "wave_id": wave_id,
+                    "ticket_id": str(uuid.uuid4().int % 10_000_000),
                     "branch_slug": "implement-lane",
                     "base_branch": cfg.forge.base_branch,
                     "start_node": start_node,
@@ -192,7 +193,24 @@ def main() -> int:
                         f"got outcome={stage.get('outcome_type')!r}"
                     )
                     return 1
-                print(f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')}")
+                prompt_id = stage.get("prompt_id")
+                prompt_revision = stage.get("prompt_revision")
+                if not prompt_id or not prompt_revision:
+                    print(
+                        f"[ERROR] stage {node} missing prompt_id/prompt_revision "
+                        f"(got prompt_id={prompt_id!r} prompt_revision={prompt_revision!r})"
+                    )
+                    return 1
+                if prompt_id != node:
+                    print(
+                        f"[ERROR] stage {node} prompt_id={prompt_id!r} "
+                        f"does not match skill/node id"
+                    )
+                    return 1
+                print(
+                    f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')} "
+                    f"prompt_id={prompt_id} prompt_revision={prompt_revision}"
+                )
 
             if status != "stopped":
                 print(

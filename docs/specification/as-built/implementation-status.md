@@ -103,6 +103,7 @@
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
+| INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | — | **in_progress** (code on `feature/INIT-GATEFLOW-005-w0-bound-input`; human Alembic pending for `runs.handoff_path`, `stages.prompt_id`, `stages.prompt_revision`) |
 
 ## Verdict
 
@@ -115,5 +116,7 @@ pass (run `de780ba2-7841-4827-ad69-362358a8176d`, four Cursor stages success, te
 via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 
 **Lane naming (2026-07-26):** prefer **spec lane** / **implement lane** over Scenario A/B.
-Next: W2 prep (metrics + naming/harness); live **spec-lane** prove-it after next PRD + pin
-CTR-01 (dogfood candidate for INIT-GATEFLOW-004).
+
+**INIT-GATEFLOW-005 (2026-07-28):** W0 implementation in progress — PromptResolver, message-only
+Cursor path, `GATEFLOW_HANDOFF_ROOT` baton define/store, required `ticket_id`. Live prove-it
+blocked until human Alembic applies new RunStore columns. W1 ingest-only still pending.

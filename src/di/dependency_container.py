@@ -32,6 +32,7 @@ def configure_container() -> Injector:
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.policy_engine import PolicyEngine
+    from src.business_services.prompt_resolver import PromptResolver
     from src.business_services.run_orchestrator import RunOrchestrator
     from src.business_services.slot_validator import SlotValidator
     from src.business_services.trigger_router import TriggerRouter
@@ -84,6 +85,7 @@ def configure_container() -> Injector:
             MetricsEmitter,
             AdapterRegistry,
             SlotValidator,
+            PromptResolver,
             WaveStartService,
             BoardService,
             RunOrchestrator,

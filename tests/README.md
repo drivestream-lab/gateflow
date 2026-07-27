@@ -140,6 +140,19 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | `runs.wave_duration_ms` + run detail | implement-lane verify (opt-in) | `test_run_orchestrator` |
 | Implement-lane live Cursor prove-it | `python -m tests.verify.verify_implement_lane` (opt-in; **not** in `verify_all`) | — |
 
+## Feature map (INIT-GATEFLOW-005 — BOUNDINPUT)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| `GATEFLOW_HANDOFF_ROOT` settings | — | `test_orchestration_settings` |
+| PromptResolver resolve/bind/render | — | `test_prompt_resolver` |
+| Required `ticket_id` on wave-start | `verify_wave_start` (supply ticket) | `test_wave_start` |
+| Message-only Cursor + anti-hardcode | — | `test_cursor_agent_runner` |
+| Stage `prompt_id` / `prompt_revision` | `verify_implement_lane` (assert fields) | `test_run_orchestrator` |
+
+Requires absolute `GATEFLOW_HANDOFF_ROOT` in `.env` and human Alembic for
+`runs.handoff_path` + `stages.prompt_id` / `stages.prompt_revision` before live prove-it.
+
 ### Implement-lane live verify prereqs
 
 Pin chain (Enter-at `pre-implement`):  

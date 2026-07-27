@@ -55,6 +55,8 @@ def _job_payload(**extra: object) -> JobPayloadDocument:
         "pull_request": {"number": 7},
         "label": {"name": "gateflow:run-wave"},
         "workspace_path": str(Path.cwd()),
+        "ticket_id": "55",
+        "initiative_id": "INIT-GATEFLOW-005-BOUNDINPUT",
         **_dispatch_plan(),
         "handoff": _gate_stop_handoff(),
         **extra,
@@ -73,6 +75,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     postgres.transaction = txn
 
     run_id = uuid4()
+    handoff_path = f"/tmp/gateflow-test-handoffs/{run_id}/handoff.md"
     run_repo = MagicMock()
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
@@ -81,6 +84,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             repo="widget",
             status_type=RunStatusType.ACTIVE,
             pr_number=7,
+            handoff_path=handoff_path,
             retry_counter=0,
             notify_pending=False,
             created_at=datetime.now(UTC),
@@ -96,6 +100,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             workflow_node=update.workflow_node,
             pr_number=update.pr_number if update.pr_number is not None else 7,
             wave_duration_ms=update.wave_duration_ms,
+            handoff_path=(update.handoff_path if update.handoff_path is not None else handoff_path),
             retry_counter=0,
             notify_pending=(update.notify_pending if update.notify_pending is not None else False),
             created_at=datetime.now(UTC),
@@ -122,6 +127,9 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
     policy_engine = PolicyEngine(workflow_engine=workflow_engine)
+    from src.business_services.prompt_resolver import PromptResolver
+
+    prompt_resolver = PromptResolver()
 
     defaults = {
         "postgres_service": postgres,
@@ -137,6 +145,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "run_repository": run_repo,
         "run_event_repository": run_event_repo,
         "stage_repository": stage_repo,
+        "prompt_resolver": prompt_resolver,
     }
     defaults.update(overrides)
     return RunOrchestrator(**defaults)
@@ -268,6 +277,7 @@ async def test_agent_failure_marks_run_failed() -> None:
             repo="widget",
             status_type=RunStatusType.ACTIVE,
             pr_number=7,
+            handoff_path=f"/tmp/gateflow-test-handoffs/{run_id}/handoff.md",
             retry_counter=0,
             notify_pending=False,
             created_at=datetime.now(UTC),
@@ -283,6 +293,7 @@ async def test_agent_failure_marks_run_failed() -> None:
             workflow_node=update.workflow_node,
             pr_number=update.pr_number if update.pr_number is not None else 7,
             wave_duration_ms=update.wave_duration_ms,
+            handoff_path=update.handoff_path or f"/tmp/gateflow-test-handoffs/{run_id}/handoff.md",
             retry_counter=0,
             notify_pending=(update.notify_pending if update.notify_pending is not None else False),
             created_at=datetime.now(UTC),
@@ -385,6 +396,9 @@ async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
     call_kwargs = cursor_agent_runner.run_skill.await_args.kwargs
     assert call_kwargs["model_profile"] == "api"
     assert call_kwargs["model_id"] == "cursor/fast"
+    assert call_kwargs.get("message")
+    assert stage_create.prompt_id == "loop-spec"
+    assert stage_create.prompt_revision
 
 
 @pytest.mark.asyncio
