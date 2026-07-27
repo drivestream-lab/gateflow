@@ -18,7 +18,7 @@
 | Initiative segment | `INIT-GATEFLOW-005-BOUNDINPUT` |
 | Status | **Accepted** — PE @nikd10x 2026-07-27 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/52); ADR-007 + ADR-008 Accepted (architecture-only Option B); product path/bind/columns remain TDD |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR #52 |
-| Approved head | Pending |
+| Approved head | `ffa718142db4cbbaec605b17abf74028ff5cb49c` |
 | Review deadline | 2026-08-03 |
 | Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team |
 
@@ -221,8 +221,8 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:c4c1bdfe69679ccea4940c6f228fd77676934b032758098d57bc503f32047d95` |
-| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:5a7b5e61a7332adadb2511582fab50609c0a38fac078aadfc557bde9704074a8` |
+| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:8770426ef81495a7e7d14ffbbabc97bd10864dd71d9e27d988ceaee4bcd36cd3` |
+| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:c529fbe35b8403d72baa85ae15c042d40328f7eaeff81290dba75b8ddc65e480` |
 | Q-3 path string | TDD_ONLY | §3.4 | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute | Resolved | N/A |
 | Q-1 / Q-2 / Q-4 / FF-05 / FF-09 / FF-02 / FF-03 | TDD_ONLY | §3 / §5 / §9 | Field maps, columns, prove-it, pin search roots, invent-prose removal shape | Resolved | N/A |
 
@@ -413,7 +413,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:c89781e543af78fa82e4d7236428d5b28d45634405e033160dc6cee48a1cb32b
+    digest: sha256:99b8379bb8c827f9c2b5e00029b26a9d14911bc53da897d9e4470706fb9e217d
   blockers: []
   signals:
     ready_for_pe_review: true
@@ -424,8 +424,8 @@ handoff:
       - docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
       - docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
     adr_required_digests:
-      - sha256:c4c1bdfe69679ccea4940c6f228fd77676934b032758098d57bc503f32047d95
-      - sha256:5a7b5e61a7332adadb2511582fab50609c0a38fac078aadfc557bde9704074a8
+      - sha256:8770426ef81495a7e7d14ffbbabc97bd10864dd71d9e27d988ceaee4bcd36cd3
+      - sha256:c529fbe35b8403d72baa85ae15c042d40328f7eaeff81290dba75b8ddc65e480
     adr_status: Accepted
     draft_verdict: PASS
     pe_acceptor: nikd10x
