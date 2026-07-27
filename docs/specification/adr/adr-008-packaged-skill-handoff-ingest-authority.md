@@ -8,7 +8,7 @@
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md` |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR https://github.com/drivestream-lab/gateflow/pull/52 |
-| Approved head | `d82b64451900281e1832d7b682be892e0eade536` |
+| Approved head | `097123e661ab9ab10b726e251f7d71c255802282` |
 | Relates to | Extends ADR-001 (RunStore SSOT) and ADR-003 (handoff orchestration in business); does not redefine dual API+worker topology |
 
 ## Context
