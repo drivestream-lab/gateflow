@@ -16,9 +16,11 @@
 | Date | 2026-07-27 |
 | Branch | `chore/INIT-GATEFLOW-005-BOUNDINPUT-spec-gateflow` (Draft spec PR #52) |
 | Initiative segment | `INIT-GATEFLOW-005-BOUNDINPUT` |
-| Status | Draft |
+| Status | **Accepted** — PE @nikd10x 2026-07-27 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/52); ADR-007 + ADR-008 Accepted (architecture-only Option B); product path/bind/columns remain TDD |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR #52 |
+| Approved head | Pending |
 | Review deadline | 2026-08-03 |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
+| Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team |
 
 ---
 
@@ -66,8 +68,8 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 | ADR-003 | AgentRunner stays **infra**; brief construction stays **business** (ADR-007) |
 | ADR-004 | No programme.yaml revive; pin filesystem consume only (paths in TDD) |
 | ADR-006 | Fail-closed honesty unchanged; Cursor-only this INIT |
-| ADR-007 | **Draft** — business owns invocation brief; AgentRunner message-only |
-| ADR-008 | **Draft** — packaged-skill automate handoff SSOT = run-stored Gateflow locator |
+| ADR-007 | **Accepted** — business owns invocation brief; AgentRunner message-only |
+| ADR-008 | **Accepted** — packaged-skill automate handoff SSOT = run-stored Gateflow locator |
 
 **Boundary diagram (text):**
 
@@ -219,8 +221,8 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Draft | `sha256:5720cf5b07aad7f88c98295c63d96f04307c26f6cbf7bb7fd6278aecaa32034b` |
-| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Draft | `sha256:68e37f3b9bc7f6c83c844015f75dd1f2051f5d380ccb2d48f9f12cc92bd52cd0` |
+| FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:c4c1bdfe69679ccea4940c6f228fd77676934b032758098d57bc503f32047d95` |
+| FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:5a7b5e61a7332adadb2511582fab50609c0a38fac078aadfc557bde9704074a8` |
 | Q-3 path string | TDD_ONLY | §3.4 | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute | Resolved | N/A |
 | Q-1 / Q-2 / Q-4 / FF-05 / FF-09 / FF-02 / FF-03 | TDD_ONLY | §3 / §5 / §9 | Field maps, columns, prove-it, pin search roots, invent-prose removal shape | Resolved | N/A |
 
@@ -298,7 +300,7 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 
 | Finding ID | Owner | Status | Question | Resolution | Required by | Default if deferred | Evidence / reference |
 |------------|-------|--------|----------|------------|-------------|---------------------|----------------------|
-| FF-06 | PE | resolved | Brief ownership + handoff ingest authority | ADR-007 Option B + ADR-008 Option B (architecture); concrete path/columns in TDD | plan | N/A — ADR Drafts | §4; ADR-007; ADR-008 |
+| FF-06 | PE | resolved | Brief ownership + handoff ingest authority | ADR-007 Option B + ADR-008 Option B **Accepted**; concrete path/columns in TDD | plan | N/A | §4; ADR-007; ADR-008 |
 | Q-1 | PE | resolved | ticket field naming | Keep `ticket_id`; bind as `ticket`; require non-empty for automate | W0 | same | §3.3 |
 | Q-2 | PE | resolved | RunStore field names | `runs.handoff_path`; `stages.prompt_id`; `stages.prompt_revision` | W0 | same | §3.5 |
 | Q-3 | PE | resolved | handoff_path concrete form | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute (**TDD_ONLY**; ADR-008 owns authority only) | W0 | same | §3.4 |
@@ -341,11 +343,11 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 |------|--------|
 | All T1–T11 checks | PASS |
 | Engineering decisions resolved | 10 resolved, 0 deferred |
-| Draft ADR files written | 2 / 2 required (`adr-007-…`, `adr-008-…`) |
+| Draft ADR files written | 2 / 2 required — both **Accepted** |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
-| Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE acceptance of TDD/ADR required** (`Draft` → `Accepted`) |
+| Ready for PE review | YES — accepted |
+| **Ready for /spec-implementation-plan** | **YES — TDD + ADR-007 + ADR-008 Accepted on this branch** (Gate 2 `spec-lgtm` still deferred until plan is on head) |
 
 ---
 
@@ -355,15 +357,15 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 |-------|--------|-------|
 | T1 Module boundaries | PASS | PromptResolver business; runner infra; RunStore; handoff read_path |
 | T2 Interface contracts | PASS | §3.1–§3.6 shapes and invariants |
-| T3 NEW-ADR dispositions | PASS | FF-06 → ADR-007 + ADR-008 Draft (architecture-only); product detail TDD_ONLY |
+| T3 NEW-ADR dispositions | PASS | FF-06 → ADR-007 + ADR-008 **Accepted** (architecture-only); product detail TDD_ONLY |
 | T4 Test policy | PASS | Unit exact render; live field asserts; AI text not exact |
 | T5 Error handling | PASS | Fail closed matrix §6 |
 | T6 Observability | PASS | §7 structured fields |
 | T7 Data contract ownership | PASS | §8 pin vs RunStore vs API |
 | T8 Dependency graph | PASS | api → business → repo; infra injected; no cycle |
 | T9 Engineering questions zero | PASS | Q-1…Q-4 + FF-* PE items resolved |
-| T10 PE review readiness | PASS | ready_for_pe_review true; ready_for_plan false |
-| T11 ADR artifact integrity | PASS | Draft ADR-007 + ADR-008 exist and linked; no product catalogue in ADRs |
+| T10 PE review readiness | PASS | PE accepted; ready_for_plan true; Gate 2 still spec-pending |
+| T11 ADR artifact integrity | PASS | ADR-007 + ADR-008 Accepted and linked; no product catalogue in ADRs |
 
 ---
 
@@ -407,23 +409,26 @@ After artifact acceptance:
 ```yaml
 handoff:
   contract: sdd-delivery/v2
-  stage: spec-technical-review
+  stage: technical-review-approval
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:4c9e1ad7a6a9b33b8e7cb3b529d9cd260f5e08fea199e0b27ded84f095420f48
+    digest: sha256:c89781e543af78fa82e4d7236428d5b28d45634405e033160dc6cee48a1cb32b
   blockers: []
   signals:
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
     new_adr: true
+    tdd_status: Accepted
     adr_required_paths:
       - docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
       - docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
     adr_required_digests:
-      - sha256:5720cf5b07aad7f88c98295c63d96f04307c26f6cbf7bb7fd6278aecaa32034b
-      - sha256:68e37f3b9bc7f6c83c844015f75dd1f2051f5d380ccb2d48f9f12cc92bd52cd0
+      - sha256:c4c1bdfe69679ccea4940c6f228fd77676934b032758098d57bc503f32047d95
+      - sha256:5a7b5e61a7332adadb2511582fab50609c0a38fac078aadfc557bde9704074a8
+    adr_status: Accepted
     draft_verdict: PASS
+    pe_acceptor: nikd10x
     meta_pr_head_sha: 0b6b11e4470517842affb894d7ea581c3819ead3
     map_revision: 1
     prd_digest: sha256:40fb856dd5068290c1d14f010239e6206bee2625aaf6a6e3970d769e9bb5e970
@@ -431,7 +436,7 @@ handoff:
     spec_pr: https://github.com/drivestream-lab/gateflow/pull/52
     gate2_label: spec-pending
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
 ```

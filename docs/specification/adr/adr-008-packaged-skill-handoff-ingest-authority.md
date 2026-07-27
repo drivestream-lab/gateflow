@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-005-BOUNDINPUT |
 | Feasibility finding | FF-06 (handoff authority half) |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md` |
-| Decision owner | PE |
-| Approval evidence | Pending |
+| Decision owner | @nikd10x |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR https://github.com/drivestream-lab/gateflow/pull/52 |
 | Approved head | Pending |
 | Relates to | Extends ADR-001 (RunStore SSOT) and ADR-003 (handoff orchestration in business); does not redefine dual API+worker topology |
 
