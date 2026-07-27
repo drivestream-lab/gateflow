@@ -4,7 +4,7 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-005-BOUNDINPUT |
 | Spec | `docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md` |
-| Spec digest | `sha256:5b01b3a4593f2b2d93b6aface73ca170d5a0cefdc2d29fd5fae9c849af82b066` |
+| Spec digest | `sha256:5a2bb4965b705911c8ffb0673ac1a8bf5cbe948f1b6376a4b29ea2a9e716a861` |
 | Feasibility report | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md` |
 | Feasibility digest | `sha256:e34b9f54fdb509cc4847f6300ae2c68546999485c68f781fca3a1c92499dd15a` |
 | PRD digest | `sha256:40fb856dd5068290c1d14f010239e6206bee2625aaf6a6e3970d769e9bb5e970` |
@@ -16,7 +16,7 @@
 | Date | 2026-07-27 |
 | Branch | `chore/INIT-GATEFLOW-005-BOUNDINPUT-spec-gateflow` (Draft spec PR #52) |
 | Initiative segment | `INIT-GATEFLOW-005-BOUNDINPUT` |
-| Status | **Accepted** — PE @nikd10x 2026-07-27 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/52); ADR-007 + ADR-008 Accepted (architecture-only Option B); product path/bind/columns remain TDD |
+| Status | **Accepted** — PE @nikd10x 2026-07-27 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/52); ADR-007 + ADR-008 Accepted (architecture-only Option B); product path/bind/columns remain TDD. **TDD_ONLY revision (same day):** Q-3 handoff baton uses configured `GATEFLOW_HANDOFF_ROOT`, not `{workspace}/.gateflow/` |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-27 via Cursor chat on Draft spec PR #52 |
 | Approved head | `ffa718142db4cbbaec605b17abf74028ff5cb49c` |
 | Review deadline | 2026-08-03 |
@@ -51,7 +51,7 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 | `src/database/postgres/repository/run_store_repository.py` | exists | Map new columns | Persistence |
 | `postgres_migrations/versions/` | human-owned | Human Alembic for new columns | DDL (ADR-001) |
 | `src/di/modules/business_services_module.py` | exists | Bind PromptResolver singleton | DI |
-| `src/infra_services/launchpad_client.py` | sync stub | **unchanged** this INIT — pin resolve uses workspace tree (TDD §3.1) | Harness stub |
+| `src/configs/orchestration_settings.py` (or sibling) | exists | Add required `GATEFLOW_HANDOFF_ROOT` | Handoff root config (TDD §3.4) |
 | `src/business_services/policy_engine.py` | exists | **unchanged** — dispatch eligibility orthogonal | Pin walker |
 | `tests/unit/test_prompt_resolver.py` | **new** | Resolve/validate/render/fail-closed/anti-hardcode | Unit |
 | `tests/unit/test_handoff_workflow.py` | glob tests | Add `read_path` + isolation; stop treating ambient as automate SSOT | Unit |
@@ -173,24 +173,32 @@ enqueue when the start path will automate a packaged skill (all current
 **Authority (ADR-008):** packaged-skill automate ingest SSOT is a Gateflow-defined,
 run-scoped locator stored on the run — not ambient glob/mtime discovery.
 
-**Concrete representation (TDD_ONLY):** on run create/continue, before first
-packaged AgentRunner call:
+**Concrete representation (TDD_ONLY) — configured root, not the git workspace:**
+
+Do **not** place batons under the coding workspace / repo tree (rejects
+`{workspace}/.gateflow/...` as the default). Runtime state must not pollute the
+agent cwd or risk accidental commit.
+
+| Setting | Shape | Invariant |
+|---------|-------|-----------|
+| `GATEFLOW_HANDOFF_ROOT` | Absolute directory path (env; `OrchestrationSettings` or dedicated settings singleton via `get_instance()`) | **Required** for packaged-skill automate; fail closed at start / before define if unset or not an absolute writable directory |
 
 ```text
-handoff_path = {workspace_root}/.gateflow/runs/{run_id}/handoff.md
+handoff_path = {GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md
 ```
 
-- Persist absolute path string on `runs.handoff_path`
-- Ensure parent directory exists; create empty baton file if absent
-- Inject stored value into bind map as `handoff_path`
+- Persist the resulting **absolute** path string on `runs.handoff_path`
+- Ensure `{GATEFLOW_HANDOFF_ROOT}/{run_id}/` exists; create empty baton file if absent
+- Inject stored value into bind map as `handoff_path` (agent writes here by absolute path; `workspace` bind remains the coding root — orthogonal)
+- Local/dev example only: e.g. `/tmp/gateflow/handoffs` or a host data volume — **never** a path inside the cloned repo unless an operator explicitly sets that (discouraged)
 
 **Ingest (W1):** `HandoffReader.read_path(handoff_path)` parses YAML handoff
 envelope from that file only. Missing/unreadable → fail closed; **do not** call
 `find_latest_handoff` for packaged-skill automate.
 
-**Isolation:** path includes `run_id` ⇒ concurrent runs cannot share baton via
-layout. Ambient `DEFAULT_ARTIFACT_GLOBS` may remain for legacy/debug but is
-**not** automate SSOT.
+**Isolation:** path includes `run_id` under the configured root ⇒ concurrent runs
+cannot share batons. Ambient `DEFAULT_ARTIFACT_GLOBS` may remain for legacy/debug
+but is **not** automate SSOT.
 
 ### 3.5 RunStore persistence (REQ-6, REQ-7, Q-2)
 
@@ -223,7 +231,7 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 |---------|----------------|------------------------|--------------------------|--------|--------|
 | FF-06 (brief / runner) | ADR_REQUIRED | `docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md` | Option B — business owns brief construction; AgentRunner message-only | Accepted | `sha256:8770426ef81495a7e7d14ffbbabc97bd10864dd71d9e27d988ceaee4bcd36cd3` |
 | FF-06 (handoff authority) | ADR_REQUIRED | `docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md` | Option B — automate SSOT = Gateflow-defined run-stored locator; ambient not automate SSOT | Accepted | `sha256:c529fbe35b8403d72baa85ae15c042d40328f7eaeff81290dba75b8ddc65e480` |
-| Q-3 path string | TDD_ONLY | §3.4 | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute | Resolved | N/A |
+| Q-3 path string | TDD_ONLY | §3.4 | `{GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md` — required configured absolute root outside repo by default | Resolved | N/A |
 | Q-1 / Q-2 / Q-4 / FF-05 / FF-09 / FF-02 / FF-03 | TDD_ONLY | §3 / §5 / §9 | Field maps, columns, prove-it, pin search roots, invent-prose removal shape | Resolved | N/A |
 
 **Derived counts:**
@@ -261,6 +269,7 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 | Failure mode | Module where it originates | Propagation path | Recovery |
 |--------------|---------------------------|------------------|----------|
 | Package missing / schema invalid | PromptResolver | orchestrator → stage/run `failed` + notify | terminal — 0 AgentRunner |
+| `GATEFLOW_HANDOFF_ROOT` unset / not absolute / not writable | Settings / define-handoff | fail closed at start or before define | terminal |
 | Required bind miss (`ticket`, `handoff_path`) | WaveStartService / PromptResolver | 4xx at accept or stage `failed` | terminal |
 | Undeclared template var / non-`{{var}}` | PromptResolver | stage `failed` | terminal |
 | `handoff_path` unset at dispatch | RunOrchestrator | fail closed before AgentRunner | terminal |
@@ -303,7 +312,7 @@ strings, bind maps, column names, and pin search roots remain **TDD_ONLY** (§3,
 | FF-06 | PE | resolved | Brief ownership + handoff ingest authority | ADR-007 Option B + ADR-008 Option B **Accepted**; concrete path/columns in TDD | plan | N/A | §4; ADR-007; ADR-008 |
 | Q-1 | PE | resolved | ticket field naming | Keep `ticket_id`; bind as `ticket`; require non-empty for automate | W0 | same | §3.3 |
 | Q-2 | PE | resolved | RunStore field names | `runs.handoff_path`; `stages.prompt_id`; `stages.prompt_revision` | W0 | same | §3.5 |
-| Q-3 | PE | resolved | handoff_path concrete form | `{workspace}/.gateflow/runs/{run_id}/handoff.md` absolute (**TDD_ONLY**; ADR-008 owns authority only) | W0 | same | §3.4 |
+| Q-3 | PE | resolved | handoff_path concrete form | `{GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md` (configured absolute root; **not** under workspace/repo). ADR-008 owns authority only | W0 | same | §3.4 |
 | Q-4 | PE | resolved | Prove-it skill id | `pre-implement` (pin orchestrated + package present) | W0 | same | §5 |
 | FF-05 | PE | resolved | Verify policy | Extend `verify_implement_lane` with prompt_id/revision asserts | W0 | same | §5 |
 | FF-09 | PE | resolved | Pin root while Launchpad stub | Search `prayog-skills/skills/{development,requirements}/{skill_id}/prompts/` under workspace | W0 | same | §3.1 |
@@ -413,7 +422,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:99b8379bb8c827f9c2b5e00029b26a9d14911bc53da897d9e4470706fb9e217d
+    digest: sha256:46a967941e663007d6a71cb20c945e802b1a3db707c940309ca3bcbab92a49af
   blockers: []
   signals:
     ready_for_pe_review: true
