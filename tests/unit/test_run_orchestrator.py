@@ -19,12 +19,16 @@ from src.models.run_store_types import JobStatusType, RunStatusType
 
 
 def _gate_stop_handoff(stage: str = "loop-spec") -> dict[str, object]:
-    """Payload handoff that stops the walker after the executed stage."""
+    """Handoff that stops the walker via pin (blockers → STOP), not flag alone.
+
+    Envelope ``human_checkpoint`` is no longer a PolicyEngine veto; use unresolved
+    blockers (or an outcome that resolves to ``human-checkpoint``) to halt tests.
+    """
     return {
         "contract": "sdd-delivery/v2",
         "stage": stage,
-        "outcome": "pass",
-        "blockers": [],
+        "outcome": "blocked",
+        "blockers": ["TEST-WALKER-STOP"],
         "human_checkpoint": True,
     }
 
@@ -115,8 +119,8 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         return_value=HandoffEnvelope(
             contract="sdd-delivery/v2",
             stage="loop-spec",
-            outcome="pass",
-            blockers=[],
+            outcome="blocked",
+            blockers=["TEST-WALKER-STOP"],
             human_checkpoint=True,
         )
     )
@@ -661,8 +665,8 @@ async def test_walker_continues_then_stops_at_gate() -> None:
             HandoffEnvelope(
                 contract="sdd-delivery/v2",
                 stage="verify",
-                outcome="pass",
-                blockers=[],
+                outcome="blocked",
+                blockers=["TEST-WALKER-STOP"],
                 human_checkpoint=True,
             ),
         ]
@@ -771,8 +775,8 @@ async def test_packaged_ingest_uses_read_path_not_ambient() -> None:
         return_value=HandoffEnvelope(
             contract="sdd-delivery/v2",
             stage="loop-spec",
-            outcome="pass",
-            blockers=[],
+            outcome="blocked",
+            blockers=["TEST-WALKER-STOP"],
             human_checkpoint=True,
         )
     )

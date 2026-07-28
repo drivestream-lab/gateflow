@@ -115,17 +115,54 @@ def test_policy_dispatch_only_skill_orchestrated() -> None:
     assert decision.next_node.node_id == "pre-implement"
 
 
-def test_policy_stop_on_human_checkpoint() -> None:
-    policy = PolicyEngine(workflow_engine=MagicMock())
+def test_policy_human_checkpoint_true_does_not_veto_orchestrated_skill() -> None:
+    """workflow.yaml is dispatch SSOT; envelope human_checkpoint only WARNs on mismatch."""
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    engine = MagicMock()
+    engine.resolve_next.return_value = ResolvedWorkflowNode(
+        node_id="loop-spec",
+        node_type="skill",
+        dispatch="orchestrated",
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    policy.logger = MagicMock()
     handoff = HandoffEnvelope(
         contract="sdd-delivery/v2",
-        stage="board-seed",
+        stage="pre-implement",
+        outcome="pass",
+        human_checkpoint=True,
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.DISPATCH
+    assert decision.next_node is not None
+    assert decision.next_node.node_id == "loop-spec"
+    policy.logger.warning.assert_called_once()
+    warn_msg = policy.logger.warning.call_args.args[0]
+    assert "human_checkpoint disagrees" in warn_msg
+
+
+def test_policy_stop_on_pin_human_checkpoint_node() -> None:
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    engine = MagicMock()
+    engine.resolve_next.return_value = ResolvedWorkflowNode(
+        node_id="wave-human-decision",
+        node_type="human-checkpoint",
+        dispatch=None,
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="ground-spec",
         outcome="pass",
         human_checkpoint=True,
     )
     decision = policy.evaluate_dispatch(handoff, MagicMock())
     assert decision.decision == PolicyDecisionType.STOP
-    assert "human_checkpoint" in (decision.block_reason or "")
+    assert decision.next_node is not None
+    assert decision.next_node.node_id == "wave-human-decision"
+    assert "human-checkpoint" in (decision.block_reason or "")
 
 
 def test_policy_block_on_contract_mismatch() -> None:
