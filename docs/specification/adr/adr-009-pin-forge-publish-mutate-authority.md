@@ -7,7 +7,7 @@
 | Relates to | Extends ADR-003 (ForgeClient in infra; orchestration in business); pin contract narrative in `prayog-skills/references/forge-side-effects.md` |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance directed on 2026-07-28 via Cursor chat (INIT-GATEFLOW-006 forge publish/mutate session) |
-| Approved head | 70d73b84b34bc458d23851a0b1f0b50eb4a9647b |
+| Approved head | `03e72600394c2b0e1fcb7cfebcf9e2a6b3ad44b8` |
 
 ## Context
 
