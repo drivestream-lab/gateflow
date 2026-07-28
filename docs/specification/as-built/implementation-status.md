@@ -120,5 +120,5 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 **INIT-GATEFLOW-005 (2026-07-28):** W0 **human_approved** on
 `feature/INIT-GATEFLOW-005-w0-bound-input` — PromptResolver, message-only Cursor,
 `GATEFLOW_HANDOFF_ROOT` baton define/store, required `ticket_id`, Alembic
-`e7263d04aa6b`. Live implement-lane prove-it (**REQ-10**) deferred to W1 with
+`69de74666068`. Live implement-lane prove-it (**REQ-10**) deferred to W1 with
 ingest-from-stored-path (**REQ-8b**) — D-W0-V1 accepted at wave-signoff.
