@@ -304,9 +304,11 @@ class RunOrchestrator(BaseBusinessService):
                     )
 
                 try:
+                    stored_path = stage_summary.get("handoff_path") or (
+                        str(run.handoff_path).strip() if run.handoff_path else ""
+                    )
                     handoff = self._ingest_handoff_after_stage(
-                        payload=payload,
-                        workspace_path=workspace_path,
+                        handoff_path=str(stored_path),
                         expected_stage=next_node.node_id,
                     )
                 except ValueError as exc:
@@ -542,6 +544,7 @@ class RunOrchestrator(BaseBusinessService):
             "notify_pending": notify_pending,
             "stop_reason": agent_result.error_message,
             "duration_ms": duration_ms,
+            "handoff_path": handoff_path,
         }
 
     async def _ensure_run_handoff_path(
@@ -577,16 +580,17 @@ class RunOrchestrator(BaseBusinessService):
     def _ingest_handoff_after_stage(
         self,
         *,
-        payload: dict[str, Any],
-        workspace_path: str,
+        handoff_path: str,
         expected_stage: str,
     ) -> HandoffEnvelope:
-        """Read durable handoff (or payload override); validate stage matches node just run."""
-        handoff_raw = payload.get("handoff")
-        if isinstance(handoff_raw, dict):
-            handoff = HandoffEnvelope.model_validate(handoff_raw)
-        else:
-            handoff = self._handoff_reader.find_latest_handoff(Path(workspace_path))
+        """Ingest durable handoff from stored run.handoff_path only (ADR-008 / REQ-8b).
+
+        Ambient glob/mtime discovery is not automate SSOT. Missing or unreadable
+        path fails closed via HandoffReader.read_path.
+        """
+        if not handoff_path or not str(handoff_path).strip():
+            raise ValueError("run.handoff_path is required for packaged-skill automate ingest")
+        handoff = self._handoff_reader.read_path(str(handoff_path).strip())
         if handoff.stage != expected_stage:
             raise ValueError(
                 f"Handoff stage {handoff.stage!r} does not match executed node "
