@@ -19,6 +19,9 @@ review_deadline: 2026-07-29
 deciders: PE — spec-lgtm + Approve on exact head after full package
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 # Implementation plan — INIT-GATEFLOW-003
 
 ## Source freshness and command contract
@@ -78,7 +81,7 @@ green. (Full Scenario prove-it is W1/W2.)
 
 | Task | Description | Implements | Codebase | Spec path | Done when | Verify command | MDC notes | ADR notes | Branch |
 |------|-------------|------------|----------|-----------|-----------|----------------|-----------|-----------|--------|
-| TASK-W0-01 | Add `cursor-sdk` to Poetry; `CursorAgentSettings` (`CURSOR_API_KEY`); document in `.env.example` / README | REQ-29, REQ-27 | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` | Settings load; missing key detectable; no secret in programme.yaml | `make check && make test` | settings `get_instance()` not DI; fail-fast | ADR-004 | `feature/INIT-GATEFLOW-003-w0-cursor-skeleton` |
+| TASK-W0-01 | Add `cursor-sdk` to Poetry; `CursorAgentSettings` (`CURSOR_API_KEY`); document in `.env.example` / README | REQ-29, REQ-27 | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` | Settings load; missing key detectable; no secret in committed programme config | `make check && make test` | settings `get_instance()` not DI; fail-fast | ADR-004 | `feature/INIT-GATEFLOW-003-w0-cursor-skeleton` |
 | TASK-W0-02 | Implement `CursorAgentRunner` live path: `Agent.create` + `LocalAgentOptions(cwd=workspace)`; map to `AgentRunResult`; cloud agents never used | REQ-27, REQ-31 | drivestream-lab/gateflow | same | Unit with mocked SDK returns SUCCESS/FAILED; real skill without key/SDK fails closed | `make check && make test` | infra SDK wrapper; business must not import `cursor_sdk` | ADR-003, ADR-001 | same |
 | TASK-W0-03 | Start-gate: when required runner is `cursor`, require API key + ADR-006 `implemented`; quarantine `GATEFLOW_AGENT_STUB`/`mock-*` from production-like live success; wire into WaveStartService (+ worker defense-in-depth) | REQ-28, REQ-29 | drivestream-lab/gateflow | same | Missing key → 422/structured fail before enqueue; stub env cannot satisfy live exit assertions | `make check && make test` | fail-fast; business SlotValidator | ADR-006, ADR-004 | same |
 | TASK-W0-04 | Laptop spike evidence (TDD §3.3): one local `send()` with key+cwd; record result in `docs/specification/reports/` spike note or runbook | REQ-27 | drivestream-lab/gateflow | same | Spike note committed; pass/fail + blockers listed | inspection | — | TDD §3.3 C1 | same |
@@ -391,7 +394,7 @@ work:
     tasks:
       - id: TASK-W0-01
         implements: [REQ-29, REQ-27]
-        done_when: "CursorAgentSettings + cursor-sdk dependency; CURSOR_API_KEY documented; no secret in programme.yaml"
+        done_when: "CursorAgentSettings + cursor-sdk dependency; CURSOR_API_KEY documented; no secret in committed programme config"
       - id: TASK-W0-02
         implements: [REQ-27, REQ-31]
         done_when: "CursorAgentRunner local SDK path; unit mock SUCCESS/FAILED; no cloud agents"

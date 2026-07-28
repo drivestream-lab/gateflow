@@ -19,6 +19,9 @@ review_deadline: 2026-07-29
 deciders: PE — spec-lgtm + Approve on exact head after full package
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 # Implementation plan — INIT-GATEFLOW-002
 
 ## Source freshness and command contract
@@ -97,7 +100,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 
 | ID | Path | Action |
 |----|------|--------|
-| FILE-W0-01 | `config/programme.yaml`, `config/programme.yaml.example` | edit |
+| FILE-W0-01 | `config/programme.yaml` (wave edit; **living: removed**) | edit (superseded) |
 | FILE-W0-02 | `src/models/programme_config_models.py`, wave/board/run list models | edit/create |
 | FILE-W0-03 | `src/business_services/slot_validator.py`, adapter registry module | create |
 | FILE-W0-04 | stub runner/notifier infra modules | create |
@@ -142,7 +145,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 | FILE-W1-03 | `src/business_services/notifier.py` | edit |
 | FILE-W1-04 | `src/business_services/metrics_emitter.py`, `src/api/v1/metrics_routes.py`, models | edit |
 | FILE-W1-05 | `src/infra_services/cursor_agent_runner.py` | edit (as needed) |
-| FILE-W1-06 | `config/programme.yaml` (`pr.*`) | edit |
+| FILE-W1-06 | `config/programme.yaml` `pr.*` (wave; **living: removed**) | edit (superseded) |
 | FILE-W1-07 | `tests/unit/**`, `tests/verify/**` | edit/create |
 | FILE-W1-08 | as-built, `tests/README.md` | edit |
 

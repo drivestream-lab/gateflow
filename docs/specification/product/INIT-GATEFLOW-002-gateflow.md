@@ -159,7 +159,7 @@ Authoritative checklist before PolicyEngine may dispatch after **API** wave star
 | A-4 | App permissions suffice for PR create/comment and board create/list/status/link (including Projects where used) | PRD A3; IM-04 | PE | open | Permissions insufficient for W2 board exit — see Q-4 |
 | A-5 | Programme service token authenticates wave-start and ops/board APIs (extends INIT-001 read model) | PRD A4; ADR-002 may need extension | PE | confirmed for product intent | Token model replaced by RBAC/JWT |
 | A-6 | Board-seed skill remains SSOT for *what* to seed; Gateflow board APIs are dumb apply primitives | PRD A5; Decision #4 | PE | confirmed | Skill ownership moves into Gateflow |
-| A-7 | **No `programme.yaml`.** Notifier + findings/metrics/hop-cap live in env (`GATEFLOW_*`); handoff scan globs are code constants; runner/model + PR targeting are wave-start API fields; pin remains process SSOT. | ADR-004 (evolved); FR-15/16/18 | PE | confirmed | Reintroduce shared overlays via meta |
+| A-7 | **No `programme.yaml`.** Notifier + findings/metrics/hop-cap live in env (`GATEFLOW_*`); handoff scan globs are code constants; runner/model + PR targeting are wave-start API fields; pin remains process SSOT. | ADR-004 (carrier is TDD); FR-15/16/18 | PE | confirmed | Reintroduce shared overlays via meta |
 | A-8 | Exact HTTP paths/schemas may be finalized in TDD while product FRs stay normative | PRD OQ #1; IM-01 | PE | open | Product changes FR semantics |
 | A-9 | ADR-001 dual API+worker + Postgres RunStore remains topology for 002 | ADR-001 Accepted | Eng | confirmed | Topology ADR superseded |
 

@@ -5,7 +5,7 @@
 | Product specs | [`product/`](product/) | Initiative FR slices for this repo |
 | ADRs | [`adr/`](adr/) | Architecture decisions (when accepted) |
 | As-built | [`as-built/implementation-status.md`](as-built/implementation-status.md) | Live vs deferred; verification matrix |
-| Reports | [`reports/`](reports/) | Feasibility, technical review, implementation plan |
+| Reports | [`reports/`](reports/) | Wave evidence (feasibility, TDD, plan, ground). Living SSOT is as-built + ADRs — see [`reports/README.md`](reports/README.md) |
 
 ## Lane naming
 

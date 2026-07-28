@@ -10,6 +10,9 @@
 | Review deadline | 2026-07-27 |
 | Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-23 (live `verify_all` green) |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Automated check output
 
 `ground_command`: N/A. Evidence: `make check`, `make test`, `.venv/bin/python -m tests.verify.verify_all`.
@@ -56,7 +59,7 @@ W1 scope (plan): FR-2, FR-3, FR-4, FR-7 (policy), FR-8, FR-9, FR-10, FR-11, FR-1
 | FR | Spec claim | Verified artifact | Status |
 |----|-----------|-------------------|--------|
 | FR-2 | Concurrent active-run reject | `TriggerRouter` PC-06; `test_concurrent_*`; orchestrator unit | **pass** (unit) |
-| FR-3 | Programme trigger label | `TriggerRouter` + `programme.yaml` `trigger.label`; `verify_wave_start` | **pass** |
+| FR-3 | Programme trigger label (wave; later removed) | `TriggerRouter` + YAML `trigger.label` (wave); `verify_wave_start` | **pass** (wave-time; living: no label start — see supersession) |
 | FR-4 | Wave-run precondition checklist | PC-01…04 + PC-06 in `trigger_router.py`; unit failures | **pass** (unit); live full checklist soak partial |
 | FR-7 | PolicyEngine pin-driven dispatch | `PolicyEngine.evaluate_dispatch`; unit dispatch/block/stop | **pass** (unit) |
 | FR-8 | Stop on human/external/decision/terminal | Policy stop node types + handoff flags; orchestrator stop unit | **pass** (unit) |
@@ -87,7 +90,7 @@ W1 scope (plan): FR-2, FR-3, FR-4, FR-7 (policy), FR-8, FR-9, FR-10, FR-11, FR-1
 
 | Assumed contract | Source | Match? |
 |-----------------|--------|--------|
-| ProgrammeConfig load | Ground-Report-W0 | yes |
+| ProgrammeConfig load (wave; living: removed — see supersession) | Ground-Report-W0 | yes (wave) |
 | Webhook enqueue | Ground-Report-W0 | yes — still live-verified |
 | Job claim stub → now orchestrator | Ground-Report-W0 | yes — worker calls `RunOrchestrator.process_job` |
 | RunStore persistence | Ground-Report-W0 | yes — `find_active_run` / `update_run` added |

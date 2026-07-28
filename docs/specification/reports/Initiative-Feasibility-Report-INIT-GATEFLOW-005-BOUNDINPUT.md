@@ -49,7 +49,7 @@ W0→W1→W2.
 | ADR-001 | Dual API+worker, Postgres RunStore | Accepted — aligned (additive columns + human Alembic) |
 | ADR-002 | Programme token / public_paths | Accepted — aligned (wave-start auth unchanged) |
 | ADR-003 | AgentRunner / harness infra vs business orchestration | Accepted — **constrains** PromptResolver placement + message-only runner I/O (see FF-06) |
-| ADR-004 | Programme config authority | Accepted — aligned (no programme.yaml revive; pin consume) |
+| ADR-004 | Programme config authority | Accepted — aligned (no YAML programme-file revive; pin consume) |
 | ADR-005 | Programme-token mutations | Accepted — aligned (wave-start remains programme-token surface) |
 | ADR-006 | Adapter registry fail-closed | Accepted — aligned (Cursor-only; no second runner) |
 

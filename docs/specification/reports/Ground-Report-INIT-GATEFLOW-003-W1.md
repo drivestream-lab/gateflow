@@ -64,7 +64,7 @@ Committed on wave branch; local DB alembic_version=7e79269bd50b
 | Rule | Source | Status |
 |------|--------|--------|
 | AgentRunner in infra; business does not import `cursor_sdk` | ADR-003 | **pass** |
-| Secrets via env (`CURSOR_API_KEY`); no programme.yaml | ADR-004 | **pass** |
+| Secrets via env (`CURSOR_API_KEY`); no committed programme config | ADR-004 | **pass** |
 | Fail-closed start-gate for missing Cursor credentials | ADR-006 | **pass** |
 | Stage/run persistence via repository only | MDC repository-pattern | **pass** |
 | Human owns Alembic revision files | MDC database-migrations | **pass** — `7e79269bd50b` on branch |
@@ -100,7 +100,7 @@ No open code blockers for wave-signoff.
 | Wave cycle-time field | RunStore + APIs | finalize | accept → stop/fail/complete | `runs.wave_duration_ms` | Live proven | W2 |
 | Docker/local bridge readiness | spike + Dockerfile | inspection | image + key + cwd | pass note | No key in image | W2 |
 | Implement-lane live verify | `verify_implement_lane` | opt-in module | config + worker + key | four stages; `stopped`; evidence | Not in `verify_all` | W2 Scenario A |
-| Pin walker (no programme.yaml) | `RunOrchestrator` | wave-start Enter-at | `start_node` + runner/model | multi-hop until gate | Lane handoffs `human_checkpoint: false` | W2 |
+| Pin walker (env + API + pin; no YAML programme file) | `RunOrchestrator` | wave-start Enter-at | `start_node` + runner/model | multi-hop until gate | Lane handoffs `human_checkpoint: false` | W2 |
 | Human Alembic `wave_duration_ms` | `7e79269bd50b_…` | Alembic upgrade | nullable Integer | schema ↔ ORM | Human-owned | W2 |
 
 ## PR instructions

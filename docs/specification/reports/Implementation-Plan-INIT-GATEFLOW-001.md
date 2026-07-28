@@ -19,6 +19,9 @@ review_deadline: 2026-07-28
 deciders: PE — spec-lgtm + Approve on exact head after full package
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 # Implementation plan — INIT-GATEFLOW-001
 
 ## Source freshness and command contract
@@ -80,7 +83,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 
 | Task | Description | Codebase | Spec path | Done when | Verify command | MDC notes | ADR notes | Branch |
 |------|-------------|----------|-----------|-----------|----------------|-----------|-----------|--------|
-| TASK-W0-01 | Programme config model + `config/programme.yaml` (+ example); fail-fast load in API/worker startup | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-001-gateflow.md` | Missing/invalid config fails process start; required keys validated | `make check && make test` | pydantic-schemas; fail-fast; settings not in injector | ADR-004 | `feature/INIT-GATEFLOW-001-w0-programme-config` |
+| TASK-W0-01 | Programme config model + YAML carrier (wave; **living: removed** — see supersession); fail-fast load in API/worker startup | drivestream-lab/gateflow | `docs/specification/product/INIT-GATEFLOW-001-gateflow.md` | Missing/invalid config fails process start; required keys validated | `make check && make test` | pydantic-schemas; fail-fast; settings not in injector | ADR-004 | `feature/INIT-GATEFLOW-001-w0-programme-config` |
 | TASK-W0-02 | ORM schemas + repos for webhook deliveries, runs, stages, events, jobs; human Alembic revision applied | drivestream-lab/gateflow | same | Migrations apply; repos round-trip Pydantic DTOs | `make check && make test` | repository-pattern; database-migrations (human versions) | ADR-001 | `feature/INIT-GATEFLOW-001-w0-runstore` |
 | TASK-W0-03 | `POST /webhooks/github`: signature verify, idempotency, enqueue job, 202/401/503; extend `public_paths` | drivestream-lab/gateflow | same | Unit: bad sig 401; dup delivery no second job; happy path enqueues | `make check && make test` | architecture public_paths; models in src/models | ADR-002 | `feature/INIT-GATEFLOW-001-w0-webhook` |
 | TASK-W0-04 | `src/worker_main.py` + job claim (`SKIP LOCKED`); stub handler logs + marks job processed without AgentRunner | drivestream-lab/gateflow | same | Worker claims enqueued job in docker-compose | `make check && make test` | DI worker_main pattern | ADR-001 | `feature/INIT-GATEFLOW-001-w0-worker` |
@@ -93,7 +96,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 
 | ID | Path | Action |
 |----|------|--------|
-| FILE-W0-01 | `config/programme.yaml` (+ `.example` if needed) | create |
+| FILE-W0-01 | `config/programme.yaml` (wave create; **living: removed**) | create (superseded) |
 | FILE-W0-02 | `src/models/programme_config_models.py` (name flexible) | create |
 | FILE-W0-03 | `src/database/postgres/schema/run_*.py`, `job_*.py`, `webhook_*.py` | create |
 | FILE-W0-04 | `src/database/postgres/repository/*` | create |

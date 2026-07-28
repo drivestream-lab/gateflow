@@ -2,6 +2,11 @@
 
 Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrated run `INIT-SCENB-8544986`). **No product code in this stage.**
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML
+> `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`),
+> wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and
+> `docs/specification/reports/README.md`.
+
 ---
 
 ### Gate check (prior wave)
@@ -97,7 +102,7 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 - [x] ADRs (keyword-matched — Accepted):
   - [x] ADR-001 — dual API+worker + Postgres RunStore; human Alembic for `wave_duration_ms`
   - [x] ADR-003 — AgentRunner remains infra slot; implement-lane prove-it consumes `run_skill` I/O
-  - [x] ADR-004 — secrets via env (`CURSOR_API_KEY`); dispatch plan not programme YAML for runner/model
+  - [x] ADR-004 — secrets via env (`CURSOR_API_KEY`); runner/model from wave-start dispatch plan (not a YAML programme file)
   - [x] ADR-006 — fail-closed start-gate retained; stub not live exit
   - skipped: ADR-002 / ADR-005 — edge trust / programme-token mutations unchanged this wave
 - [x] Spec: `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` (REQ-27…31; implement-lane)

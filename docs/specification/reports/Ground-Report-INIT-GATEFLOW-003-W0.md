@@ -12,6 +12,9 @@
 | Board issue | https://github.com/drivestream-lab/gateflow/issues/20 |
 | Plan | `docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-003.md` Phase W0 |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Automated check output
 
 `ground_command`: N/A (no Makefile ground target; manual FR validation + toolchain).
@@ -47,7 +50,7 @@ Live Scenario B verify: **N/A for W0** (plan: W1). Laptop spike:
 | Rule | Source | Status |
 |------|--------|--------|
 | AgentRunner in infra; business does not import `cursor_sdk` | ADR-003 + MDC infra-services | **pass** |
-| Secrets via settings env (`CURSOR_API_KEY`), never programme.yaml | ADR-004 + `CursorAgentSettings` | **pass** |
+| Secrets via settings env (`CURSOR_API_KEY`); no committed programme config | ADR-004 + `CursorAgentSettings` | **pass** |
 | Fail-closed at accept for missing credentials when runner=`cursor` | ADR-006 + REQ-29 #12 | **pass** |
 | Settings via `get_instance()`, not DI | MDC dependency-injection | **pass** |
 | No Alembic / schema edits in W0 | MDC database-migrations | **pass** |
@@ -68,7 +71,7 @@ Live Scenario B verify: **N/A for W0** (plan: W1). Laptop spike:
 | ID | FR | Finding | Severity |
 |----|----|---------|----------|
 | D-W0-L1 | REQ-27 | Laptop live `send`/`wait` returned `status=error` (~97 min); bridge+auth OK but `finished` not proven | **Medium** — accept for W0 skeleton exit; **blocking for W1 Scenario B prove-it** until resolved (spike note) |
-| D-W0-M1 | REQ-27/29 | Programme profiles `cursor/auto` / `cursor/fast` are not SDK model ids; mapped via `_sdk_model_id` to `composer-2` / settings default | Low — document; consider programme.yaml alignment later |
+| D-W0-M1 | REQ-27/29 | Programme profiles `cursor/auto` / `cursor/fast` are not SDK model ids; mapped via `_sdk_model_id` to `composer-2` / settings default | Low — document; model ids via wave-start dispatch plan / settings (no programme.yaml) |
 | D-W0-V1 | REQ-27 | No W0 live Scenario B verify script (by plan) | Low — intentional defer to W1 |
 
 No **blocking** discrepancies for **W0 skeleton exit** if PE accepts D-W0-L1 / D-W0-M1 / D-W0-V1 as in-scope for W0.
@@ -77,7 +80,7 @@ No **blocking** discrepancies for **W0 skeleton exit** if PE accepts D-W0-L1 / D
 
 | Contract | Module / component | Entry point | Input shape | Output shape | Invariants | Next wave |
 |----------|--------------------|-------------|-------------|--------------|------------|-----------|
-| Cursor credentials settings | `CursorAgentSettings` | `get_instance` / `has_api_key` / `require_api_key` | env `CURSOR_API_KEY`, optional `CURSOR_DEFAULT_MODEL` | typed settings; blank key = missing | Secret never in programme.yaml; never log full key | W1 |
+| Cursor credentials settings | `CursorAgentSettings` | `get_instance` / `has_api_key` / `require_api_key` | env `CURSOR_API_KEY`, optional `CURSOR_DEFAULT_MODEL` | typed settings; blank key = missing | Secret never in committed programme config; never log full key | W1 |
 | Local Cursor AgentRunner | `CursorAgentRunner` | `run_skill` | workspace path, skill id, prompt context, model profile (+ optional runner/model) | `AgentRunResult` (SUCCESS/FAILED) | Local `launch_bridge` + `LocalAgentOptions(cwd)` only; never `cloud=`; missing key → FAILED; SDK errors → FAILED | W1 Scenario B |
 | SDK model id map | `CursorAgentRunner` | `_sdk_model_id` | programme model id (e.g. `cursor/auto`) | SDK model id (e.g. `composer-2`) | `auto`/`fast`/empty → settings default | W1 |
 | Unit test doubles | `CursorAgentRunner` | `run_skill` | `mock-*` skill or `GATEFLOW_AGENT_STUB=1` | synthetic SUCCESS | Not live prove-it evidence (Q-3) | W1 verify must unset stub |

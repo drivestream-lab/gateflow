@@ -66,7 +66,7 @@ PolicyEngine, pin walker, or Live Cursor topology from INIT-001…003.
 | ADR-001 | Postgres RunStore + human Alembic for new columns |
 | ADR-002 / ADR-005 | Programme-token wave-start zone unchanged |
 | ADR-003 | AgentRunner stays **infra**; brief construction stays **business** (ADR-007) |
-| ADR-004 | No programme.yaml revive; pin filesystem consume only (paths in TDD) |
+| ADR-004 | No YAML programme-file revive; pin filesystem consume only (paths in TDD) |
 | ADR-006 | Fail-closed honesty unchanged; Cursor-only this INIT |
 | ADR-007 | **Accepted** — business owns invocation brief; AgentRunner message-only |
 | ADR-008 | **Accepted** — packaged-skill automate handoff SSOT = run-stored Gateflow locator |

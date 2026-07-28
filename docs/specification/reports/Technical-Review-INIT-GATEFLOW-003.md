@@ -25,6 +25,11 @@
 | Layer posture (PE) | **B1:** `cursor-sdk` is an in-process pip dependency; wrapper stays in `infra_services/` (ADR-003 Accepted — leave as-is; not Cursor Cloud) |
 | Evidence posture (PE) | **C1:** local SDK contract + Docker/bridge spike live in this TDD (not an ADR) |
 
+> **Living supersession (config carrier):** `config/programme.yaml` is **removed**.
+> Runner/model resolve from wave-start dispatch plan; secrets via env
+> (`CURSOR_API_KEY`, `GATEFLOW_*`). See **ADR-004**, INIT-002 **A-7**, as-built.
+> Mentions of `programme.yaml` below are wave-time only.
+
 ---
 
 ## 1. Problem statement
@@ -62,7 +67,7 @@ not a new architecture ADR.
 | `src/models/*` | exists | Stage/run DTOs; settings models | Pydantic contracts |
 | `src/database/postgres/schema/run_store_schema.py` | exists | Add `runs.wave_duration_ms` (nullable int) | ORM |
 | `postgres_migrations/versions/` | human-owned | Human Alembic for `wave_duration_ms` | DDL |
-| `config/programme.yaml` | exists | Intended `cursor` / model profiles; no secrets | Programme knobs |
+| `config/programme.yaml` | **removed (superseded)** | Runner/model via wave-start API; ops knobs via env | See ADR-004 / as-built |
 | `pyproject.toml` | no Cursor SDK | Add `cursor-sdk` (and document bridge/Node image needs) | Packaging |
 | `tests/unit/*` | stub coverage | Secret start-gate, failure stage metrics, wave duration; mock SDK | Unit |
 | `tests/verify/*` | no Scenario A/B | Scenario B (W1) + Scenario A (W2 after pin) | Live prove-it |
@@ -74,7 +79,7 @@ not a new architecture ADR.
 | ADR-001 | Dual API+worker + Postgres RunStore — wave duration on runs |
 | ADR-002 / ADR-005 | Programme token zones unchanged |
 | ADR-003 | AgentRunner **adapter** in `infra_services/` — wraps in-process `cursor-sdk`; business must not import SDK types |
-| ADR-004 | Cursor secrets via settings/env, not programme.yaml |
+| ADR-004 | Cursor secrets via settings/env; no committed programme config carrier |
 | ADR-006 | Fail-closed on unimplemented required adapters; do **not** catalogue product live/stub lists in ADRs |
 
 **Boundary diagram (text):**
@@ -105,7 +110,7 @@ not DI-injected.
 
 | Field | Shape | Invariant |
 |-------|-------|-----------|
-| `api_key` (env `CURSOR_API_KEY`) | secret string | Required when resolved runner is `cursor`; never logged in full; never in programme.yaml |
+| `api_key` (env `CURSOR_API_KEY`) | secret string | Required when resolved runner is `cursor`; never logged in full; never in committed programme config |
 | Optional SDK knobs | timeout_ms, etc. | Defaults in settings |
 
 **Invariant:** Missing/blank key ⇒ start-gate failure (fail-fast). Maps to official

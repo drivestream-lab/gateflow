@@ -202,7 +202,7 @@ and the INIT spec — matching Accepted ADR-002/003 style.
 | ADR-001 | **constrains** — keep API + worker + Postgres jobs |
 | ADR-002 | **constrains** — JWT/webhook unchanged; programme row **superseded by ADR-005** |
 | ADR-003 | **constrains** — adapters stay infra; registry policy in ADR-006 |
-| ADR-004 | **constrains** — ops knobs via env / code constants (programme.yaml removed) |
+| ADR-004 | **constrains** — ops knobs via env / code constants (YAML programme carrier removed) |
 
 **Derived counts:** ADR_REQUIRED 2 · TDD_ONLY 5 · DEFERRED_WITH_DEFAULT 3 · Draft ADR files created 2 · Missing/broken 0
 
@@ -289,7 +289,7 @@ Caller supplies on `POST /waves/start` (required):
 ```
 
 Head: `feature/INIT-GATEFLOW-003-w1-scenario-b`.  
-**No `programme.yaml`.** Env: `GATEFLOW_NOTIFIER`, `GATEFLOW_FINDINGS_BUDGET`,
+**No YAML programme file.** Env: `GATEFLOW_NOTIFIER`, `GATEFLOW_FINDINGS_BUDGET`,
 `GATEFLOW_METRICS_RETENTION_DAYS`, `GATEFLOW_MAX_ORCHESTRATED_HOPS`. Handoff
 globs: code constants in `HandoffReader`.
 

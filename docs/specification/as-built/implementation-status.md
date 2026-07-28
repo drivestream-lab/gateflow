@@ -34,7 +34,7 @@
 | PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
 | RunOrchestrator walker + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker + implement-lane | Multi-hop until gate; hop cap |
 | AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | implement-lane | Live local SDK; launchpad W1 stub sync |
-| ToolProvider none | FR-14 | (no StageToolResolver; empty tool context) | — | — | Slot map removed with programme.yaml |
+| ToolProvider none | FR-14 | (no StageToolResolver; empty tool context) | — | — | Slot map removed with YAML programme carrier |
 | Status + metrics APIs | FR-13,15 | `runs_routes`, `metrics_routes` | `test_programme_token_api` | `verify_status_metrics` | Programme token |
 | Orchestration settings | FR-18 | `orchestration_settings.py` (`GATEFLOW_*`) | wave-start / policy tests | — | notifier + hop cap + findings/metrics |
 | W1 runbook | FR-19 | `docs/runbooks/orchestrate-new-initiative-repo.md` | — | inspection | |
@@ -44,7 +44,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Env notifier + SlotValidator | FR-16/23/18 | `GATEFLOW_NOTIFIER` + `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | No programme.yaml |
+| Env notifier + SlotValidator | FR-16/23/18 | `GATEFLOW_NOTIFIER` + `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | No YAML programme file |
 | Adapter registry + SlotValidator | FR-17/18 | `adapter_registry.py`, `slot_validator.py` | `test_slot_validator` | — | ADR-006 |
 | API wave-start Enter-at | FR-15 | `POST /api/v1/waves/start` (`start_node`+runner/model) | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005; manual node → 400 |
 | Label start disabled | FR-15 | `trigger_router.py` | `test_trigger_policy` | note in wave-start | Webhook may still 202 |
@@ -90,7 +90,7 @@
 | Failure-path stage + duration | REQ-29/30 | `run_orchestrator.py`, `metrics_emitter.py` | `test_run_orchestrator`, `test_metrics_emitter` | — | FF-05 |
 | `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_implement_lane` **pass** | Alembic `7e79269bd50b`; live `492608` ms |
 | Implement-lane live prove-it | REQ-27/31 | `verify_implement_lane.py` | — | **pass** 2026-07-25 | Full chain → `stopped` at `wave-human-decision`; D-W1-L1 closed |
-| Pin walker (no programme.yaml) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | implement-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
+| Pin walker (env + API + pin) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | implement-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
 
 ## Wave status
 

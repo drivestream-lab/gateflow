@@ -19,6 +19,9 @@
 | Review deadline | 2026-07-29 |
 | Deciders | PM: programme PM · Domain SME: prayog-pe-team |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Summary
 
 INIT-GATEFLOW-002 is **buildable on the delivered INIT-001 control plane**, but it is
@@ -74,7 +77,7 @@ W0→W1→W2.
 
 | Spec ref / wave | Spec claim | Code evidence | Unit | Verify | Status |
 |-----------------|------------|---------------|------|--------|--------|
-| FR-15 W0 | Authenticated wave-start API; dual identity; label trigger removed | No POST wave-start under `src/api/v1/`; `TriggerRouter` still label-authorizes (`trigger_router.py`); `config/programme.yaml` `trigger.label` | `test_trigger_policy.py` (label path) | `verify_wave_start` (label) | gap (+ label path **exists** — must change) |
+| FR-15 W0 | Authenticated wave-start API; dual identity; label trigger removed | **Feasibility-time gap:** no POST wave-start; label path via YAML `trigger.label` (wave). **Living:** wave-start API; no programme.yaml — see supersession | (feasibility-time) `test_trigger_policy.py` | (feasibility-time) `verify_wave_start` | gap at report date (later closed) |
 | FR-16 W1 | Per-node runner + model overrides | `ModelConfig.overrides: dict[str, str]` profile-only; `run_orchestrator.py` uses `runner.default` always | `test_programme_config.py` | — | partial |
 | FR-17 W0 | Cursor live + OpenCode/Claude stubs registered | Only `CursorAgentRunner` bound in `infra_module.py` | via orchestrator | — | partial (cursor only) |
 | FR-18 W0 | Fail-closed stub/config validation at start | No pre-enqueue registry validation; Cursor fails closed mid-dispatch only | `test_run_orchestrator.py` | — | gap |
@@ -121,8 +124,8 @@ W0→W1→W2.
 
 | ID | Check | Finding | Evidence |
 |----|-------|---------|----------|
-| S-1 | F2 / F5 | Label trigger path is still the live wave-start mechanism; FR-15 requires removal for 002 programmes — must be an explicit breaking change in code + verify + as-built. | `trigger_router.py` PC-01 label check; `config/programme.yaml` `trigger.label`; `verify_wave_start.py`; as-built row “TriggerRouter” |
-| S-2 | F2 | No AgentRunner/Notifier **registry**; OpenCode/Claude/Slack/Teams stubs absent; fail-closed validation at **start** missing. | `infra_module.py` binds only `CursorAgentRunner` + `ForgeClient`; `notifier.py` GitHub-only; no `notifier` in `ProgrammeConfig` |
+| S-1 | F2 / F5 | **Feasibility-time:** label trigger was still live wave-start; FR-15 required removal. **Living:** closed — see supersession / as-built. | Wave evidence: `trigger_router.py` PC-01; YAML `trigger.label`; `verify_wave_start.py` |
+| S-2 | F2 | **Feasibility-time:** no AgentRunner/Notifier registry; stubs absent. **Living:** registry + SlotValidator exist (002+). | Wave evidence: `infra_module.py` Cursor+Forge; GitHub Notifier; no YAML `notifier` (living: `GATEFLOW_NOTIFIER`) |
 | S-3 | F2 | ForgeClient lacks PR create/update and board primitives required by FR-19/FR-24. | `forge_client.py`: `post_comment`, forbid helpers only |
 | S-4 | F2 / F4 | Run APIs lack list/filter and stage/event timeline; metrics lack runner/`model_id` dimensions. | `RunStatusResponse` fields; `RunMetricsResponse.by_workflow_node` only; `metrics_emitter.py` |
 | S-5 | F6 | `tests/README.md` feature map and as-built are INIT-001-centric; will mislead 002 verify planning. | `tests/README.md` “Feature map (INIT-GATEFLOW-001)”; as-built Updated 2026-07-23 |

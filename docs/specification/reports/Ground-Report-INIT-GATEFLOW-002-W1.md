@@ -10,6 +10,9 @@
 | Review deadline | 2026-07-28 |
 | Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-24 |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Automated check output
 
 `ground_command`: N/A. Evidence: `make check`, `make test`, `.venv/bin/python -m tests.verify.verify_all` (shared `drivestream-postgres` / `drivestream-redis`; gateflow API on `:8080`).
@@ -70,7 +73,7 @@ W1 plan scope: FR-16 runtime resolve + persist; FR-19 PR-at-start; FR-21/22 metr
 | Rule | Source | Status |
 |------|--------|--------|
 | ForgeClient / AgentRunner = infra; orchestrator / metrics / resolver = business | ADR-003 | **pass** |
-| Programme `pr.*` + overrides in YAML; secrets in env | ADR-004 | **pass** — `PrConfig` + sample overrides in `config/programme.yaml` |
+| Programme `pr.*` + overrides in YAML (wave); secrets in env | ADR-004 | **pass** (wave) — living carrier removed; see supersession |
 | Fail-closed adapter selection still gates start | ADR-006 | **pass** — unknown override node / missing profile → 422 |
 | Programme-token control-plane reads unchanged; no new board writes | ADR-005 | **pass** — W1 adds no board mutation routes |
 | Dual process; durable stages with runner/model fields | ADR-001 | **pass** — stage columns reused (no new Alembic in W1) |
@@ -113,7 +116,7 @@ No blocking discrepancies for W1 exit if PE accepts D-W1-V1 / D-W1-A1 / D-W1-B1 
 | Per-node model resolve | node_model_resolver | `resolve_node_dispatch` | programme config + workflow node id | `{ runner, model_profile, model_id, model_provider }` | Unset node → defaults; unknown/empty profile fails; no hardcoded node allowlists | W2 |
 | Override gate at start | WaveStartService | `_validate_model_overrides` | programme overrides + pin node set | void or 422 structured | Override keys must be pin-known; profiles must resolve | W2 |
 | Stage field persist | RunOrchestrator + StageRepository | stage create after dispatch | resolved dispatch fields | stage row with four fields | Persist from config resolution (not agent narrative alone) | W2 / ops |
-| PR config | ProgrammeConfig | `pr.*` load | YAML `branch_prefix`, title/body templates, `base_branch` | validated `PrConfig` | Same templates for success and failure naming | W2 |
+| PR config (wave; living: removed — see supersession) | ProgrammeConfig (wave) | `pr.*` load | YAML (wave) | validated `PrConfig` | Same templates for success and failure naming | Living: wave-start / forge naming |
 | Forge PR open/update | ForgeClient | `create_or_update_pull_request` | owner/repo, title, body, head, base | PR number | No auto-merge; no gate labels; update if open PR with same head exists | W2 (board may reuse forge) |
 | PR-at-run-start | RunOrchestrator | `_ensure_run_pr` | run + programme `pr.*` + payload identity | run with `pr_number` **or** `notify_pending` | Called before first orchestrated stage; PR failure does not invent success | W2 |
 | Run PR comments | Notifier + orchestrator | `post_run_event_comment` | org/repo + issue/PR number from run | comment id or notify_pending | Comments target run PR when assigned | W2 |
