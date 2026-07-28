@@ -15,6 +15,7 @@ from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.notifier import Notifier
 from src.business_services.policy_engine import PolicyEngine
+from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.trigger_router import TriggerRouter
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
@@ -32,6 +33,7 @@ from src.models.dispatch_plan_models import DispatchPlan, ResolvedNodeDispatch
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import build_wave_head_branch, validate_base_branch
+from src.models.prompt_package_models import BoundPromptInputs, PromptResolveError
 from src.models.run_store_models import (
     JobModel,
     RunCreate,
@@ -62,6 +64,7 @@ class RunOrchestrator(BaseBusinessService):
         run_repository: RunRepository,
         run_event_repository: RunEventRepository,
         stage_repository: StageRepository,
+        prompt_resolver: PromptResolver,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -77,6 +80,7 @@ class RunOrchestrator(BaseBusinessService):
         self._run_repository = run_repository
         self._run_event_repository = run_event_repository
         self._stage_repository = stage_repository
+        self._prompt_resolver = prompt_resolver
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def process_job(self, job: JobModel) -> RunProcessSummary:
@@ -393,7 +397,6 @@ class RunOrchestrator(BaseBusinessService):
         initiative_id: Optional[str],
     ) -> dict[str, Any]:
         """Execute one Cursor stage; return success flag and notify_pending."""
-        _ = run
         started_at = datetime.now(UTC)
         notify_pending = await self._post_run_event(
             context_org,
@@ -415,12 +418,74 @@ class RunOrchestrator(BaseBusinessService):
         if isinstance(payload.get("prompt_context"), dict):
             prompt_context.update(payload["prompt_context"])
 
+        try:
+            handoff_path = await self._ensure_run_handoff_path(session, run=run, run_id=run_id)
+            ticket = self._require_ticket_from_payload(payload)
+            initiative = str(initiative_id or payload.get("initiative_id") or "")
+            package = self._prompt_resolver.resolve_package(workspace_path, next_node.node_id)
+            rendered = self._prompt_resolver.bind_and_render(
+                package,
+                BoundPromptInputs(
+                    ticket=ticket,
+                    initiative=initiative,
+                    skill_id=next_node.node_id,
+                    workspace=workspace_path,
+                    handoff_path=handoff_path,
+                ),
+            )
+        except (PromptResolveError, ValueError) as exc:
+            duration_ms = 0
+            ended_at = datetime.now(UTC)
+            reason = str(exc)
+            await self._metrics_emitter.record_stage_duration(
+                session,
+                run_id,
+                next_node.node_id,
+                duration_ms,
+                outcome="failed",
+                runner=resolved.runner,
+                model_id=resolved.model_id,
+                model_profile=resolved.model_profile,
+            )
+            await self._stage_repository.create_stage(
+                session,
+                StageCreate(
+                    run_id=run_id,
+                    workflow_node=next_node.node_id,
+                    outcome_type=RunOutcomeType.FAILED,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    runner=resolved.runner,
+                    model_profile=resolved.model_profile,
+                    model_id=resolved.model_id,
+                    model_provider=resolved.model_provider,
+                ),
+            )
+            completed_notify = await self._post_run_event(
+                context_org,
+                context_repo,
+                issue_ref,
+                run_id,
+                next_node.node_id,
+                RunEventNameType.STAGE_COMPLETED,
+                outcome=RunOutcomeType.FAILED.value,
+                duration_ms=duration_ms,
+                timestamp=ended_at,
+            )
+            return {
+                "success": False,
+                "notify_pending": notify_pending or completed_notify,
+                "stop_reason": reason,
+                "duration_ms": duration_ms,
+            }
+
         t0 = time.monotonic()
         agent_result = await self._cursor_agent_runner.run_skill(
             workspace_path=workspace_path,
             skill_id=next_node.node_id,
             prompt_context=prompt_context,
             model_profile=resolved.model_profile,
+            message=rendered.message,
             runner=resolved.runner,
             model_id=resolved.model_id,
             model_provider=resolved.model_provider,
@@ -456,6 +521,8 @@ class RunOrchestrator(BaseBusinessService):
                 model_profile=resolved.model_profile,
                 model_id=resolved.model_id,
                 model_provider=resolved.model_provider,
+                prompt_id=rendered.prompt_id,
+                prompt_revision=rendered.prompt_revision,
             ),
         )
         completed_notify = await self._post_run_event(
@@ -476,6 +543,36 @@ class RunOrchestrator(BaseBusinessService):
             "stop_reason": agent_result.error_message,
             "duration_ms": duration_ms,
         }
+
+    async def _ensure_run_handoff_path(
+        self,
+        session: AsyncSession,
+        *,
+        run: RunModel,
+        run_id: UUID,
+    ) -> str:
+        """Return stored handoff_path; define under GATEFLOW_HANDOFF_ROOT when missing."""
+        if run.handoff_path and str(run.handoff_path).strip():
+            return str(run.handoff_path).strip()
+        root = self._orchestration.require_handoff_root()
+        baton_dir = Path(root) / str(run_id)
+        baton_dir.mkdir(parents=True, exist_ok=True)
+        baton_path = baton_dir / "handoff.md"
+        if not baton_path.exists():
+            baton_path.write_text("", encoding="utf-8")
+        handoff_path = str(baton_path.resolve())
+        await self._run_repository.update_run(
+            session,
+            run_id,
+            RunUpdate(handoff_path=handoff_path),
+        )
+        return handoff_path
+
+    def _require_ticket_from_payload(self, payload: dict[str, Any]) -> str:
+        ticket = payload.get("ticket_id")
+        if ticket is None or not str(ticket).strip():
+            raise ValueError("ticket_id missing from job payload for packaged-skill automate")
+        return str(ticket).strip()
 
     def _ingest_handoff_after_stage(
         self,

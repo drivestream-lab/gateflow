@@ -1,16 +1,15 @@
 """Live verify: implement-lane Cursor prove-it (INIT-GATEFLOW-003 REQ-27).
 
-Implement lane (pin ``dispatch: orchestrated``) — formerly Scenario B /
-engineering-lane:
+Implement lane (pin ``dispatch: orchestrated``):
 
   pre-implement → loop-spec → verify → ground-spec → wave-human-decision (STOP)
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
-  - PROGRAMME_SERVICE_TOKEN + CURSOR_API_KEY in .env
-  - tests/config.yaml: verify.implement_lane: true, verify.require_worker: true
-  - verify.implement_lane_evidence path
-  - Prefer verify.start_node: pre-implement for full-chain prove-it
+  - PROGRAMME_SERVICE_TOKEN in .env (verify client → Gateflow API)
+  - Gateflow runtime has CURSOR_API_KEY in its .env (not verify config)
+  - tests/config.yaml: gateflow.require_worker: true
+  - features.implement_lane.enabled: true + evidence + wave_start body
 
 Asserts (when opted in, start_node=pre-implement):
   - Wave-start accepted
@@ -22,7 +21,7 @@ Asserts (when opted in, start_node=pre-implement):
 Usage:
   # edit tests/config.yaml — see tests/config.yaml.example
   set -a && source .env && set +a
-  make run   # separate terminal: API + worker
+  make run   # separate terminal: API + worker (with CURSOR_API_KEY)
   .venv/bin/python -m tests.verify.verify_implement_lane
 """
 
@@ -31,14 +30,13 @@ from __future__ import annotations
 import os
 import sys
 import time
-import uuid
 from pathlib import Path
 from typing import Any
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
 _LANE_NODES = ("pre-implement", "loop-spec", "verify", "ground-spec")
 _LANE_NODE_SET = frozenset(_LANE_NODES)
@@ -53,21 +51,18 @@ def _expected_chain(start_node: str) -> tuple[str, ...]:
 
 def main() -> int:
     cfg = load_tests_config()
-    if not cfg.verify.implement_lane:
+    lane = cfg.features.implement_lane
+    if not lane.enabled:
         print(
-            "[INFO] verify.implement_lane is false — skipping implement-lane "
-            "live prove-it. Set verify.implement_lane: true in tests/config.yaml "
-            "with worker + CURSOR_API_KEY for the orchestrated coding wave."
+            "[INFO] features.implement_lane.enabled is false — skipping implement-lane "
+            "live prove-it. Set enabled: true in tests/config.yaml with worker + "
+            "Gateflow CURSOR_API_KEY for the orchestrated coding wave."
         )
         return 0
 
-    if not os.environ.get("CURSOR_API_KEY", "").strip():
-        print("[ERROR] CURSOR_API_KEY is required for implement-lane live prove-it")
-        return 1
-
-    if not cfg.verify.require_worker:
+    if not cfg.gateflow.require_worker:
         print(
-            "[ERROR] verify.require_worker: true required in tests/config.yaml "
+            "[ERROR] gateflow.require_worker: true required in tests/config.yaml "
             "(worker must claim api_trigger)"
         )
         return 1
@@ -78,10 +73,11 @@ def main() -> int:
         print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
         return 1
 
-    workspace = Path(cfg.verify.workspace or Path.cwd()).resolve()
-    evidence_raw = cfg.verify.implement_lane_evidence.strip()
+    wave = lane.wave_start
+    workspace = Path(wave.workspace or Path.cwd()).resolve()
+    evidence_raw = lane.evidence.strip()
     if not evidence_raw:
-        print("[ERROR] verify.implement_lane_evidence is required in tests/config.yaml")
+        print("[ERROR] features.implement_lane.evidence is required in tests/config.yaml")
         return 1
     evidence_path = Path(evidence_raw).expanduser()
     if not evidence_path.is_absolute():
@@ -90,21 +86,30 @@ def main() -> int:
         evidence_path = evidence_path.resolve()
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] evidence path: {evidence_path}")
-    timeout_s = float(cfg.verify.implement_lane_timeout_s)
+    timeout_s = float(lane.timeout_s)
 
-    start_node = cfg.verify.start_node
+    start_node = wave.start_node
     expected = _expected_chain(start_node)
     if not expected:
         print(
-            f"[ERROR] verify.start_node={start_node!r} not in implement lane "
-            f"{list(_LANE_NODES)}"
+            f"[ERROR] features.implement_lane.wave_start.start_node={start_node!r} "
+            f"not in implement lane {list(_LANE_NODES)}"
         )
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    # INIT-{COMPONENT}-{NUMBER}: COMPONENT 2–16 A–Z; NUMBER 1–7 digits
-    initiative_id = f"INIT-IMPLANE-{int(uuid.uuid4()) % 10_000_000}"
-    wave_id = "W1"
+    identity = resolve_wave_start_identity(
+        wave,
+        gateflow=cfg.gateflow,
+        initiative_prefix="INIT-IMPLANE",
+        default_branch_slug="implement-lane",
+        default_wave_id="W0",
+    )
+    print(
+        "[INFO] wave-start from features.implement_lane: "
+        f"initiative_id={identity['initiative_id']} wave_id={identity['wave_id']} "
+        f"ticket_id={identity['ticket_id']} branch_slug={identity['branch_slug']}"
+    )
 
     try:
         with httpx.Client(timeout=60.0) as client:
@@ -112,15 +117,16 @@ def main() -> int:
                 f"{base_url}/api/v1/waves/start",
                 headers=headers,
                 json={
-                    "org": cfg.verify.org,
-                    "repo": cfg.verify.repo,
-                    "initiative_id": initiative_id,
-                    "wave_id": wave_id,
-                    "branch_slug": "implement-lane",
-                    "base_branch": cfg.forge.base_branch,
+                    "org": identity["org"],
+                    "repo": identity["repo"],
+                    "initiative_id": identity["initiative_id"],
+                    "wave_id": identity["wave_id"],
+                    "ticket_id": identity["ticket_id"],
+                    "branch_slug": identity["branch_slug"],
+                    "base_branch": cfg.gateflow.base_branch,
                     "start_node": start_node,
-                    "runner": cfg.verify.runner,
-                    "model_id": cfg.verify.model_id,
+                    "runner": wave.runner,
+                    "model_id": wave.model_id,
                     "workspace_path": str(workspace),
                 },
             )
@@ -192,7 +198,24 @@ def main() -> int:
                         f"got outcome={stage.get('outcome_type')!r}"
                     )
                     return 1
-                print(f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')}")
+                prompt_id = stage.get("prompt_id")
+                prompt_revision = stage.get("prompt_revision")
+                if not prompt_id or not prompt_revision:
+                    print(
+                        f"[ERROR] stage {node} missing prompt_id/prompt_revision "
+                        f"(got prompt_id={prompt_id!r} prompt_revision={prompt_revision!r})"
+                    )
+                    return 1
+                if prompt_id != node:
+                    print(
+                        f"[ERROR] stage {node} prompt_id={prompt_id!r} "
+                        f"does not match skill/node id"
+                    )
+                    return 1
+                print(
+                    f"[OK] stage runner=cursor node={node} outcome={stage.get('outcome_type')} "
+                    f"prompt_id={prompt_id} prompt_revision={prompt_revision}"
+                )
 
             if status != "stopped":
                 print(

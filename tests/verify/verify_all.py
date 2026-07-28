@@ -1,13 +1,24 @@
-"""Live verify aggregator for gateflow smoke.
+"""Live verify aggregator — product smoke for Gateflow.
 
-Requires running API + migrated Postgres.
-Needs GITHUB_WEBHOOK_SECRET and PROGRAMME_SERVICE_TOKEN in the environment.
+Answers: do the core features work together on a running Gateflow?
 
-Implement-lane (long live Cursor) is **not** in this aggregator — run
-``python -m tests.verify.verify_implement_lane`` separately.
+Steps (short HTTP checks; ephemeral wave identity where needed):
+
+  health → webhook → status/metrics → wave_start → pr_thread → board
+
+Uses ``gateflow:`` from ``tests/config.yaml`` (base_url, org/repo, …).
+Client secrets stay in ``.env`` (``PROGRAMME_SERVICE_TOKEN``,
+``GITHUB_WEBHOOK_SECRET``).
+
+**Not** in this aggregator (opt-in deep waves — run separately):
+
+  - ``python -m tests.verify.verify_implement_lane``  # features.implement_lane
+  - ``python -m tests.verify.verify_spec_lane``       # features.spec_lane
 
 Usage:
+  cp tests/config.yaml.example tests/config.yaml   # gateflow: target
   set -a && source .env && set +a
+  make run   # API (+ worker if gateflow.require_worker)
   .venv/bin/python -m tests.verify.verify_all
 """
 
@@ -23,6 +34,7 @@ from tests.verify import (
     verify_webhook,
 )
 
+# Product smoke only — one step per core feature surface.
 _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_health", verify_health.main),
     ("verify_webhook", verify_webhook.main),
@@ -34,6 +46,10 @@ _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
 
 
 def main() -> int:
+    print(
+        "[INFO] verify_all — Gateflow product smoke "
+        f"({len(_VERIFY_STEPS)} features; deep lanes not included)"
+    )
     failed: list[str] = []
     for name, step in _VERIFY_STEPS:
         print(f"[INFO] --- {name} ---")
@@ -46,7 +62,7 @@ def main() -> int:
     if failed:
         print(f"[ERROR] verify_all failed: {', '.join(failed)}")
         return 1
-    print("[OK] verify_all passed")
+    print("[OK] verify_all passed — core Gateflow features green together")
     return 0
 
 

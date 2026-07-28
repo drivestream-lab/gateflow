@@ -9,6 +9,7 @@ from src.business_services.job_worker_service import JobWorkerService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.notifier import Notifier
 from src.business_services.policy_engine import PolicyEngine
+from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.trigger_router import TriggerRouter
@@ -29,6 +30,7 @@ class BusinessServicesModule(Module):
         binder.bind(MetricsEmitter, scope=singleton)
         binder.bind(AdapterRegistry, scope=singleton)
         binder.bind(SlotValidator, scope=singleton)
+        binder.bind(PromptResolver, scope=singleton)
         binder.bind(WaveStartService, scope=singleton)
         binder.bind(BoardService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)

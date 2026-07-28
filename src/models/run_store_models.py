@@ -71,6 +71,7 @@ class RunCreate(BaseCreateModel):
     issue_number: Optional[int] = Field(default=None)
     initiative_id: Optional[str] = Field(default=None)
     wave_id: Optional[str] = Field(default=None)
+    handoff_path: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 
@@ -81,6 +82,7 @@ class RunUpdate(BaseUpdateModel):
     workflow_node: Optional[str] = Field(default=None)
     pr_number: Optional[int] = Field(default=None)
     wave_duration_ms: Optional[int] = Field(default=None)
+    handoff_path: Optional[str] = Field(default=None)
     retry_counter: Optional[int] = Field(default=None)
     notify_pending: Optional[bool] = Field(default=None)
 
@@ -96,6 +98,7 @@ class RunModel(BasePostgresModel):
     initiative_id: Optional[str] = Field(default=None)
     wave_id: Optional[str] = Field(default=None)
     wave_duration_ms: Optional[int] = Field(default=None)
+    handoff_path: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 
@@ -110,6 +113,8 @@ class StageCreate(BaseCreateModel):
     model_profile: Optional[str] = Field(default=None)
     model_id: Optional[str] = Field(default=None)
     model_provider: Optional[str] = Field(default=None)
+    prompt_id: Optional[str] = Field(default=None)
+    prompt_revision: Optional[str] = Field(default=None)
 
 
 class StageModel(BasePostgresModel):
@@ -122,6 +127,8 @@ class StageModel(BasePostgresModel):
     model_profile: Optional[str] = Field(default=None)
     model_id: Optional[str] = Field(default=None)
     model_provider: Optional[str] = Field(default=None)
+    prompt_id: Optional[str] = Field(default=None)
+    prompt_revision: Optional[str] = Field(default=None)
 
 
 class RunEventPayloadDocument(BaseModel):

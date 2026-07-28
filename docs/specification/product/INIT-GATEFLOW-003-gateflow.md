@@ -32,7 +32,7 @@ run/metrics APIs, including **p50/p95** for `runner=cursor`.
 | Gateflow name | Meaning | Legacy PRD label | Pin nodes (today) |
 |---------------|---------|------------------|-------------------|
 | **spec lane** | PRD → repo spec / feasibility / TDD / plan | Scenario A | `spec-draft` … `spec-implementation-plan` (`manual` until CTR-01) |
-| **implement lane** | coding wave through ground + wave signoff | Scenario B / engineering-lane | `pre-implement` … `ground-spec` (`orchestrated`) |
+| **implement lane** | coding wave through ground + wave signoff | Scenario B | `pre-implement` … `ground-spec` (`orchestrated`) |
 
 Use **spec lane** / **implement lane** in Gateflow docs and verify. Keep Scenario A/B
 only where citing the upstream PRD verbatim.

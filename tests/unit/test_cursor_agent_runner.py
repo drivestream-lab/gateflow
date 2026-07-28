@@ -47,6 +47,7 @@ async def test_real_skill_without_key_fails() -> None:
         skill_id="loop-spec",
         prompt_context={},
         model_profile="default",
+        message="rendered brief",
         runner="cursor",
         model_id="cursor/auto",
     )
@@ -89,6 +90,7 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
             skill_id="pre-implement",
             prompt_context={"wave": "W0"},
             model_profile="default",
+            message="rendered pre-implement brief",
             runner="cursor",
             model_id="cursor/auto",
         )
@@ -104,6 +106,9 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
     assert "cloud" not in kwargs
     lao.assert_called_with(cwd="/tmp/ws")
     agent.send.assert_awaited_once()
+    assert agent.send.await_args is not None
+    assert agent.send.await_args.args[0] == "rendered pre-implement brief"
+    assert not hasattr(CursorAgentRunner, "_build_prompt")
     client.aclose.assert_awaited_once()
 
 
@@ -141,6 +146,7 @@ async def test_live_local_sdk_failed_status(monkeypatch: pytest.MonkeyPatch) -> 
             skill_id="loop-spec",
             prompt_context={},
             model_profile="default",
+            message="rendered loop-spec brief",
             runner="cursor",
             model_id="cursor/auto",
         )

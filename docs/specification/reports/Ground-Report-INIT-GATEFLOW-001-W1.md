@@ -43,7 +43,7 @@ collected 38 items
 [OK] verify_health passed
 [OK] verify_webhook passed (401 / 202 / duplicate)
 [OK] verify_status_metrics passed (401 / 404 / 200 metrics shape)
-[OK] verify_wave_smoke passed (labelled enqueue + metrics)
+[OK] verify_wave_start passed (labelled enqueue + metrics)
 [OK] verify_all passed
 ```
 
@@ -56,7 +56,7 @@ W1 scope (plan): FR-2, FR-3, FR-4, FR-7 (policy), FR-8, FR-9, FR-10, FR-11, FR-1
 | FR | Spec claim | Verified artifact | Status |
 |----|-----------|-------------------|--------|
 | FR-2 | Concurrent active-run reject | `TriggerRouter` PC-06; `test_concurrent_*`; orchestrator unit | **pass** (unit) |
-| FR-3 | Programme trigger label | `TriggerRouter` + `programme.yaml` `trigger.label`; `verify_wave_smoke` | **pass** |
+| FR-3 | Programme trigger label | `TriggerRouter` + `programme.yaml` `trigger.label`; `verify_wave_start` | **pass** |
 | FR-4 | Wave-run precondition checklist | PC-01…04 + PC-06 in `trigger_router.py`; unit failures | **pass** (unit); live full checklist soak partial |
 | FR-7 | PolicyEngine pin-driven dispatch | `PolicyEngine.evaluate_dispatch`; unit dispatch/block/stop | **pass** (unit) |
 | FR-8 | Stop on human/external/decision/terminal | Policy stop node types + handoff flags; orchestrator stop unit | **pass** (unit) |
@@ -115,7 +115,7 @@ W1 scope (plan): FR-2, FR-3, FR-4, FR-7 (policy), FR-8, FR-9, FR-10, FR-11, FR-1
 | Harness sync | LaunchpadClient | `sync_harness` | workspace path | void / error if path missing | Called before agent dispatch | CTR-04 deepen |
 | Run status read | runs route + MetricsEmitter | `GET /api/v1/runs/{run_id}` | Bearer programme token + run id | RunStatusResponse | 401 without/invalid token; 404 unknown | gateflow-ops |
 | Metrics aggregate | metrics route + MetricsEmitter | `GET /api/v1/metrics/runs` | Bearer programme token | retention_days + by_workflow_node p50/p95 | Read-only | gateflow-ops |
-| Wave smoke verify | tests.verify | `verify_all` / `verify_wave_smoke` | running API + secrets | exit 0 | Labelled enqueue + token APIs | dogfood |
+| Wave smoke verify | tests.verify | `verify_all` / `verify_wave_start` | running API + secrets | exit 0 | Labelled enqueue + token APIs | dogfood |
 
 ## PR instructions
 

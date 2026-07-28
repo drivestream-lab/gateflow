@@ -36,6 +36,7 @@ class RunSchema(PostgresBaseModel):
     initiative_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     wave_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     wave_duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    handoff_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     retry_counter: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notify_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
@@ -59,6 +60,8 @@ class StageSchema(PostgresBaseModel):
     model_profile: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     model_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     model_provider: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    prompt_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    prompt_revision: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class RunEventSchema(PostgresBaseModel):

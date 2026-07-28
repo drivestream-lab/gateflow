@@ -10,7 +10,7 @@
 
 | Name | Legacy | Status |
 |------|--------|--------|
-| **implement lane** | Scenario B / engineering-lane | Live prove-it **pass** (W1) |
+| **implement lane** | Scenario B | Live prove-it **pass** (W1) |
 | **spec lane** | Scenario A | W2 — live prove-it waits on next PRD + pin CTR-01 |
 
 ## Testing harness
@@ -103,6 +103,7 @@
 | INIT-002 W2 | Board APIs + gh-free deploy path | `Ground-Report-INIT-GATEFLOW-002-W2.md` | **human_approved** |
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
+| INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W0.md` | **human_approved** (2026-07-28; live implement-lane prove-it deferred to W1 — D-W0-V1) |
 
 ## Verdict
 
@@ -115,5 +116,9 @@ pass (run `de780ba2-7841-4827-ad69-362358a8176d`, four Cursor stages success, te
 via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 
 **Lane naming (2026-07-26):** prefer **spec lane** / **implement lane** over Scenario A/B.
-Next: W2 prep (metrics + naming/harness); live **spec-lane** prove-it after next PRD + pin
-CTR-01 (dogfood candidate for INIT-GATEFLOW-004).
+
+**INIT-GATEFLOW-005 (2026-07-28):** W0 **human_approved** on
+`feature/INIT-GATEFLOW-005-w0-bound-input` — PromptResolver, message-only Cursor,
+`GATEFLOW_HANDOFF_ROOT` baton define/store, required `ticket_id`, Alembic
+`69de74666068`. Live implement-lane prove-it (**REQ-10**) deferred to W1 with
+ingest-from-stored-path (**REQ-8b**) — D-W0-V1 accepted at wave-signoff.

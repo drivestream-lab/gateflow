@@ -197,6 +197,8 @@ class TimelineStageItem(BaseModel):
     model_profile: Optional[str] = Field(default=None)
     model_id: Optional[str] = Field(default=None)
     model_provider: Optional[str] = Field(default=None)
+    prompt_id: Optional[str] = Field(default=None)
+    prompt_revision: Optional[str] = Field(default=None)
 
 
 class TimelineEventItem(BaseModel):

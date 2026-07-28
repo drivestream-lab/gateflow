@@ -1,6 +1,5 @@
 """CursorAgentRunner — local cursor-sdk AgentRunner (ADR-003 infra slot)."""
 
-import json
 from typing import Any, Optional
 
 from cursor_sdk import AsyncAgent, AsyncClient, LocalAgentOptions
@@ -72,11 +71,16 @@ class CursorAgentRunner(BaseInfraService):
         prompt_context: dict[str, Any],
         model_profile: str,
         *,
+        message: Optional[str] = None,
         runner: Optional[str] = None,
         model_id: Optional[str] = None,
         model_provider: Optional[str] = None,
     ) -> AgentRunResult:
-        """Execute skill via local Cursor SDK or unit test double."""
+        """Execute skill via local Cursor SDK or unit test double.
+
+        Packaged-skill automate must pass ``message`` (PromptResolver render).
+        Invent-prose ``_build_prompt`` is not used on that path (ADR-007).
+        """
         resolved_runner, resolved_model_id, resolved_provider = self._resolve_dispatch(
             runner=runner,
             model_id=model_id,
@@ -117,6 +121,24 @@ class CursorAgentRunner(BaseInfraService):
                 model_provider=resolved_provider,
             )
 
+        if message is None or not str(message).strip():
+            logger.error(
+                "Agent run rejected — packaged path requires rendered message",
+                skill_id=skill_id,
+                workspace_path=workspace_path,
+            )
+            return AgentRunResult(
+                runner=resolved_runner,
+                outcome=AgentRunOutcomeType.FAILED,
+                model_profile=model_profile,
+                model_id=resolved_model_id,
+                model_provider=resolved_provider,
+                error_message=(
+                    "Cursor AgentRunner requires a rendered message for packaged-skill "
+                    "automate (no invent-prose fallback)"
+                ),
+            )
+
         if not self._settings.has_api_key():
             logger.error(
                 "Agent run rejected — CURSOR_API_KEY missing",
@@ -138,7 +160,7 @@ class CursorAgentRunner(BaseInfraService):
         return await self._run_local_sdk(
             workspace_path=workspace_path,
             skill_id=skill_id,
-            prompt_context=prompt_context,
+            message=str(message),
             model_profile=model_profile,
             resolved_runner=resolved_runner,
             resolved_model_id=resolved_model_id,
@@ -150,7 +172,7 @@ class CursorAgentRunner(BaseInfraService):
         *,
         workspace_path: str,
         skill_id: str,
-        prompt_context: dict[str, Any],
+        message: str,
         model_profile: str,
         resolved_runner: str,
         resolved_model_id: Optional[str],
@@ -158,7 +180,6 @@ class CursorAgentRunner(BaseInfraService):
     ) -> AgentRunResult:
         """Call official local cursor-sdk; never pass cloud agent options."""
         api_key = self._settings.require_api_key()
-        message = self._build_prompt(skill_id=skill_id, prompt_context=prompt_context)
         local_options = LocalAgentOptions(cwd=workspace_path)
         client: Optional[AsyncClient] = None
         agent: Any = None
@@ -265,25 +286,6 @@ class CursorAgentRunner(BaseInfraService):
                         await maybe
             if client is not None:
                 await client.aclose()
-
-    @staticmethod
-    def _build_prompt(*, skill_id: str, prompt_context: dict[str, Any]) -> str:
-        context_json = json.dumps(prompt_context, default=str, sort_keys=True)
-        return (
-            f"Execute the Gateflow skill `{skill_id}` in this workspace.\n"
-            f"Prompt context (JSON): {context_json}\n"
-            "\n"
-            "Durable handoff rules for orchestrated implement-lane skills "
-            "(`pre-implement`, `loop-spec`, `verify`, `ground-spec`):\n"
-            "- Write a durable handoff YAML block with stage equal to this skill id.\n"
-            "- Set outcome from the skill result (usually pass).\n"
-            "- Set human_checkpoint: false so Gateflow can continue to the next "
-            "pin outcome (orchestrated auto-walk).\n"
-            "- Only set human_checkpoint: true when you intentionally stop the "
-            "wave for a human (not the default on pass).\n"
-            "- Do not treat next_candidates as Gateflow authority; pin outcomes "
-            "drive the walker.\n"
-        )
 
     def _sdk_model_id(self, resolved_model_id: Optional[str]) -> str:
         """Map programme model ids to cursor-sdk model ids.

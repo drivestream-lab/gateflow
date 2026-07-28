@@ -5,10 +5,11 @@ Requires running API + migrated Postgres and PROGRAMME_SERVICE_TOKEN.
 Asserts:
   - GET /metrics/runs exposes by_runner and by_model_id keys
   - Wave-start records an api_trigger event on the run timeline
-  - When tests/config.yaml verify.require_worker is true and a worker has
-    claimed the job, run detail includes pr_number (PR-at-start). Without
-    worker, PR assert is skipped with a note (unit tests own ForgeClient
-    call-order).
+  - When gateflow.require_worker is true and a worker has claimed the job,
+    run detail includes pr_number (PR-at-start). Without worker, PR assert
+    is skipped with a note (unit tests own ForgeClient call-order).
+
+Uses ephemeral wave identity (not features.implement_lane).
 
 Usage:
   cp tests/config.yaml.example tests/config.yaml
@@ -19,12 +20,11 @@ Usage:
 import os
 import sys
 import time
-import uuid
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
 
 
 def main() -> int:
@@ -36,8 +36,12 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    initiative_id = f"INIT-VFYPR-{uuid.uuid4().int % 10_000_000}"
-    wave_id = "W1"
+    _identity, body = smoke_wave_start_fields(
+        cfg.gateflow,
+        branch_slug="verify-pr-thread",
+        wave_id="W1",
+        initiative_prefix="INIT-VFYPR",
+    )
 
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -57,17 +61,7 @@ def main() -> int:
             started = client.post(
                 f"{base_url}/api/v1/waves/start",
                 headers=headers,
-                json={
-                    "org": cfg.verify.org,
-                    "repo": cfg.verify.repo,
-                    "initiative_id": initiative_id,
-                    "wave_id": wave_id,
-                    "branch_slug": "verify-pr-thread",
-                    "base_branch": cfg.forge.base_branch,
-                    "start_node": cfg.verify.start_node,
-                    "runner": cfg.verify.runner,
-                    "model_id": cfg.verify.model_id,
-                },
+                json=body,
             )
             if started.status_code not in {200, 201}:
                 print(f"[ERROR] expected 2xx wave-start, got {started.status_code}: {started.text}")
@@ -89,7 +83,7 @@ def main() -> int:
                 return 1
             print("[OK] run timeline includes api_trigger")
 
-            if cfg.verify.require_worker:
+            if cfg.gateflow.require_worker:
                 deadline = time.time() + 30.0
                 pr_number = detail_body.get("pr_number")
                 while pr_number is None and time.time() < deadline:
@@ -102,7 +96,7 @@ def main() -> int:
                     pr_number = detail_body.get("pr_number")
                 if pr_number is None:
                     print(
-                        "[ERROR] verify.require_worker=true but pr_number still missing "
+                        "[ERROR] gateflow.require_worker=true but pr_number still missing "
                         "after wait — is worker running with forge credentials?"
                     )
                     return 1
@@ -110,9 +104,8 @@ def main() -> int:
             else:
                 print(
                     "[OK] PR-at-start live assert skipped "
-                    "(set verify.require_worker: true in tests/config.yaml for full PR check)"
+                    "(set gateflow.require_worker: true in tests/config.yaml for full PR check)"
                 )
-
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure: {exc}")
         return 1

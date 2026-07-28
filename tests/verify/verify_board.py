@@ -31,8 +31,8 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    org = cfg.verify.org
-    repo = cfg.verify.repo
+    org = cfg.gateflow.org
+    repo = cfg.gateflow.repo
     list_url = f"{base_url}/api/v1/board/tickets"
     create_url = list_url
 

@@ -1,5 +1,6 @@
 """WaveStartService — authenticated API wave start (FR-15, ADR-005/006)."""
 
+from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.trigger_router import API_TRIGGER_EVENT
 from src.business_services.workflow_engine import WorkflowEngine
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.database.postgres.repository.run_store_repository import JobRepository, RunRepository
 from src.exceptions.app_exceptions import (
     ConflictError,
@@ -18,9 +20,8 @@ from src.exceptions.app_exceptions import (
     ValidationError,
 )
 from src.infra_services.postgres_service import PostgresService
-from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.adapter_models import WaveStartRequest, WaveStartResponse
-from src.models.run_store_models import JobCreate, JobPayloadDocument, RunCreate
+from src.models.run_store_models import JobCreate, JobPayloadDocument, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 
 
@@ -48,8 +49,16 @@ class WaveStartService(BaseBusinessService):
 
     async def start_wave(self, request: WaveStartRequest) -> WaveStartResponse:
         """Validate identity + Enter-at + slots + concurrency; create run and enqueue."""
-        initiative_id, wave_id, issue_number = self._resolve_identity(request)
+        initiative_id, wave_id, issue_number, ticket = self._resolve_identity(request)
         _ = request.head_branch()
+
+        try:
+            handoff_root = self._orchestration.require_handoff_root()
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"config_key": "GATEFLOW_HANDOFF_ROOT"},
+            ) from exc
 
         try:
             self._workflow_engine.require_orchestrated_skill(request.start_node)
@@ -119,9 +128,18 @@ class WaveStartService(BaseBusinessService):
                 )
                 if run.id is None:
                     raise RuntimeError("Created run missing id")
+                run_id = run.id
+                handoff_path = self._define_handoff_baton(handoff_root, str(run_id))
+                updated = await self._run_repository.update_run(
+                    session,
+                    run_id,
+                    RunUpdate(handoff_path=handoff_path),
+                )
+                if updated is not None:
+                    run = updated
                 await self._metrics_emitter.record_api_trigger(
                     session,
-                    run.id,
+                    run_id,
                     initiative_id=initiative_id,
                     wave_id=wave_id,
                 )
@@ -139,6 +157,7 @@ class WaveStartService(BaseBusinessService):
                                 "repo": request.repo,
                                 "initiative_id": initiative_id,
                                 "wave_id": wave_id,
+                                "ticket_id": ticket,
                                 "branch_slug": request.branch_slug,
                                 "base_branch": request.base_branch,
                                 "start_node": request.start_node,
@@ -146,6 +165,7 @@ class WaveStartService(BaseBusinessService):
                                 "pr_number": request.pr_number,
                                 "issue_number": issue_number,
                                 "workspace_path": request.workspace_path,
+                                "handoff_path": handoff_path,
                                 "trigger_source": "api",
                             }
                         ),
@@ -169,6 +189,7 @@ class WaveStartService(BaseBusinessService):
             start_node=request.start_node,
             runner=request.runner,
             model_id=request.model_id,
+            ticket_present=True,
         )
         return WaveStartResponse(
             run_id=str(run.id),
@@ -176,35 +197,51 @@ class WaveStartService(BaseBusinessService):
             status=RunStatusType.ACTIVE.value,
         )
 
-    def _resolve_identity(self, request: WaveStartRequest) -> tuple[str, str, Optional[int]]:
-        """Resolve initiative/wave; ticket_id optional and must agree when set."""
+    def _define_handoff_baton(self, handoff_root: str, run_id: str) -> str:
+        """Create `{root}/{run_id}/handoff.md` and return absolute path."""
+        baton_dir = Path(handoff_root) / run_id
+        baton_dir.mkdir(parents=True, exist_ok=True)
+        baton_path = baton_dir / "handoff.md"
+        if not baton_path.exists():
+            baton_path.write_text("", encoding="utf-8")
+        return str(baton_path.resolve())
+
+    def _resolve_identity(self, request: WaveStartRequest) -> tuple[str, str, Optional[int], str]:
+        """Resolve initiative/wave; require non-empty ticket_id for packaged automate."""
         initiative_id = request.initiative_id
         wave_id = request.wave_id
         issue_number = request.issue_number
         has_ticket = request.ticket_id is not None and str(request.ticket_id).strip() != ""
+        if not has_ticket:
+            raise ValidationError(
+                message="ticket_id is required for packaged-skill automate",
+                field_errors={"ticket_id": "required"},
+            )
+        ticket = str(request.ticket_id).strip()
 
-        if has_ticket:
-            ticket = str(request.ticket_id).strip()
-            if ":" in ticket:
-                parsed_initiative, parsed_wave = ticket.split(":", 1)
-                if parsed_initiative != initiative_id or parsed_wave != wave_id:
-                    raise ValidationError(
-                        message="Dual identity disagree: ticket metadata does not match initiative_id/wave_id",
-                        details={
-                            "ticket_id": ticket,
-                            "initiative_id": initiative_id,
-                            "wave_id": wave_id,
-                        },
-                    )
-            elif ticket.isdigit():
-                issue_number = issue_number if issue_number is not None else int(ticket)
-            else:
+        if ":" in ticket:
+            parsed_initiative, parsed_wave = ticket.split(":", 1)
+            if parsed_initiative != initiative_id or parsed_wave != wave_id:
                 raise ValidationError(
-                    message="Unresolvable ticket_id for dual identity agreement check",
-                    details={"ticket_id": ticket},
+                    message=(
+                        "Dual identity disagree: ticket metadata does not match "
+                        "initiative_id/wave_id"
+                    ),
+                    details={
+                        "ticket_id": ticket,
+                        "initiative_id": initiative_id,
+                        "wave_id": wave_id,
+                    },
                 )
+        elif ticket.isdigit():
+            issue_number = issue_number if issue_number is not None else int(ticket)
+        else:
+            raise ValidationError(
+                message="Unresolvable ticket_id for dual identity agreement check",
+                details={"ticket_id": ticket},
+            )
 
-        return initiative_id, wave_id, issue_number
+        return initiative_id, wave_id, issue_number, ticket
 
 
 def get_wave_start_service() -> WaveStartService:

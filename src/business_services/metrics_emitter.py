@@ -199,6 +199,8 @@ class MetricsEmitter(BaseBusinessService):
                     model_profile=stage.model_profile,
                     model_id=stage.model_id,
                     model_provider=stage.model_provider,
+                    prompt_id=stage.prompt_id,
+                    prompt_revision=stage.prompt_revision,
                 )
                 for stage in stages
                 if stage.id is not None

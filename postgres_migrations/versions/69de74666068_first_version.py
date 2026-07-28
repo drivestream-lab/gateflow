@@ -1,8 +1,8 @@
 """first version
 
-Revision ID: a50807500528
+Revision ID: 69de74666068
 Revises: 
-Create Date: 2026-07-28 06:00:04.616578
+Create Date: 2026-07-28 05:53:29.269428
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'a50807500528'
+revision: str = '69de74666068'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -32,6 +32,7 @@ def upgrade() -> None:
     sa.Column('initiative_id', sa.String(length=255), nullable=True),
     sa.Column('wave_id', sa.String(length=64), nullable=True),
     sa.Column('wave_duration_ms', sa.Integer(), nullable=True),
+    sa.Column('handoff_path', sa.Text(), nullable=True),
     sa.Column('retry_counter', sa.Integer(), nullable=False),
     sa.Column('notify_pending', sa.Boolean(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for the record'),
@@ -89,6 +90,8 @@ def upgrade() -> None:
     sa.Column('model_profile', sa.String(length=128), nullable=True),
     sa.Column('model_id', sa.String(length=255), nullable=True),
     sa.Column('model_provider', sa.String(length=128), nullable=True),
+    sa.Column('prompt_id', sa.String(length=255), nullable=True),
+    sa.Column('prompt_revision', sa.String(length=64), nullable=True),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for the record'),
     sa.Column('created_at', sa.TIMESTAMP(timezone=True), nullable=False, comment='Timestamp (UTC) when record was created'),
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=True, comment='Timestamp (UTC) when record was last updated'),
