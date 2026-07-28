@@ -18,6 +18,7 @@ from src.business_services.policy_engine import PolicyEngine
 from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.trigger_router import TriggerRouter
 from src.business_services.workflow_engine import WorkflowEngine
+from src.business_services.workspace_commit_paths import collect_commit_paths
 from src.configs.orchestration_settings import OrchestrationSettings
 from src.database.postgres.repository.run_store_repository import (
     RunEventRepository,
@@ -30,6 +31,8 @@ from src.infra_services.launchpad_client import LaunchpadClient
 from src.infra_services.postgres_service import PostgresService
 from src.models.control_plane_models import RunEventComment, RunProcessSummary
 from src.models.dispatch_plan_models import DispatchPlan, ResolvedNodeDispatch
+from src.models.forge_models import merge_pin_and_handoff_forge
+from src.models.forge_types import CommitWorkspaceModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import build_wave_head_branch, validate_base_branch
@@ -304,6 +307,29 @@ class RunOrchestrator(BaseBusinessService):
                     )
 
                 try:
+                    await self._publish_stage_workspace_if_needed(
+                        session,
+                        run=run,
+                        workspace_path=workspace_path,
+                        node_id=next_node.node_id,
+                        payload=payload,
+                    )
+                except ValueError as exc:
+                    return await self._finalize_run(
+                        session,
+                        run,
+                        status_type=RunStatusType.FAILED,
+                        outcome_type=RunOutcomeType.FAILED,
+                        stop_reason=str(exc),
+                        workflow_node=next_node.node_id,
+                        dispatched=True,
+                        notify_pending=notify_pending,
+                        issue_ref=issue_ref,
+                        org=context.org,
+                        repo=context.repo,
+                    )
+
+                try:
                     stored_path = stage_summary.get("handoff_path") or (
                         str(run.handoff_path).strip() if run.handoff_path else ""
                     )
@@ -369,12 +395,59 @@ class RunOrchestrator(BaseBusinessService):
 
                 # STOP at gate (checkpoint / manual / terminal / findings budget)
                 stop_node = decision.next_node.node_id if decision.next_node else last_node_id
+                stop_reason = decision.block_reason or f"Stopped at gate node {stop_node}"
+
+                if (
+                    decision.next_node is not None
+                    and decision.next_node.node_type == "external-action"
+                    and decision.next_node.forge.action is not None
+                ):
+                    try:
+                        effective = merge_pin_and_handoff_forge(
+                            decision.next_node.forge,
+                            handoff.forge,
+                        )
+                    except ValueError as exc:
+                        return await self._finalize_run(
+                            session,
+                            run,
+                            status_type=RunStatusType.FAILED,
+                            outcome_type=RunOutcomeType.FAILED,
+                            stop_reason=str(exc),
+                            workflow_node=stop_node,
+                            dispatched=True,
+                            notify_pending=notify_pending,
+                            issue_ref=issue_ref,
+                            org=context.org,
+                            repo=context.repo,
+                        )
+                    await self._run_event_repository.append_event(
+                        session,
+                        RunEventCreate(
+                            run_id=run_id,
+                            event_type="forge_pending",
+                            workflow_node=stop_node,
+                            payload={
+                                "event_type": "forge_pending",
+                                "action": effective.action.value,
+                                "draft": effective.draft,
+                                "apply_labels": effective.apply_labels,
+                                "requires": decision.next_node.forge.requires,
+                            },
+                        ),
+                    )
+                    stop_reason = (
+                        f"Pending forge authorization for {stop_node} "
+                        f"action={effective.action.value} "
+                        "(POST /api/v1/runs/{run_id}/forge/authorize)"
+                    )
+
                 return await self._finalize_run(
                     session,
                     run,
                     status_type=RunStatusType.STOPPED,
                     outcome_type=RunOutcomeType.STOPPED,
-                    stop_reason=decision.block_reason or f"Stopped at gate node {stop_node}",
+                    stop_reason=stop_reason,
                     workflow_node=stop_node,
                     dispatched=True,
                     notify_pending=notify_pending,
@@ -400,6 +473,21 @@ class RunOrchestrator(BaseBusinessService):
     ) -> dict[str, Any]:
         """Execute one Cursor stage; return success flag and notify_pending."""
         started_at = datetime.now(UTC)
+        await self._run_event_repository.append_event(
+            session,
+            RunEventCreate(
+                run_id=run_id,
+                event_type="stage_started",
+                workflow_node=next_node.node_id,
+                payload={
+                    "event_type": "stage_started",
+                    "runner": resolved.runner,
+                    "model_id": resolved.model_id,
+                    "model_profile": resolved.model_profile,
+                },
+            ),
+        )
+        # W3: stage_started is timeline-only; Notifier skips PR mirror.
         notify_pending = await self._post_run_event(
             context_org,
             context_repo,
@@ -597,6 +685,111 @@ class RunOrchestrator(BaseBusinessService):
                 f"{expected_stage!r}"
             )
         return handoff
+
+    async def _publish_stage_workspace_if_needed(
+        self,
+        session: AsyncSession,
+        *,
+        run: RunModel,
+        workspace_path: str,
+        node_id: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Apply pin ``forge.commit_workspace`` after a successful skill hop (before ingest).
+
+        Head ref is bound from run/wave PR targeting — never from handoff.forge.head.
+        """
+        if run.id is None:
+            raise RuntimeError("Run missing id before stage commit")
+
+        executed = self._workflow_engine.get_node(node_id)
+        mode = executed.forge.commit_workspace
+        if mode == CommitWorkspaceModeType.DISABLED:
+            return
+
+        handoff_root: Optional[str] = None
+        if self._orchestration.has_handoff_root():
+            handoff_root = self._orchestration.require_handoff_root()
+
+        paths = collect_commit_paths(workspace_path, handoff_root=handoff_root)
+        if not paths:
+            if mode == CommitWorkspaceModeType.REQUIRED:
+                raise ValueError(
+                    f"forge.commit_workspace=required for node {node_id!r} but "
+                    "no includable workspace paths to publish"
+                )
+            self.logger.info(
+                "Stage commit skipped — no includable paths",
+                run_id=str(run.id),
+                workflow_node=node_id,
+                commit_workspace=mode.value,
+            )
+            return
+
+        head = self._require_run_head_branch(run=run, payload=payload)
+        message = f"chore(gateflow): stage {node_id} workspace publish"
+        try:
+            result = await self._forge_client.commit_paths_to_branch(
+                run.org,
+                run.repo,
+                branch=head,
+                workspace_path=workspace_path,
+                paths=paths,
+                message=message,
+            )
+        except Exception as exc:
+            self.logger.error(
+                "Stage forge commit failed",
+                run_id=str(run.id),
+                workflow_node=node_id,
+                head=head,
+                path_count=len(paths),
+                error=str(exc),
+                exc_info=True,
+            )
+            raise ValueError(f"forge.commit_workspace failed for node {node_id!r}: {exc}") from exc
+
+        await self._run_event_repository.append_event(
+            session,
+            RunEventCreate(
+                run_id=run.id,
+                event_type="stage_commit",
+                workflow_node=node_id,
+                payload={
+                    "event_type": "stage_commit",
+                    "commit_sha": result.commit_sha,
+                    "branch": result.branch,
+                    "path_count": result.path_count,
+                    "paths": result.paths,
+                    "commit_workspace": mode.value,
+                },
+            ),
+        )
+        self.logger.info(
+            "Stage workspace committed to run head",
+            run_id=str(run.id),
+            workflow_node=node_id,
+            commit_sha=result.commit_sha,
+            branch=result.branch,
+            path_count=result.path_count,
+            commit_workspace=mode.value,
+        )
+
+    def _require_run_head_branch(self, *, run: RunModel, payload: dict[str, Any]) -> str:
+        """Bind publish head from wave PR targeting on the job payload (pin forbids forge.head)."""
+        initiative_id = run.initiative_id or payload.get("initiative_id")
+        wave_id = run.wave_id or payload.get("wave_id")
+        branch_slug = payload.get("branch_slug")
+        if not initiative_id or not wave_id or not branch_slug:
+            raise ValueError(
+                "Stage forge commit requires initiative_id, wave_id, and branch_slug "
+                "on the run/job payload to bind the run head branch"
+            )
+        return build_wave_head_branch(
+            str(initiative_id),
+            str(wave_id),
+            str(branch_slug),
+        )
 
     async def _ensure_run_pr(
         self,

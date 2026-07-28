@@ -61,6 +61,9 @@ def _job_payload(**extra: object) -> JobPayloadDocument:
         "workspace_path": str(Path.cwd()),
         "ticket_id": "55",
         "initiative_id": "INIT-GATEFLOW-005-BOUNDINPUT",
+        "wave_id": "w1",
+        "branch_slug": "implement-lane",
+        "base_branch": "develop",
         **_dispatch_plan(),
         "handoff": _gate_stop_handoff(),
         **extra,
@@ -142,6 +145,14 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     forge_client = MagicMock()
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
+    forge_client.commit_paths_to_branch = AsyncMock(
+        return_value=MagicMock(
+            commit_sha="abc123",
+            branch="gateflow/x",
+            path_count=0,
+            paths=[],
+        )
+    )
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
     policy_engine = PolicyEngine(workflow_engine=workflow_engine)
@@ -166,7 +177,11 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "prompt_resolver": prompt_resolver,
     }
     defaults.update(overrides)
-    return RunOrchestrator(**defaults)
+    orch = RunOrchestrator(**defaults)
+    # Walker unit tests use Path.cwd(); stub publish so dirty trees do not force forge.
+    # Dedicated forge-publish tests replace this method or call it directly.
+    orch._publish_stage_workspace_if_needed = AsyncMock(return_value=None)  # type: ignore[method-assign]
+    return orch
 
 
 @pytest.mark.asyncio
@@ -586,6 +601,14 @@ async def test_process_job_never_calls_board_forge_mutations() -> None:
     forge_client = MagicMock()
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
+    forge_client.commit_paths_to_branch = AsyncMock(
+        return_value=MagicMock(
+            commit_sha="abc123",
+            branch="gateflow/x",
+            path_count=0,
+            paths=[],
+        )
+    )
     forge_client.update_issue_status = AsyncMock()
     forge_client.link_pull_request = AsyncMock()
     forge_client.create_issue = AsyncMock()
@@ -846,3 +869,99 @@ async def test_packaged_ingest_missing_path_fails_closed() -> None:
     assert summary.stop_reason is not None
     assert "missing" in summary.stop_reason.lower() or "Handoff path" in summary.stop_reason
     handoff_reader.find_latest_handoff.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_publish_stage_workspace_required_empty_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+
+    orch = _build_orchestrator()
+    # Restore real publisher (helper stubs it).
+    from src.business_services.run_orchestrator import RunOrchestrator as RO
+
+    orch._publish_stage_workspace_if_needed = RO._publish_stage_workspace_if_needed.__get__(
+        orch, RO
+    )
+
+    monkeypatch.setattr(
+        "src.business_services.run_orchestrator.collect_commit_paths",
+        lambda *_a, **_k: [],
+    )
+    run = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        initiative_id="INIT-GATEFLOW-006",
+        wave_id="w1",
+        created_at=datetime.now(UTC),
+    )
+    with pytest.raises(ValueError, match="required"):
+        await orch._publish_stage_workspace_if_needed(
+            MagicMock(),
+            run=run,
+            workspace_path=str(tmp_path),
+            node_id="loop-spec",
+            payload={
+                "initiative_id": "INIT-GATEFLOW-006",
+                "wave_id": "w1",
+                "branch_slug": "forge-commit",
+            },
+        )
+
+
+@pytest.mark.asyncio
+async def test_publish_stage_workspace_optional_commits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.models.forge_models import CommitPathsResult
+
+    orch = _build_orchestrator()
+    from src.business_services.run_orchestrator import RunOrchestrator as RO
+
+    orch._publish_stage_workspace_if_needed = RO._publish_stage_workspace_if_needed.__get__(
+        orch, RO
+    )
+    forge = MagicMock()
+    forge.commit_paths_to_branch = AsyncMock(
+        return_value=CommitPathsResult(
+            commit_sha="deadbeef",
+            branch="feature/INIT-GATEFLOW-006-w1-forge-commit",
+            path_count=1,
+            paths=["docs/a.md"],
+        )
+    )
+    orch._forge_client = forge
+    events = MagicMock()
+    events.append_event = AsyncMock()
+    orch._run_event_repository = events
+    monkeypatch.setattr(
+        "src.business_services.run_orchestrator.collect_commit_paths",
+        lambda *_a, **_k: ["docs/a.md"],
+    )
+    run = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        initiative_id="INIT-GATEFLOW-006",
+        wave_id="w1",
+        created_at=datetime.now(UTC),
+    )
+    await orch._publish_stage_workspace_if_needed(
+        MagicMock(),
+        run=run,
+        workspace_path=str(tmp_path),
+        node_id="pre-implement",
+        payload={
+            "initiative_id": "INIT-GATEFLOW-006",
+            "wave_id": "w1",
+            "branch_slug": "forge-commit",
+        },
+    )
+    forge.commit_paths_to_branch.assert_awaited()
+    events.append_event.assert_awaited()
+    event_arg = events.append_event.await_args.args[1]
+    assert event_arg.event_type == "stage_commit"
+    assert event_arg.payload["commit_sha"] == "deadbeef"

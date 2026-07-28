@@ -4,6 +4,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.models.forge_models import HandoffForgeDocument, NodeForgePolicy
+
 
 class HandoffEnvelope(BaseModel):
     """Durable handoff block (sdd-delivery/v2) — extra ignored for forward compat."""
@@ -19,10 +21,14 @@ class HandoffEnvelope(BaseModel):
     next_candidates: list[str] = Field(default_factory=list)
     human_checkpoint: bool = Field(default=False)
     external_action: bool = Field(default=False)
+    forge: Optional[HandoffForgeDocument] = Field(
+        default=None,
+        description="Instance forge slots; pin wins on policy when merged later",
+    )
 
 
 class ResolvedWorkflowNode(BaseModel):
-    """Next workflow node resolved from pin + handoff."""
+    """Workflow node resolved from pin (next or looked up by id)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -33,3 +39,7 @@ class ResolvedWorkflowNode(BaseModel):
         description="dispatch mode when type=skill; missing ⇒ treat as manual",
     )
     outcomes: dict[str, str] = Field(default_factory=dict)
+    forge: NodeForgePolicy = Field(
+        default_factory=NodeForgePolicy,
+        description="Parsed pin forge block; missing forge ⇒ commit_workspace disabled",
+    )

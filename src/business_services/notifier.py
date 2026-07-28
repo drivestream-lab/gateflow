@@ -1,4 +1,8 @@
-"""Notifier — structured run-event comments via ForgeClient (FR-11)."""
+"""Notifier — structured run-event comments via ForgeClient (FR-11).
+
+W3 (ADR-009): high-frequency hop events stay on the RunStore timeline;
+only milestone events are mirrored as GitHub PR/issue comments.
+"""
 
 from datetime import UTC, datetime
 from typing import Optional
@@ -8,6 +12,15 @@ from injector import inject
 from src.business_services.base_business_service import BaseBusinessService
 from src.infra_services.forge_client import ForgeClient
 from src.models.control_plane_models import RunEventComment
+from src.models.policy_types import RunEventNameType
+
+# Sparse PR surface — hop-level stage_started / stage_completed are timeline-only.
+_PR_MILESTONE_EVENTS: frozenset[RunEventNameType] = frozenset(
+    {
+        RunEventNameType.API_TRIGGER,
+        RunEventNameType.RUN_STOPPED,
+    }
+)
 
 
 class Notifier(BaseBusinessService):
@@ -17,6 +30,11 @@ class Notifier(BaseBusinessService):
     def __init__(self, forge_client: ForgeClient) -> None:
         super().__init__()
         self._forge_client = forge_client
+
+    @staticmethod
+    def posts_run_event_to_pr(event: RunEventNameType) -> bool:
+        """Return True when this event kind should be mirrored to a PR/issue comment."""
+        return event in _PR_MILESTONE_EVENTS
 
     def format_run_event_comment(self, event: RunEventComment) -> str:
         """Format FR-11 fields for a GitHub issue/PR comment body."""
@@ -41,7 +59,20 @@ class Notifier(BaseBusinessService):
         issue_number: int,
         event: RunEventComment,
     ) -> bool:
-        """Post comment; return True when notify_pending should be set (failure)."""
+        """Post milestone comment; skip hop events (timeline-only).
+
+        Returns True when notify_pending should be set (Forge comment failure).
+        Skipped (non-milestone) events return False.
+        """
+        if not self.posts_run_event_to_pr(event.event):
+            self.logger.info(
+                "Run event PR comment skipped — timeline-only",
+                run_id=str(event.run_id),
+                event=event.event.value,
+                workflow_node=event.workflow_node,
+            )
+            return False
+
         body = self.format_run_event_comment(event)
         try:
             comment_id = await self._forge_client.post_comment(org, repo, issue_number, body)

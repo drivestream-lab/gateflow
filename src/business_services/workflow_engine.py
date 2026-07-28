@@ -7,6 +7,7 @@ import yaml
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.models.forge_models import NodeForgePolicy, parse_node_forge
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 
 DEFAULT_WORKFLOW_PATH = Path("prayog-skills/workflow.yaml")
@@ -78,27 +79,7 @@ class WorkflowEngine(BaseBusinessService):
         if next_id is None:
             raise ValueError(f"No transition for stage={handoff.stage} outcome={handoff.outcome}")
         next_id_str = str(next_id)
-        next_node = nodes.get(next_id_str)
-        if not isinstance(next_node, dict):
-            # Terminal-style target may be a decision/terminal id still in nodes
-            raise ValueError(f"Resolved next node missing from workflow: {next_id_str}")
-
-        node_type = str(next_node.get("type", "unknown"))
-        dispatch_raw = next_node.get("dispatch")
-        dispatch = str(dispatch_raw) if dispatch_raw is not None else None
-        next_outcomes = next_node.get("outcomes")
-        outcomes_map = (
-            {str(k): str(v) for k, v in next_outcomes.items()}
-            if isinstance(next_outcomes, dict)
-            else {}
-        )
-
-        resolved = ResolvedWorkflowNode(
-            node_id=next_id_str,
-            node_type=node_type,
-            dispatch=dispatch,
-            outcomes=outcomes_map,
-        )
+        resolved = self.get_node(next_id_str)
         self.logger.info(
             "Resolved next workflow node",
             from_stage=handoff.stage,
@@ -106,21 +87,12 @@ class WorkflowEngine(BaseBusinessService):
             next_node=resolved.node_id,
             node_type=resolved.node_type,
             dispatch=resolved.dispatch,
+            commit_workspace=resolved.forge.commit_workspace.value,
         )
         return resolved
 
-    def known_node_ids(self) -> set[str]:
-        """Return all node ids from the pinned workflow (no allowlists)."""
-        if self._workflow is None:
-            self.load_pin()
-        assert self._workflow is not None
-        nodes = self._workflow.get("nodes")
-        if not isinstance(nodes, dict):
-            raise ValueError("workflow.yaml missing nodes mapping")
-        return {str(node_id) for node_id in nodes.keys()}
-
-    def require_orchestrated_skill(self, node_id: str) -> ResolvedWorkflowNode:
-        """Fail-fast: node must exist, be skill, and dispatch=orchestrated."""
+    def get_node(self, node_id: str) -> ResolvedWorkflowNode:
+        """Look up a node by id from the pin (includes forge policy)."""
         if self._workflow is None:
             self.load_pin()
         assert self._workflow is not None
@@ -130,25 +102,46 @@ class WorkflowEngine(BaseBusinessService):
         raw = nodes.get(node_id)
         if not isinstance(raw, dict):
             raise ValueError(f"Unknown workflow node: {node_id}")
+        return self._to_resolved(node_id, raw)
+
+    def known_node_ids(self) -> set[str]:
+        """Return all node ids from the pinned workflow (no allowlists)."""
+        if self._workflow is None:
+            self.load_pin()
+        assert self._workflow is not None
+        nodes = self._workflow.get("nodes")
+        if not isinstance(nodes, dict):
+            raise ValueError("workflow.yaml missing nodes mapping")
+        return {str(nid) for nid in nodes.keys()}
+
+    def require_orchestrated_skill(self, node_id: str) -> ResolvedWorkflowNode:
+        """Fail-fast: node must exist, be skill, and dispatch=orchestrated."""
+        resolved = self.get_node(node_id)
+        if resolved.node_type != "skill" or resolved.dispatch != "orchestrated":
+            raise ValueError(
+                f"start_node {node_id!r} must be type=skill with dispatch=orchestrated "
+                f"(got type={resolved.node_type!r} dispatch={resolved.dispatch!r})"
+            )
+        return resolved
+
+    @staticmethod
+    def _to_resolved(node_id: str, raw: dict[str, Any]) -> ResolvedWorkflowNode:
         node_type = str(raw.get("type", "unknown"))
         dispatch_raw = raw.get("dispatch")
         dispatch = str(dispatch_raw) if dispatch_raw is not None else None
-        if node_type != "skill" or dispatch != "orchestrated":
-            raise ValueError(
-                f"start_node {node_id!r} must be type=skill with dispatch=orchestrated "
-                f"(got type={node_type!r} dispatch={dispatch!r})"
-            )
         next_outcomes = raw.get("outcomes")
         outcomes_map = (
             {str(k): str(v) for k, v in next_outcomes.items()}
             if isinstance(next_outcomes, dict)
             else {}
         )
+        forge: NodeForgePolicy = parse_node_forge(raw.get("forge"))
         return ResolvedWorkflowNode(
             node_id=node_id,
             node_type=node_type,
             dispatch=dispatch,
             outcomes=outcomes_map,
+            forge=forge,
         )
 
 

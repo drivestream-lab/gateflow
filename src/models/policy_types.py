@@ -22,7 +22,11 @@ class PolicyDecisionType(str, Enum):
 
 
 class RunEventNameType(str, Enum):
-    """Notifier run-event comment kinds (FR-11 / FR-22)."""
+    """Run-event kinds (FR-11 / FR-22).
+
+    Timeline (RunStore) records hop and milestone events. GitHub PR comments are
+    sparse milestones only — see ``Notifier.posts_run_event_to_pr`` (W3).
+    """
 
     API_TRIGGER = "api_trigger"
     STAGE_STARTED = "stage_started"
