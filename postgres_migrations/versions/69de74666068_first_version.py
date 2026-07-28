@@ -1,14 +1,8 @@
 """first version
 
-<<<<<<<< HEAD:postgres_migrations/versions/a50807500528_first_version.py
-Revision ID: a50807500528
-Revises: 
-Create Date: 2026-07-28 06:00:04.616578
-========
 Revision ID: 69de74666068
 Revises: 
 Create Date: 2026-07-28 05:53:29.269428
->>>>>>>> 496efc9 ([INIT-GATEFLOW-005 W0] Squash Postgres migrations into a single baseline.):postgres_migrations/versions/69de74666068_first_version.py
 
 """
 from typing import Sequence, Union
@@ -18,11 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-<<<<<<<< HEAD:postgres_migrations/versions/a50807500528_first_version.py
-revision: str = 'a50807500528'
-========
 revision: str = '69de74666068'
->>>>>>>> 496efc9 ([INIT-GATEFLOW-005 W0] Squash Postgres migrations into a single baseline.):postgres_migrations/versions/69de74666068_first_version.py
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -42,10 +32,7 @@ def upgrade() -> None:
     sa.Column('initiative_id', sa.String(length=255), nullable=True),
     sa.Column('wave_id', sa.String(length=64), nullable=True),
     sa.Column('wave_duration_ms', sa.Integer(), nullable=True),
-<<<<<<<< HEAD:postgres_migrations/versions/a50807500528_first_version.py
-========
     sa.Column('handoff_path', sa.Text(), nullable=True),
->>>>>>>> 496efc9 ([INIT-GATEFLOW-005 W0] Squash Postgres migrations into a single baseline.):postgres_migrations/versions/69de74666068_first_version.py
     sa.Column('retry_counter', sa.Integer(), nullable=False),
     sa.Column('notify_pending', sa.Boolean(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for the record'),
