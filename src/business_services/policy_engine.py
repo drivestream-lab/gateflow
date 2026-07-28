@@ -6,7 +6,7 @@ from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.control_plane_models import PolicyDecision, TriggerContext
-from src.models.handoff_models import HandoffEnvelope
+from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType
 
 _STOP_NODE_TYPES = frozenset(
@@ -20,7 +20,14 @@ _STOP_NODE_TYPES = frozenset(
 
 
 class PolicyEngine(BaseBusinessService):
-    """Evaluate whether the next workflow node may be agent-dispatched."""
+    """Evaluate whether the next workflow node may be agent-dispatched.
+
+    Dispatch eligibility SSOT is pinned ``workflow.yaml`` via ``resolve_next``
+    (stage + outcome). Envelope ``human_checkpoint`` is a producer hint: when it
+    disagrees with the resolved next node type, log a warning and continue per pin.
+    Handoff ``stage``, ``outcome``, ``blockers``, and artifact/signals remain
+    authoritative inputs for resolve and hard stops.
+    """
 
     @inject
     def __init__(self, workflow_engine: WorkflowEngine) -> None:
@@ -47,13 +54,6 @@ class PolicyEngine(BaseBusinessService):
                 retry_counter=retry_counter,
             )
 
-        if handoff.human_checkpoint:
-            return PolicyDecision(
-                decision=PolicyDecisionType.STOP,
-                block_reason="handoff.human_checkpoint is true",
-                retry_counter=retry_counter,
-            )
-
         if handoff.blockers:
             return PolicyDecision(
                 decision=PolicyDecisionType.STOP,
@@ -75,6 +75,8 @@ class PolicyEngine(BaseBusinessService):
                 block_reason=str(exc),
                 retry_counter=retry_counter,
             )
+
+        self._warn_human_checkpoint_mismatch(handoff, next_node)
 
         if next_node.node_type in _STOP_NODE_TYPES:
             return PolicyDecision(
@@ -101,6 +103,25 @@ class PolicyEngine(BaseBusinessService):
                 f"type={next_node.node_type} dispatch={dispatch_label}"
             ),
             retry_counter=retry_counter,
+        )
+
+    def _warn_human_checkpoint_mismatch(
+        self,
+        handoff: HandoffEnvelope,
+        next_node: ResolvedWorkflowNode,
+    ) -> None:
+        """Warn when envelope human_checkpoint disagrees with pin next-node type."""
+        pin_requires_human = next_node.node_type == "human-checkpoint"
+        if handoff.human_checkpoint == pin_requires_human:
+            return
+        self.logger.warning(
+            "Handoff human_checkpoint disagrees with workflow pin next node; "
+            "continuing per workflow.yaml",
+            handoff_stage=handoff.stage,
+            handoff_outcome=handoff.outcome,
+            handoff_human_checkpoint=handoff.human_checkpoint,
+            next_node_id=next_node.node_id,
+            next_node_type=next_node.node_type,
         )
 
 
