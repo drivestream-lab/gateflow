@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-07-26 |
+| Updated | 2026-07-28 |
 | Source | INIT-GATEFLOW-003 W1 wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`; lane naming adopted (spec / implement) |
 
 ## Engineering lane naming
@@ -104,6 +104,16 @@
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
 | INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W0.md` | **human_approved** (2026-07-28; live implement-lane prove-it deferred to W1 — D-W0-V1) |
+| INIT-005 W1 | Ingest-only `handoff_path` + dual-run isolation | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md` | **human_approved** (2026-07-28; live implement-lane deferred D-W1-V1 / D-W0-B1 — pin baton write) |
+
+## Capability matrix (INIT-GATEFLOW-005 W1)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| `HandoffReader.read_path` | REQ-8b, REQ-9 | `handoff_reader.py` | `test_handoff_workflow` | — | Fail closed missing/empty |
+| Packaged ingest SSOT = stored path | REQ-8b, REQ-9 | `run_orchestrator._ingest_handoff_after_stage` | `test_packaged_ingest_*` | fail-closed on empty baton | No ambient `find_latest_handoff`; D-W0-I1 closed |
+| Dual-run baton isolation | REQ-8b | distinct `{root}/{run_id}/handoff.md` | `test_dual_run_isolation_*` | — | Shared workspace decoy ignored |
+| Implement-lane live prove-it | REQ-10 | `verify_implement_lane` | — | **deferred** (D-W1-V1) | Hop-1 success + prompt ids; baton empty (D-W0-B1) |
 
 ## Verdict
 
@@ -120,5 +130,10 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 **INIT-GATEFLOW-005 (2026-07-28):** W0 **human_approved** on
 `feature/INIT-GATEFLOW-005-w0-bound-input` — PromptResolver, message-only Cursor,
 `GATEFLOW_HANDOFF_ROOT` baton define/store, required `ticket_id`, Alembic
-`69de74666068`. Live implement-lane prove-it (**REQ-10**) deferred to W1 with
-ingest-from-stored-path (**REQ-8b**) — D-W0-V1 accepted at wave-signoff.
+`69de74666068`.
+
+**INIT-GATEFLOW-005 W1 (2026-07-28):** **human_approved** on
+`feature/INIT-GATEFLOW-005-w1-ingest` — packaged automate ingest uses
+`HandoffReader.read_path(run.handoff_path)` only; dual-run isolation unit green;
+D-W0-I1 closed. Live implement-lane deferred (D-W1-V1 / D-W0-B1 — pin must write
+envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.

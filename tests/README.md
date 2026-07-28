@@ -173,9 +173,13 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Required `ticket_id` on wave-start | `verify_wave_start` (supply ticket) | `test_wave_start` |
 | Message-only Cursor + anti-hardcode | — | `test_cursor_agent_runner` |
 | Stage `prompt_id` / `prompt_revision` | `verify_implement_lane` (assert fields) | `test_run_orchestrator` |
+| Ingest from stored `handoff_path` only (REQ-8b) | `verify_implement_lane` (W1 live) | `test_handoff_workflow`, `test_run_orchestrator` |
+| Dual-run baton isolation | — | `test_dual_run_isolation_distinct_handoff_paths` |
 
 Requires absolute `GATEFLOW_HANDOFF_ROOT` in `.env` and human Alembic for
 `runs.handoff_path` + `stages.prompt_id` / `stages.prompt_revision` before live prove-it.
+Packaged-skill automate ingest SSOT is the stored baton path under that root
+(`{GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md`) — not ambient repo globs/mtime.
 
 ### Implement-lane live verify prereqs
 
