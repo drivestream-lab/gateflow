@@ -104,7 +104,7 @@
 | INIT-003 W0 | Cursor SDK skeleton + start-gate | `Ground-Report-INIT-GATEFLOW-003-W0.md` | **human_approved** |
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
 | INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W0.md` | **human_approved** (2026-07-28; live implement-lane prove-it deferred to W1 — D-W0-V1) |
-| INIT-005 W1 | Ingest-only `handoff_path` + dual-run isolation | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md` | **Draft** — awaiting wave-signoff (`feature/INIT-GATEFLOW-005-w1-ingest`; live deferred D-W1-V1 / D-W0-B1) |
+| INIT-005 W1 | Ingest-only `handoff_path` + dual-run isolation | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md` | **human_approved** (2026-07-28; live implement-lane deferred D-W1-V1 / D-W0-B1 — pin baton write) |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
 
@@ -132,8 +132,8 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 `GATEFLOW_HANDOFF_ROOT` baton define/store, required `ticket_id`, Alembic
 `69de74666068`.
 
-**INIT-GATEFLOW-005 W1 (Draft ground):** packaged automate ingest uses
+**INIT-GATEFLOW-005 W1 (2026-07-28):** **human_approved** on
+`feature/INIT-GATEFLOW-005-w1-ingest` — packaged automate ingest uses
 `HandoffReader.read_path(run.handoff_path)` only; dual-run isolation unit green;
-D-W0-I1 closed. Live implement-lane still deferred (D-W1-V1 / D-W0-B1 — pin must
-write envelope to stored path; out of gateflow W1 scope). See
-`Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.
+D-W0-I1 closed. Live implement-lane deferred (D-W1-V1 / D-W0-B1 — pin must write
+envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.
