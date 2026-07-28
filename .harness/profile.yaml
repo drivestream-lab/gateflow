@@ -30,8 +30,12 @@ development_skills:
   - initiative-feasibility
   - spec-technical-review
   - spec-implementation-plan
-  - board-seed
   - pre-implement
   - loop-spec
   - ground-spec
   - verify
+
+forge_skills:
+  - commit-workspace
+  - open-draft-pr
+  - create-board-tickets
