@@ -1,8 +1,8 @@
-"""HandoffReader — scan skill-convention globs for latest handoff YAML block."""
+"""HandoffReader — stored-path ingest (automate SSOT) and legacy ambient scan."""
 
 import re
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import yaml
 from injector import inject
@@ -11,6 +11,7 @@ from src.business_services.base_business_service import BaseBusinessService
 from src.models.handoff_models import HandoffEnvelope
 
 # Paths skills document for durable handoff artifacts (not programme.yaml).
+# Legacy / debug only — not SSOT for packaged-skill automated ingest (ADR-008).
 DEFAULT_ARTIFACT_GLOBS: tuple[str, ...] = (
     "docs/specification/reports/**/*",
     "prd/reports/**/*",
@@ -23,18 +24,40 @@ _HANDOFF_BLOCK_RE = re.compile(
 
 
 class HandoffReader(BaseBusinessService):
-    """Locate and parse the latest durable handoff envelope under convention globs."""
+    """Parse durable handoff envelopes from an explicit path or ambient globs."""
 
     @inject
     def __init__(self) -> None:
         super().__init__()
+
+    def read_path(self, path: Union[Path, str]) -> HandoffEnvelope:
+        """Read and parse handoff from a Gateflow-owned stored path (automate SSOT).
+
+        Fail closed when the path is blank, missing, unreadable, or lacks a
+        parseable handoff block. Does not scan workspace globs.
+        """
+        raw = str(path).strip()
+        if not raw:
+            raise ValueError("handoff_path is empty")
+        baton = Path(raw)
+        if not baton.is_file():
+            raise ValueError(f"Handoff path missing or not a file: {baton}")
+        try:
+            text = baton.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"Handoff path unreadable: {baton}") from exc
+        block = self._extract_handoff_yaml(text)
+        if block is None:
+            raise ValueError(f"No handoff YAML block in stored path: {baton}")
+        self.logger.info("Handoff artifact read from stored path", path=str(baton))
+        return self.parse_handoff_yaml(block)
 
     def find_latest_handoff(
         self,
         workspace_root: Path,
         artifact_globs: Optional[Sequence[str]] = None,
     ) -> HandoffEnvelope:
-        """Scan artifact globs for the newest file containing a handoff YAML block."""
+        """Scan artifact globs for the newest handoff (legacy/debug — not automate SSOT)."""
         patterns = tuple(artifact_globs) if artifact_globs is not None else DEFAULT_ARTIFACT_GLOBS
         candidates: list[tuple[float, Path, str]] = []
         for pattern in patterns:
