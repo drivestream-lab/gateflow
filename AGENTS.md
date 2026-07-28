@@ -5,7 +5,7 @@
 
 Shared rules: **`.cursor/rules/*.mdc`** (git submodule, pinned at **v0.5.10**).
 
-Agent skills: **`prayog-skills/`** (git submodule at root, pinned at **v0.5.0-rc.2**) — `/spec-draft`, `/initiative-feasibility`, `/spec-technical-review`, `/spec-implementation-plan`, `/board-seed`, `/pre-implement`, `/loop-spec`, `/ground-spec`, `/verify`.
+Agent skills: **`prayog-skills/`** (git submodule at root, pinned at **v0.5.0-rc.2**) — `/spec-draft`, `/initiative-feasibility`, `/spec-technical-review`, `/spec-implementation-plan`, `/pre-implement`, `/loop-spec`, `/ground-spec`, `/verify`, `/commit-workspace`, `/open-draft-pr`, `/create-board-tickets`.
 
 **Do not edit** `.cursor/rules/`. Skill changes go upstream in prayog-skills.
 Pin record: [`.harness-pin.yaml`](.harness-pin.yaml) (`profile: python-backend`).
@@ -29,7 +29,7 @@ Engineering work is tracked on **[drivestream-lab Board](https://github.com/orgs
 
 - SSOT: `prayog-meta/config/governance-*.yaml` → `project_board` (read-only meta clone)
 - Resolve binding: `launchpad board-bind --client <id>`
-- After spec merge: `/board-seed INIT-<id>` — creates EPIC + wave sub-issues on this board (all app stacks)
+- After spec merge: `/create-board-tickets INIT-<id>` — creates EPIC + wave sub-issues on this board (forge skill; all app stacks)
 <!-- launchpad:harness-end -->
 
 ## Product (what to build)
