@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md` |
 | Date | 2026-07-28 |
 | Branch | `feature/INIT-GATEFLOW-005-w1-ingest` — same branch as wave code |
-| Status | **Draft** |
+| Status | **human_approved** |
 | Review deadline | 2026-07-30 |
 | Deciders | Tech lead / reviewer: per CODEOWNERS — explicit LGTM required |
 | Board issue | https://github.com/drivestream-lab/gateflow/issues/56 |
@@ -129,15 +129,15 @@ After reviewer approves:
 
 ## Ready for human checkpoint?
 
-**yes** — W1 REQ-8b unit/isolation exit is green; live lane deferred with explicit
-discrepancies (same pattern as W0 D-W0-V1). PE must accept D-W1-V1 / D-W0-B1 or
-require pin-package write-to-path before LGTM.
+**yes — human_approved** (2026-07-28). Verifier accepted W1 ground report with
+D-W1-V1 / D-W0-B1 (live implement-lane deferred to pin baton write / W2); as-built
+updated on this branch.
 
 Human must:
-- [ ] Review REQ checklist — REQ-8b unit pass; live deferred (D-W1-V1)
-- [ ] Review §Contracts produced — accurate for W2 `/pre-implement`
-- [ ] Accept or reject live deferral (pin write-to-`handoff_path` follow-up)
-- [ ] Mark as-built: INIT-GATEFLOW-005-BOUNDINPUT W1 = human_approved (after LGTM)
+- [x] Review REQ checklist — REQ-8b unit pass; live deferred (D-W1-V1)
+- [x] Review §Contracts produced — accurate for W2 `/pre-implement`
+- [x] Accept or reject live deferral (pin write-to-`handoff_path` follow-up)
+- [x] Mark as-built: INIT-GATEFLOW-005-BOUNDINPUT W1 = human_approved (after LGTM)
 
 ```yaml
 handoff:
@@ -146,7 +146,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md
-    digest: sha256:8723eb0e85e03afe8c05f8fe3af428261594681f07e379dcf8d232fbfd265b75
+    digest: sha256:c59d49e43389b1e0f65793f52a84461065ab3345abe892aa17b487c171ee3406
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-005-BOUNDINPUT
@@ -162,7 +162,7 @@ handoff:
     live_run_id: 9a6e6e34-f4ef-4d85-a6e0-8d48d8aa70b0
     discrepancies_open: [D-W1-V1, D-W0-B1, D-W0-V1]
     discrepancies_closed: [D-W0-I1]
-    as_built_status: Draft
+    as_built_status: human_approved
   next_candidates:
     - wave-human-decision
   human_checkpoint: true
