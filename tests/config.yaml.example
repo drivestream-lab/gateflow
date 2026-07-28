@@ -1,0 +1,60 @@
+# Copy to tests/config.yaml (gitignored) for local live debug / verify.
+#
+# gateflow:  verification client → running Gateflow product
+# features:  optional per-capability knobs (omit sections you do not run)
+# forge:     debug ForgeClient probe only
+#
+# Secrets for the verify client (PROGRAMME_SERVICE_TOKEN, GITHUB_WEBHOOK_SECRET)
+# stay in .env for now. CURSOR_API_KEY is Gateflow runtime (.env when you make run)
+# — not verify config. verify_all only needs gateflow:; deep lanes need features.*.
+
+gateflow:
+  base_url: http://127.0.0.1:8080
+  # True when worker is up (PR-at-start assert in verify_pr_thread; required for lanes)
+  require_worker: false
+  org: drivestream-lab
+  repo: gateflow
+  base_branch: develop
+
+# Product smoke (verify_all) uses gateflow: + ephemeral wave identity in scripts.
+# Feature sections below are optional.
+
+features:
+  # Long wave: pre-implement → loop-spec → verify → ground-spec
+  #   .venv/bin/python -m tests.verify.verify_implement_lane
+  implement_lane:
+    enabled: false
+    # [VERIFY only] post-lane file assert — NOT sent on wave-start
+    evidence: /absolute/path/to/run_gateflow/evidence/implement-lane-live.json
+    timeout_s: 3600
+    # [API] POST /api/v1/waves/start for this feature only
+    wave_start:
+      org: drivestream-lab
+      repo: gateflow
+      workspace: ""
+      start_node: pre-implement
+      runner: cursor
+      model_id: cursor/auto
+      initiative_id: ""
+      wave_id: W0
+      ticket_id: ""
+      branch_slug: implement-lane
+
+  # Long wave: spec-draft → … (when pin/PRD ready)
+  #   .venv/bin/python -m tests.verify.verify_spec_lane
+  spec_lane:
+    enabled: false
+    evidence: /absolute/path/to/run_gateflow/evidence/spec-lane-live.json
+    timeout_s: 3600
+    wave_start:
+      start_node: spec-draft
+      runner: cursor
+      model_id: cursor/auto
+      wave_id: W0
+      branch_slug: spec-lane
+
+forge:
+  org: drivestream-lab
+  repo: gateflow
+  base_branch: develop
+  # probe_branch_prefix: gateflow/debug-probe-

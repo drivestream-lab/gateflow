@@ -1,0 +1,216 @@
+# Tests for gateflow
+
+## Lane naming
+
+| Name | Legacy name | Pin skills (today) | Verify |
+|------|-------------|--------------------|--------|
+| **spec lane** | Scenario A | `spec-draft` … `spec-implementation-plan` | `verify_spec_lane` (scaffold; W2) |
+| **implement lane** | Scenario B | `pre-implement` … `ground-spec` | `verify_implement_lane` |
+
+Both are wave-shaped Gateflow features.
+
+## Structure
+
+```
+tests/
+  unit/        Pure unit tests — no real infra, no network calls.
+               Run: make test
+  verify/      Live verify scripts (not collected by make test).
+  debug/       Exploratory live scripts (e.g. ForgeClient .env probe).
+  _helpers/    Shared fixtures and helpers (e.g. verify preflight).
+  config.yaml.example  Committed example — copy to config.yaml (gitignored)
+```
+
+## Running
+
+```bash
+# Unit only (CI gate)
+make check && make test
+
+# Live verify (integration) — requires running API + Postgres with RunStore migration:
+# docker compose -f docker/docker-compose.yml up -d
+# ./scripts/run_postgres_migration.sh head
+#   (INIT-GATEFLOW-002 W0: apply human Alembic for runs.wave_id — see
+#    docs/specification/reports/DDL-NOTE-INIT-GATEFLOW-002-W0-wave-id.md)
+# .venv/bin/python -m src.main
+# optional worker: .venv/bin/python -m src.worker_main
+# Prefer: make run  (API + worker; required for wave-start / implement-lane)
+# set -a && source .env && set +a
+#   needs GITHUB_WEBHOOK_SECRET + PROGRAMME_SERVICE_TOKEN
+# .venv/bin/python -m tests.verify.verify_all
+#
+# Individual scripts:
+# .venv/bin/python -m tests.verify.verify_health
+#
+# ForgeClient .env probe (no API server required — uses PAT/App from .env):
+#   cp tests/config.yaml.example tests/config.yaml   # optional org/repo
+#   set -a && source .env && set +a
+#   .venv/bin/python -m tests.debug.debug_forge_client
+#   GATEFLOW_FORGE_PROBE_CLEANUP=0  # leave PR/branch open for inspection
+# .venv/bin/python -m tests.verify.verify_webhook
+# .venv/bin/python -m tests.verify.verify_status_metrics
+# .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
+# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (+ optional PR)
+# .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
+# .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave
+# .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in (scaffold until W2)
+#
+# Full PR-at-start live assert (optional):
+#   set gateflow.require_worker: true in tests/config.yaml with worker + forge creds
+```
+
+## Configuration split
+
+| Concern | Where |
+|---------|--------|
+| Gateflow **runtime** (DB, Redis, forge, `CURSOR_API_KEY`, handoff root, …) | `.env` (process that runs `make run`) |
+| Verify **client** secrets (`PROGRAMME_SERVICE_TOKEN`, `GITHUB_WEBHOOK_SECRET`) | `.env` for now (verify signs webhooks / calls API) |
+| Verify **target + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
+
+```yaml
+# tests/config.yaml (gitignored)
+gateflow:                 # client → running product (verify_all needs this)
+  base_url: …
+  require_worker: …
+  org / repo / base_branch: …
+
+features:                 # omit sections you do not run
+  implement_lane:         # deep wave prove-it (not in verify_all)
+    enabled: …
+    evidence: …           # [VERIFY only]
+    timeout_s: …
+    wave_start: …         # [API] body for this feature only
+  spec_lane: …            # same shape when ready
+
+forge: …                  # debug_forge_client only
+```
+
+`verify_all` = product smoke (uses `gateflow:` + ephemeral wave identity).  
+Deep lanes read **only** their `features.*` wave_start — no shared flat `ticket_id`/`start_node`.
+
+```bash
+cp tests/config.yaml.example tests/config.yaml
+```
+
+Legacy flat `verify:` keys still migrate via the config loader into `gateflow:` /
+`features.implement_lane`. Prefer the nested shape in `config.yaml.example`.
+
+See also: `docs/runbooks/w1-runtime-api-worker.md`,
+`docs/runbooks/laptop-gh-vs-deploy-forgeclient.md`.
+
+## Feature map (INIT-GATEFLOW-001 — delivered)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Health | `python -m tests.verify.verify_health` (in `verify_all`) | `tests/unit/test_health.py` |
+| RunStore DTOs | — | `tests/unit/test_run_store_models.py` |
+| Webhook signature / idempotency | `python -m tests.verify.verify_webhook` (in `verify_all`) | `tests/unit/test_webhook_ingress.py` |
+| Trigger / policy | — | `tests/unit/test_trigger_policy.py` |
+| Orchestrator walker | — | `tests/unit/test_run_orchestrator.py` |
+| Programme-token status/metrics | `python -m tests.verify.verify_status_metrics` (in `verify_all`) | `tests/unit/test_programme_token_api.py` |
+| API wave-start + label ingress ack | `python -m tests.verify.verify_wave_start` (in `verify_all`) | — |
+| Full live smoke (product) | `python -m tests.verify.verify_all` | — |
+| Worker claim | `src.worker_main` (manual / compose) | `tests/unit/test_job_worker.py` |
+| Handoff / workflow resolve | — | `tests/unit/test_handoff_workflow.py` |
+| ForgeClient forbid gates | — | `tests/unit/test_forge_client.py` |
+
+## Feature map (INIT-GATEFLOW-002 — W0)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Env notifier (`GATEFLOW_NOTIFIER`) | — | `test_wave_start`, `test_slot_validator` |
+| Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
+| API wave-start Enter-at (FR-15) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
+| Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
+| Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
+| Stub fail-closed (FR-18) | — | `test_slot_validator`, `test_wave_start` |
+
+## Feature map (INIT-GATEFLOW-002 — W1)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Dispatch plan resolve + persist (FR-16) | — | `test_node_model_resolver`, `test_run_orchestrator` |
+| Pin walker until gate + hop cap | — | `test_run_orchestrator` (multi-hop / hop-cap) |
+| PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `gateflow.require_worker: true`) | `test_pr_branch_naming`, `test_forge_client`, `test_run_orchestrator` |
+| Metrics dims + api_trigger (FR-21/22) | `verify_pr_thread` + `verify_status_metrics` | `test_metrics_emitter` |
+| Cursor stub happy path (V-3) | — | `test_cursor_agent_runner` |
+
+## Feature map (INIT-GATEFLOW-002 — W2)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Board APIs create/list/status/link (FR-24) | `verify_board` (in `verify_all`) | `test_board_service`, `test_forge_client_board` |
+| Forge auth modes `pat` \| `app` (ADR-003) | `verify_board` when mode+creds set | `test_github_token_provider`, `test_forge_client` |
+| Worker isolation — zero board mutations | — | `test_process_job_never_calls_board_forge_mutations` |
+| Production gh-free path (FR-25/26a) | inspection checklist | `test_forge_client_source_has_no_gh_subprocess` |
+| Laptop gh vs deploy ForgeClient (FR-26b) | docs inspection | — |
+
+## Feature map (INIT-GATEFLOW-003 — W0)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| CursorAgentSettings (`CURSOR_API_KEY`) | — | `test_cursor_agent_settings` |
+| Local cursor-sdk AgentRunner (mocked) | implement-lane = W1 | `test_cursor_agent_runner` |
+| Start-gate missing key (422) | via wave-start live later | `test_slot_validator`, `test_wave_start` |
+| Laptop SDK spike note | inspection | `docs/specification/reports/Spike-Cursor-Local-SDK-INIT-GATEFLOW-003-W0.md` |
+
+## Feature map (INIT-GATEFLOW-003 — W1)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Docker/image cursor-sdk bridge spike | inspection | `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` |
+| Failure-path stage + duration_ms | — | `test_run_orchestrator`, `test_metrics_emitter` |
+| `runs.wave_duration_ms` + run detail | implement-lane verify (opt-in) | `test_run_orchestrator` |
+| Implement-lane live Cursor prove-it | `python -m tests.verify.verify_implement_lane` (opt-in; **not** in `verify_all`) | — |
+| Spec-lane live prove-it | `python -m tests.verify.verify_spec_lane` (scaffold; **not** in `verify_all`) | — |
+
+## Feature map (INIT-GATEFLOW-005 — BOUNDINPUT)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| `GATEFLOW_HANDOFF_ROOT` settings | — | `test_orchestration_settings` |
+| PromptResolver resolve/bind/render | — | `test_prompt_resolver` |
+| Required `ticket_id` on wave-start | `verify_wave_start` (supply ticket) | `test_wave_start` |
+| Message-only Cursor + anti-hardcode | — | `test_cursor_agent_runner` |
+| Stage `prompt_id` / `prompt_revision` | `verify_implement_lane` (assert fields) | `test_run_orchestrator` |
+| Ingest from stored `handoff_path` only (REQ-8b) | `verify_implement_lane` (W1 live) | `test_handoff_workflow`, `test_run_orchestrator` |
+| Dual-run baton isolation | — | `test_dual_run_isolation_distinct_handoff_paths` |
+
+Requires absolute `GATEFLOW_HANDOFF_ROOT` in `.env` and human Alembic for
+`runs.handoff_path` + `stages.prompt_id` / `stages.prompt_revision` before live prove-it.
+Packaged-skill automate ingest SSOT is the stored baton path under that root
+(`{GATEFLOW_HANDOFF_ROOT}/{run_id}/handoff.md`) — not ambient repo globs/mtime.
+
+### Implement-lane live verify prereqs
+
+Pin chain (Enter-at `pre-implement`):  
+`pre-implement` → `loop-spec` → `verify` → `ground-spec` → STOP at `wave-human-decision`.
+
+App secrets in `.env`; verify flags in `tests/config.yaml`. Shared Postgres/Redis via
+`POSTGRES_*` / `REDIS_*` — do not require `docker compose` when those already
+point at shared infra.
+
+```bash
+# Ensure migration applied (wave_duration_ms):
+# ./scripts/run_postgres_migration.sh head
+
+cp tests/config.yaml.example tests/config.yaml
+# edit tests/config.yaml:
+#   gateflow.require_worker: true
+#   features.implement_lane.enabled: true
+#   features.implement_lane.evidence: /absolute/path/...
+#   features.implement_lane.wave_start:  # API body for this feature only
+#     initiative_id / wave_id / ticket_id / branch_slug / start_node / …
+
+# Terminal — API + worker (CURSOR_API_KEY in Gateflow .env)
+make run
+
+# Separate terminal — lane prove-it only (do not mix with verify_all while Cursor runs)
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_implement_lane
+```
+
+Keep `features.implement_lane.enabled: false` for routine smoke.
+
+See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
+`docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

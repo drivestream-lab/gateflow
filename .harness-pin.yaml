@@ -1,0 +1,21 @@
+profile: python-backend
+delivery_contract: sdd-delivery/v2
+
+rules:
+  repo: drivestream-lab/python-services-rules
+  ref: v0.5.10
+
+agent_skills:
+  repo: drivestream-lab/prayog-skills
+  ref: v0.5.0-rc.2
+  profile: python-backend
+  skills:
+    - spec-draft
+    - initiative-feasibility
+    - spec-technical-review
+    - spec-implementation-plan
+    - board-seed
+    - pre-implement
+    - loop-spec
+    - ground-spec
+    - verify
