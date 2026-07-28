@@ -52,7 +52,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 - Programme config `notifier.*` + structured `model.overrides` object coerce (TASK-W0-01) — **missing / still `dict[str,str]`**
 - RunStore `wave_id` (+ active-run by wave identity) — **schema/repo gap; human Alembic DEP-06**
 - `GET /api/v1/runs` list/filter + detail timeline enrichment — **not implemented**
-- Label wave-start **disabled** for 002 programmes — **still primary path** (`verify_wave_smoke`)
+- Label wave-start **disabled** for 002 programmes — **still primary path** (`verify_wave_start`)
 
 → Treat all of the above as **implementation scope**, not assumed baselines. Do not start coding until human Alembic plan for `wave_id` is agreed (DEP-06).
 

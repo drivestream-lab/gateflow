@@ -7,12 +7,15 @@
 | As-built | [`as-built/implementation-status.md`](as-built/implementation-status.md) | Live vs deferred; verification matrix |
 | Reports | [`reports/`](reports/) | Feasibility, technical review, implementation plan |
 
-## Engineering lane naming
+## Lane naming
 
 | Name | Meaning | Legacy PRD label |
 |------|---------|------------------|
 | **spec lane** | PRD → repo spec / feasibility / TDD / plan | Scenario A |
-| **implement lane** | pre-implement → loop → verify → ground | Scenario B / engineering-lane |
+| **implement lane** | pre-implement → loop → verify → ground | Scenario B |
+
+Verify: `verify_spec_lane` / `verify_implement_lane`. Product smoke: `verify_all`
+(does not include deep lane prove-its).
 
 Active initiative draft: [`product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md`](product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md).
 

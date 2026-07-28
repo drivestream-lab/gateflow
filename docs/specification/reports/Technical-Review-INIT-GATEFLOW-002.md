@@ -278,7 +278,7 @@ Caller supplies on `POST /waves/start` (required):
 {
   "initiative_id": "INIT-GATEFLOW-003",
   "wave_id": "W1",
-  "branch_slug": "engineering-lane",
+  "branch_slug": "implement-lane",
   "base_branch": "develop",
   "start_node": "pre-implement",
   "runner": "cursor",

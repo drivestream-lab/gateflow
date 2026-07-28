@@ -16,7 +16,7 @@ Produced by `/pre-implement` on 2026-07-23. **No product code in this stage.**
 | Impact-map repo scope | revision and scope digest match canonical handoff | **match** — plan rows CURRENT (rev 3; scope digest as in plan frontmatter) |
 | `check_command` | resolved | **`make check`** |
 | `test_command` | resolved | **`make test`** |
-| `verify_command` | resolved or N/A | **resolved** — W1 target: `.venv/bin/python -m tests.verify.verify_wave_smoke` (+ `verify_status_metrics`); until scripts land use `verify_all` as baseline smoke |
+| `verify_command` | resolved or N/A | **resolved** — W1 target: `.venv/bin/python -m tests.verify.verify_wave_start` (+ `verify_status_metrics`); until scripts land use `verify_all` as baseline smoke |
 | `ground_command` | resolved or N/A | **N/A** — `/ground-spec` skill (no Makefile ground target) |
 | Prior wave as-built row | `human_approved` | **W0 = human_approved** |
 | Prior Ground Report exists | `Ground-Report-*-W0.md` | **exists** |
@@ -61,7 +61,7 @@ Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Con
   - [x] `http-api-conventions.mdc` — status/metrics GET contracts
   - [x] `fail-fast.mdc` — precondition / pin failure behaviour
   - [x] `logging-loguru.mdc` — structured run-event logging
-  - [x] `testing-verify-flows.mdc` — verify_wave_smoke / verify_all
+  - [x] `testing-verify-flows.mdc` — verify_wave_start / verify_all
   - [x] `strong-typing.mdc` / `python-imports.mdc` / `python-tooling.mdc` — quality bar
   - skipped: `database-migrations.mdc` (no new DDL planned in W1 unless metrics retention needs it — flag if schema change appears)
 - [x] ADRs (keyword-matched):
@@ -86,9 +86,9 @@ Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Con
 
 - [ ] Product spec — only if W1 implementation changes FR contracts (prefer no drift)
 - [ ] `docs/specification/as-built/implementation-status.md` — W1 verification rows
-- [ ] `tests/README.md` — feature map for `verify_wave_smoke`, `verify_status_metrics`, `verify_all` composition
+- [ ] `tests/README.md` — feature map for `verify_wave_start`, `verify_status_metrics`, `verify_all` composition
 - [ ] Unit — preconditions, concurrent reject, policy dispatch/stop/retry, orchestrator branches, programme-token 401, tool none, agent fail-closed
-- [ ] Live — `verify_wave_smoke` (label→stop); `verify_status_metrics`; keep `verify_all` green
+- [ ] Live — `verify_wave_start` (label→stop); `verify_status_metrics`; keep `verify_all` green
 - [ ] ADR — only if superseding Accepted ADR (PE review required)
 
 ---
@@ -135,7 +135,7 @@ Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Con
 | `src/app.py` — extend `public_paths` for programme reads | edit |
 | `src/di/modules/*`, `dependency_container.py` | edit |
 | `src/worker_main.py` / `job_worker_service.py` — replace stub with orchestrator | edit |
-| `tests/verify/verify_wave_smoke.py`, `verify_status_metrics.py` | create |
+| `tests/verify/verify_wave_start.py`, `verify_status_metrics.py` | create |
 | `tests/README.md`, as-built, W1 runbook under `docs/` | edit/create |
 
 ---
@@ -146,7 +146,7 @@ Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Con
 |-------|----------------|---------|
 | Static check | format, lint, types, layers | `make check` |
 | Unit | policy, retry, concurrent, auth, tool none, fail-closed runner | `make test` |
-| Live verify | label→stop + RunStore; programme-token reads | `.venv/bin/python -m tests.verify.verify_wave_smoke` ; `.venv/bin/python -m tests.verify.verify_status_metrics` (add in W1-08); interim: `.venv/bin/python -m tests.verify.verify_all` |
+| Live verify | label→stop + RunStore; programme-token reads | `.venv/bin/python -m tests.verify.verify_wave_start` ; `.venv/bin/python -m tests.verify.verify_status_metrics` (add in W1-08); interim: `.venv/bin/python -m tests.verify.verify_all` |
 | Ground check | W1 FRs + boundaries | `/ground-spec` (no Makefile `ground_command`) |
 
 ---
@@ -185,7 +185,7 @@ handoff:
     prior_as_built: human_approved
     check_command: make check
     test_command: make test
-    verify_command: .venv/bin/python -m tests.verify.verify_wave_smoke
+    verify_command: .venv/bin/python -m tests.verify.verify_wave_start
     verify_command_interim: .venv/bin/python -m tests.verify.verify_all
     ground_command: N/A
     deferred_risk: D-W0-V2

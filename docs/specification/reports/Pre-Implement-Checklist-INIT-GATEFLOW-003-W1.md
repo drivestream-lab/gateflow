@@ -1,4 +1,4 @@
-# Pre-implement — drivestream-lab/gateflow / W1 — engineering-lane prove-it + cycle-time + Docker spike
+# Pre-implement — drivestream-lab/gateflow / W1 — implement-lane prove-it + cycle-time + Docker spike
 
 Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrated run `INIT-SCENB-8544986`). **No product code in this stage.**
 
@@ -18,7 +18,7 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 | Impact-map repo scope | revision and scope digest match canonical handoff | **match** — plan records revision **2** and scope `sha256:aaf398dc…` @ meta head `4c9cacb8…` (no local `prayog-meta/` clone) |
 | `check_command` | resolved | **`make check`** — pass (2026-07-25) |
 | `test_command` | resolved | **`make test`** — 111 passed (2026-07-25) |
-| `verify_command` | resolved or N/A | **resolved** — `.venv/bin/python -m tests.verify.verify_engineering_lane` (opt-in via `tests/config.yaml`); aggregator `.venv/bin/python -m tests.verify.verify_all` |
+| `verify_command` | resolved or N/A | **resolved** — `.venv/bin/python -m tests.verify.verify_implement_lane` (opt-in via `tests/config.yaml`); aggregator `.venv/bin/python -m tests.verify.verify_all` |
 | `ground_command` | resolved or N/A | **N/A** — `/ground-spec` skill (no Makefile ground target) |
 | Prior wave as-built row | `human_approved` | **INIT-003 W0 = human_approved** in `docs/specification/as-built/implementation-status.md` |
 | Prior Ground Report exists | `reports/Ground-Report-{SPEC}-W{N-1}.md` | **exists** — `docs/specification/reports/Ground-Report-INIT-GATEFLOW-003-W0.md` (**human_approved**) |
@@ -60,16 +60,16 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 | Failure-path stage + duration | `RunOrchestrator.process_job` → `record_stage_duration` + `StageCreate` on FAILED | **yes** — `src/business_services/run_orchestrator.py` |
 | `runs.wave_duration_ms` | `_compute_wave_duration_ms` + ORM/DTO | **yes** — schema, models, finalize path; human Alembic note in repo |
 | Docker bridge spike | inspection | **yes** — `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` **pass** |
-| Engineering-lane live verify harness | `tests/verify/verify_engineering_lane.py` | **yes** — opt-in via `tests/config.yaml` (`engineering_lane: true`, `require_worker: true`, `start_node: pre-implement`) |
+| Implement-lane live verify harness | `tests/verify/verify_implement_lane.py` | **yes** — opt-in via `tests/config.yaml` (`features.implement_lane.enabled: true`, `gateflow.require_worker: true`) |
 
 **Unconfirmed contracts** (exit evidence still open):
 
-- Live engineering-lane coding-work prove-it with real `CURSOR_API_KEY` + worker (REQ-27 / D-W1-L1) — **this orchestrated run** (`INIT-SCENB-8544986`, `start_node=pre-implement`, branch slug `engineering-lane`)
+- Live implement-lane coding-work prove-it with real `CURSOR_API_KEY` + worker (REQ-27 / D-W1-L1) — **this orchestrated run** (`INIT-SCENB-8544986`, `start_node=pre-implement`, branch slug `implement-lane`)
 - W1 Ground Report PE sign-off — as-built row still **Draft** (expected until `/ground-spec` + human checkpoint)
 
 **Carried risk from W0/W1:**
 
-- **D-W0-L1** — live `finished` path; Docker bridge **pass**; engineering-lane live still the exit gate
+- **D-W0-L1** — live `finished` path; Docker bridge **pass**; implement-lane live still the exit gate
 - **D-W0-M1** — programme `cursor/auto` mapped via `_sdk_model_id`
 - **DEP-07** — live verify needs real `CURSOR_API_KEY` + model entitlement; stub env unset
 
@@ -86,7 +86,7 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
   - [x] `database-migrations.mdc` — human owns `postgres_migrations/versions/` for `wave_duration_ms`
   - [x] `pydantic-schemas.mdc` — DTOs in `src/models/`; `wave_duration_ms` on run detail
   - [x] `fail-fast.mdc` — auth/start/crash → `failed`; no pretend success
-  - [x] `testing-verify-flows.mdc` — engineering-lane in `tests/verify/`; no duplicate full journeys in pytest
+  - [x] `testing-verify-flows.mdc` — implement-lane in `tests/verify/`; no duplicate full journeys in pytest
   - [x] `strong-typing.mdc` — typed stage/run fields; enums for outcomes
   - [x] `logging-loguru.mdc` — structured kwargs (`run_id`, `workflow_node`, `duration_ms`, `wave_duration_ms`)
   - [x] `spec-driven-development.mdc` — same-PR as-built + tests README with code
@@ -96,15 +96,15 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
   - skipped: `code-guidelines-index.mdc` — index only
 - [x] ADRs (keyword-matched — Accepted):
   - [x] ADR-001 — dual API+worker + Postgres RunStore; human Alembic for `wave_duration_ms`
-  - [x] ADR-003 — AgentRunner remains infra slot; engineering-lane prove-it consumes `run_skill` I/O
+  - [x] ADR-003 — AgentRunner remains infra slot; implement-lane prove-it consumes `run_skill` I/O
   - [x] ADR-004 — secrets via env (`CURSOR_API_KEY`); dispatch plan not programme YAML for runner/model
   - [x] ADR-006 — fail-closed start-gate retained; stub not live exit
   - skipped: ADR-002 / ADR-005 — edge trust / programme-token mutations unchanged this wave
-- [x] Spec: `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` (REQ-27…31; engineering-lane)
+- [x] Spec: `docs/specification/product/INIT-GATEFLOW-003-gateflow.md` (REQ-27…31; implement-lane)
 - [x] Plan wave section: `docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-003.md` Phase W1 (TASK-W1-01…05)
 - [x] Prior ground: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-003-W0.md`
 - [x] TDD notes: `docs/specification/reports/Technical-Review-INIT-GATEFLOW-003.md` §3.3 Docker / §3.4–3.5 metrics
-- [x] `tests/README.md` — W1 engineering-lane map + prereqs
+- [x] `tests/README.md` — W1 implement-lane map + prereqs
 
 ---
 
@@ -120,9 +120,9 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 
 - [ ] Product spec — REQ-28 dispatch-plan wording already on wave branch; finalize in loop-spec/ground-spec PR if drift remains
 - [ ] `docs/specification/as-built/implementation-status.md` — INIT-003 W1 capability rows + wave status (after live prove-it)
-- [ ] `tests/README.md` — keep engineering-lane prereqs current
+- [ ] `tests/README.md` — keep implement-lane prereqs current
 - [x] Unit — failure-path stage + duration; `wave_duration_ms` (`tests/unit/test_run_orchestrator.py`, `test_metrics_emitter.py`)
-- [ ] Live verify — `.venv/bin/python -m tests.verify.verify_engineering_lane` (this orchestrated run is the live prove-it path)
+- [ ] Live verify — `.venv/bin/python -m tests.verify.verify_implement_lane` (this orchestrated run is the live prove-it path)
 - [x] Docker spike note — `docs/specification/reports/Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md`
 - [ ] W1 Ground Report PE sign-off — after `/ground-spec`
 
@@ -131,7 +131,7 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 ### Must not
 
 - [ ] Implement against spec wording that contradicts an Accepted ADR without first superseding that ADR
-- [ ] Duplicate full engineering-lane HTTP journeys in unit tests when live verify owns them
+- [ ] Duplicate full implement-lane HTTP journeys in unit tests when live verify owns them
 - [ ] Treat `GATEFLOW_AGENT_STUB` / `mock-*` success as REQ-27 live prove-it evidence
 - [ ] Pass cloud agent options to `cursor-sdk`
 - [ ] Rebuild wave-start / PR-at-start / board / ForgeClient
@@ -146,7 +146,7 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 |-------|----------------|---------|
 | Static check | format / lint / types / layers | `make check` |
 | Unit | failure stage+duration; wave_duration_ms; no stub-as-live | `make test` |
-| Live verify | Engineering-lane live Cursor coding work + runner=cursor + PR-at-start | `.venv/bin/python -m tests.verify.verify_engineering_lane` |
+| Live verify | Implement-lane live Cursor coding work + runner=cursor + PR-at-start | `.venv/bin/python -m tests.verify.verify_implement_lane` |
 | Spike | Docker/bridge readiness | inspection of Docker spike note |
 | Ground check | FRs satisfied; boundaries respected | `/ground-spec` (N/A Makefile) |
 
@@ -156,11 +156,11 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 
 - Initiative: **INIT-GATEFLOW-003** (orchestrated verify id: **INIT-SCENB-8544986**)
 - Orchestrated PR: [#36](https://github.com/drivestream-lab/gateflow/pull/36) — `feature/INIT-SCENB-8544986-w1-scenario-b`
-- Issue: [#21](https://github.com/drivestream-lab/gateflow/issues/21) — `[INIT-GATEFLOW-003 W1] engineering-lane prove-it + cycle-time`
+- Issue: [#21](https://github.com/drivestream-lab/gateflow/issues/21) — `[INIT-GATEFLOW-003 W1] implement-lane prove-it + cycle-time`
 - EPIC: [#19](https://github.com/drivestream-lab/gateflow/issues/19)
 - Spec path: `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`
 - Plan: `docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-003.md` Phase W1
-- Verify command: `make check && make test` ; live `.venv/bin/python -m tests.verify.verify_engineering_lane`
+- Verify command: `make check && make test` ; live `.venv/bin/python -m tests.verify.verify_implement_lane`
 - ADRs in scope: ADR-001, ADR-003, ADR-004, ADR-006 (reuse)
 
 ---
@@ -168,8 +168,8 @@ Produced by `/pre-implement` on 2026-07-25 for **INIT-GATEFLOW-003** (orchestrat
 ### Merge order (if cross-module / cross-service)
 
 1. Human Alembic for `runs.wave_duration_ms` applied before live verify asserting the field (DEP-06).
-2. Docker spike (TASK-W1-01) **before** engineering-lane live exit — **done** (pass).
-3. Orchestrated engineering-lane chain on `feature/INIT-SCENB-8544986-w1-scenario-b`: `/pre-implement` → `/loop-spec` → `/verify` → `/ground-spec`.
+2. Docker spike (TASK-W1-01) **before** implement-lane live exit — **done** (pass).
+3. Orchestrated implement-lane chain on `feature/INIT-SCENB-8544986-w1-scenario-b`: `/pre-implement` → `/loop-spec` → `/verify` → `/ground-spec`.
 4. Product wave PR on `feature/INIT-GATEFLOW-003-w1-*` → merge to `develop` → `/ground-spec` W1 PE sign-off.
 5. Scenario A / prayog-skills CTR-01 remains **W2**.
 
@@ -197,12 +197,12 @@ handoff:
     prior_ground_report: docs/specification/reports/Ground-Report-INIT-GATEFLOW-003-W0.md
     check_command: make check
     test_command: make test
-    verify_command: .venv/bin/python -m tests.verify.verify_engineering_lane
+    verify_command: .venv/bin/python -m tests.verify.verify_implement_lane
     ground_command: N/A — /ground-spec skill
     gate_verdict: PASS
     spec_digest_note: wave-branch REQ-28 forward edit; feasibility+TDR CURRENT
     carried_risks: [D-W0-L1, D-W0-M1, DEP-07, D-W1-L1]
-    engineering_lane_evidence: /Users/kumar.deepak1/Workspace/handson/drivestream-lab/run_gateflow/evidence/engineering-lane-live.json
+    implement_lane_evidence: /Users/kumar.deepak1/Workspace/handson/drivestream-lab/run_gateflow/evidence/implement-lane-live.json
   next_candidates:
     - loop-spec
   human_checkpoint: false

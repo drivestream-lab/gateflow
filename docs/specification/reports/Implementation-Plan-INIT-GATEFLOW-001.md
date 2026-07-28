@@ -129,7 +129,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 | TASK-W1-05 | Programme-token status + metrics routes (`GET /api/v1/runs/{id}`, `GET /api/v1/metrics/runs`); public_paths | drivestream-lab/gateflow | same | 401 without token; 200 shape matches TDD | `make check && make test` | http-api-conventions; models in src/models | ADR-002 | `feature/INIT-GATEFLOW-001-w1-status-metrics` |
 | TASK-W1-06 | StageToolResolver + None ToolProvider | drivestream-lab/gateflow | same | Empty tool context; no node→slot hardcode | `make check && make test` | — | ADR-003 | `feature/INIT-GATEFLOW-001-w1-tools` |
 | TASK-W1-07 | Docker compose / runtime docs: API + worker; health 200 while worker processes | drivestream-lab/gateflow | same | Documented run; health OK | inspection + live | — | ADR-001 | `feature/INIT-GATEFLOW-001-w1-runtime-docs` |
-| TASK-W1-08 | Live verify e2e smoke (label→stop) + metrics/status verify scripts; tests README feature map | drivestream-lab/gateflow | same | verify scripts exit 0 on dogfood stack | `.venv/bin/python -m tests.verify.verify_wave_smoke` (when added) | testing-verify-flows | — | `feature/INIT-GATEFLOW-001-w1-verify` |
+| TASK-W1-08 | Live verify e2e smoke (label→stop) + metrics/status verify scripts; tests README feature map | drivestream-lab/gateflow | same | verify scripts exit 0 on dogfood stack | `.venv/bin/python -m tests.verify.verify_wave_start` (when added) | testing-verify-flows | — | `feature/INIT-GATEFLOW-001-w1-verify` |
 | TASK-W1-09 | W1 runbook “Orchestrate a new initiative repo”; as-built W1 complete | drivestream-lab/gateflow | same | Runbook in docs; as-built matrix updated | docs inspection | SDD | — | same PR as docs |
 
 #### Files (W1)
@@ -142,7 +142,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 | FILE-W1-04 | `src/api/.../programme_token.py` (dependency) | create |
 | FILE-W1-05 | `docker/` / compose / README run docs | edit |
 | FILE-W1-06 | `docs/` W1 runbook | create |
-| FILE-W1-07 | `tests/unit/**`, `tests/verify/verify_wave_smoke.py`, `verify_status_metrics.py` | create |
+| FILE-W1-07 | `tests/unit/**`, `tests/verify/verify_wave_start.py`, `verify_status_metrics.py` | create |
 | FILE-W1-08 | `tests/README.md`, as-built | edit |
 
 #### Tests (W1)
@@ -150,7 +150,7 @@ deciders: PE — spec-lgtm + Approve on exact head after full package
 | ID | Layer | Command | Proves |
 |----|-------|---------|--------|
 | TEST-W1-U | unit | `make test` | policy, retry, concurrent, auth, tool none |
-| TEST-W1-V | live verify | `.venv/bin/python -m tests.verify.verify_wave_smoke` | label → stop comment + RunStore |
+| TEST-W1-V | live verify | `.venv/bin/python -m tests.verify.verify_wave_start` | label → stop comment + RunStore |
 | TEST-W1-V2 | live verify | `.venv/bin/python -m tests.verify.verify_status_metrics` | programme-token reads |
 
 ---

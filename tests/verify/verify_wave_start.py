@@ -4,6 +4,9 @@ Requires running API + migrated Postgres (including runs.wave_id) and
 PROGRAMME_SERVICE_TOKEN. Labelled webhooks may still 202 at ingress but must
 not be treated as the start path for 002 programmes.
 
+Uses gateflow: target + ephemeral wave identity (does not read
+features.implement_lane — avoids colliding with deep lane prove-it config).
+
 Usage:
   cp tests/config.yaml.example tests/config.yaml   # once
   set -a && source .env && set +a                  # app secrets only
@@ -20,7 +23,7 @@ import uuid
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -38,19 +41,14 @@ def main() -> int:
 
     headers = {"Authorization": f"Bearer {token}"}
     start_url = f"{base_url}/api/v1/waves/start"
-    initiative_id = f"INIT-VFY-{uuid.uuid4().int % 10_000_000}"
-    wave_id = "W0"
-    body = {
-        "org": cfg.verify.org,
-        "repo": cfg.verify.repo,
-        "initiative_id": initiative_id,
-        "wave_id": wave_id,
-        "branch_slug": "verify-wave-start",
-        "base_branch": cfg.forge.base_branch,
-        "start_node": cfg.verify.start_node,
-        "runner": cfg.verify.runner,
-        "model_id": cfg.verify.model_id,
-    }
+    identity, body = smoke_wave_start_fields(
+        cfg.gateflow,
+        branch_slug="verify-wave-start",
+        wave_id="W0",
+        initiative_prefix="INIT-VFY",
+    )
+    initiative_id = identity["initiative_id"]
+    wave_id = identity["wave_id"]
 
     try:
         with httpx.Client(timeout=30.0) as client:

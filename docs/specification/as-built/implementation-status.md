@@ -10,7 +10,7 @@
 
 | Name | Legacy | Status |
 |------|--------|--------|
-| **implement lane** | Scenario B / engineering-lane | Live prove-it **pass** (W1) |
+| **implement lane** | Scenario B | Live prove-it **pass** (W1) |
 | **spec lane** | Scenario A | W2 — live prove-it waits on next PRD + pin CTR-01 |
 
 ## Testing harness

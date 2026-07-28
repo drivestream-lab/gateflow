@@ -38,7 +38,7 @@ W0→W1→W2.
 | Area | Current state | Evidence |
 |------|---------------|----------|
 | Unit tests | `tests/unit/` — 12 modules (health, webhook, trigger/policy, orchestrator, programme token API, forge forbid, RunStore DTOs, etc.) | `tests/unit/*.py`, `pyproject.toml` `testpaths = ["tests/unit"]`, `Makefile` `test` |
-| Live verify | `verify_health`, `verify_webhook`, `verify_status_metrics`, `verify_wave_smoke` (+ `verify_all`) | `tests/verify/`, `tests/README.md` feature map (INIT-001 only) |
+| Live verify | `verify_health`, `verify_webhook`, `verify_status_metrics`, `verify_wave_start` (+ `verify_all`) | `tests/verify/`, `tests/README.md` feature map (INIT-001 only) |
 | As-built | W0+W1 **human_approved**; label webhook → worker → status/metrics | `docs/specification/as-built/implementation-status.md` (Updated 2026-07-23) |
 | Toolchain | `make check` (black/ruff/pyright/import-linter); CI placeholder | `Makefile`, `.github/workflows/ci.yml` |
 | Source | Full control-plane modules under `src/` (API + worker) | `src/main.py`, `src/worker_main.py`, `src/business_services/*`, `src/infra_services/forge_client.py` |
@@ -74,7 +74,7 @@ W0→W1→W2.
 
 | Spec ref / wave | Spec claim | Code evidence | Unit | Verify | Status |
 |-----------------|------------|---------------|------|--------|--------|
-| FR-15 W0 | Authenticated wave-start API; dual identity; label trigger removed | No POST wave-start under `src/api/v1/`; `TriggerRouter` still label-authorizes (`trigger_router.py`); `config/programme.yaml` `trigger.label` | `test_trigger_policy.py` (label path) | `verify_wave_smoke` (label) | gap (+ label path **exists** — must change) |
+| FR-15 W0 | Authenticated wave-start API; dual identity; label trigger removed | No POST wave-start under `src/api/v1/`; `TriggerRouter` still label-authorizes (`trigger_router.py`); `config/programme.yaml` `trigger.label` | `test_trigger_policy.py` (label path) | `verify_wave_start` (label) | gap (+ label path **exists** — must change) |
 | FR-16 W1 | Per-node runner + model overrides | `ModelConfig.overrides: dict[str, str]` profile-only; `run_orchestrator.py` uses `runner.default` always | `test_programme_config.py` | — | partial |
 | FR-17 W0 | Cursor live + OpenCode/Claude stubs registered | Only `CursorAgentRunner` bound in `infra_module.py` | via orchestrator | — | partial (cursor only) |
 | FR-18 W0 | Fail-closed stub/config validation at start | No pre-enqueue registry validation; Cursor fails closed mid-dispatch only | `test_run_orchestrator.py` | — | gap |
@@ -121,7 +121,7 @@ W0→W1→W2.
 
 | ID | Check | Finding | Evidence |
 |----|-------|---------|----------|
-| S-1 | F2 / F5 | Label trigger path is still the live wave-start mechanism; FR-15 requires removal for 002 programmes — must be an explicit breaking change in code + verify + as-built. | `trigger_router.py` PC-01 label check; `config/programme.yaml` `trigger.label`; `verify_wave_smoke.py`; as-built row “TriggerRouter” |
+| S-1 | F2 / F5 | Label trigger path is still the live wave-start mechanism; FR-15 requires removal for 002 programmes — must be an explicit breaking change in code + verify + as-built. | `trigger_router.py` PC-01 label check; `config/programme.yaml` `trigger.label`; `verify_wave_start.py`; as-built row “TriggerRouter” |
 | S-2 | F2 | No AgentRunner/Notifier **registry**; OpenCode/Claude/Slack/Teams stubs absent; fail-closed validation at **start** missing. | `infra_module.py` binds only `CursorAgentRunner` + `ForgeClient`; `notifier.py` GitHub-only; no `notifier` in `ProgrammeConfig` |
 | S-3 | F2 | ForgeClient lacks PR create/update and board primitives required by FR-19/FR-24. | `forge_client.py`: `post_comment`, forbid helpers only |
 | S-4 | F2 / F4 | Run APIs lack list/filter and stage/event timeline; metrics lack runner/`model_id` dimensions. | `RunStatusResponse` fields; `RunMetricsResponse.by_workflow_node` only; `metrics_emitter.py` |
@@ -132,7 +132,7 @@ W0→W1→W2.
 
 | ID | Check | Finding | Evidence |
 |----|-------|---------|----------|
-| V-1 | F3 | Live verify for wave start today is **label** smoke; 002 needs API wave-start verify + board verify (W2) + `gh`-free production-path inspection. | `tests/verify/verify_wave_smoke.py`, `verify_all.py` |
+| V-1 | F3 | Live verify for wave start today is **label** smoke; 002 needs API wave-start verify + board verify (W2) + `gh`-free production-path inspection. | `tests/verify/verify_wave_start.py`, `verify_all.py` |
 | V-2 | F8 | CI remains unit/`make check` only; live verify stays local — document 002 scripts the same way. | `tests/README.md`, `.github/workflows/ci.yml` placeholder |
 | V-3 | F10 | Spec A-1 “001 delivered” matches as-built human_approved; Cursor **SDK** still stub — W1 “Cursor happy path” may still need stub env or real SDK work (carry INIT-001 deferred D-W1-A1). | `cursor_agent_runner.py`; as-built “Deferred: real Cursor SDK” |
 
@@ -149,7 +149,7 @@ W0→W1→W2.
 
 | Wave / area | Likely files/modules | Test touch |
 |-------------|----------------------|------------|
-| W0 — wave-start API + label disable + stubs + run list/detail | `src/api/v1/*`, `trigger_router.py`, `programme_config_models.py`, `run_store_*`, DI modules | New unit: wave-start auth/identity/preconditions; update `verify_wave_smoke` → API start; extend `test_programme_token_api` |
+| W0 — wave-start API + label disable + stubs + run list/detail | `src/api/v1/*`, `trigger_router.py`, `programme_config_models.py`, `run_store_*`, DI modules | New unit: wave-start auth/identity/preconditions; update `verify_wave_start` → API start; extend `test_programme_token_api` |
 | W1 — per-node model, PR-at-start, metrics dims, Cursor path | `run_orchestrator.py`, `forge_client.py`, `notifier.py`, `metrics_emitter.py`, `cursor_agent_runner.py`, programme `pr.*` / overrides | Unit fixtures ≥2 overrides; forge PR tests; metrics dimension tests; live PR-thread verify |
 | W2 — board APIs + gh-free proof | New board routes/models; ForgeClient board methods; deploy verification doc/test | Board API unit + verify; production-path inspection |
 
