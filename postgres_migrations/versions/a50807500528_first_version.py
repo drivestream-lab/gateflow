@@ -1,8 +1,8 @@
 """first version
 
-Revision ID: 36b36d3d4fc9
+Revision ID: a50807500528
 Revises: 
-Create Date: 2026-07-23 18:29:22.186928
+Create Date: 2026-07-28 06:00:04.616578
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '36b36d3d4fc9'
+revision: str = 'a50807500528'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,8 @@ def upgrade() -> None:
     sa.Column('pr_number', sa.Integer(), nullable=True),
     sa.Column('issue_number', sa.Integer(), nullable=True),
     sa.Column('initiative_id', sa.String(length=255), nullable=True),
+    sa.Column('wave_id', sa.String(length=64), nullable=True),
+    sa.Column('wave_duration_ms', sa.Integer(), nullable=True),
     sa.Column('retry_counter', sa.Integer(), nullable=False),
     sa.Column('notify_pending', sa.Boolean(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for the record'),
@@ -37,6 +39,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.TIMESTAMP(timezone=True), nullable=True, comment='Timestamp (UTC) when record was last updated'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_runs_wave_id'), 'runs', ['wave_id'], unique=False)
     op.create_table('webhook_deliveries',
     sa.Column('delivery_id', sa.String(length=255), nullable=False),
     sa.Column('event_type', sa.String(length=128), nullable=False),
@@ -108,5 +111,6 @@ def downgrade() -> None:
     op.drop_table('jobs')
     op.drop_index(op.f('ix_webhook_deliveries_delivery_id'), table_name='webhook_deliveries')
     op.drop_table('webhook_deliveries')
+    op.drop_index(op.f('ix_runs_wave_id'), table_name='runs')
     op.drop_table('runs')
     # ### end Alembic commands ###
