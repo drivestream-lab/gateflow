@@ -2,27 +2,32 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Accepted |
-| Initiative | INIT-GATEFLOW-006 |
-| Relates to | Extends ADR-005 (programme-token wave mutations); ADR-007 (bound prompt inputs); ADR-008 (stored baton ingest); ADR-009 (forge mutate remains separate) |
+| Status | Accepted — **amendment Draft** for INIT-GATEFLOW-007 closeout intake (pending PE re-accept on Draft spec PR; no ADR-011) |
+| Initiative | INIT-GATEFLOW-006; amended by INIT-GATEFLOW-007 |
+| Relates to | Extends ADR-005 (programme-token wave mutations); ADR-007 (bound prompt inputs); ADR-008 (stored baton ingest); ADR-009 (forge mutate remains separate); ADR-001 (Postgres SSOT for learning ingest is orthogonal — product INIT-007) |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance directed on 2026-07-29 via Cursor chat (INIT-GATEFLOW-006 interactive implement session — “Go ahead let us implement this now”) |
 | Approved head | Record on merge of the ADR+W3 accept commit |
+| Amendment | Closeout (Pass-2) intake folded here — see Recommendation §6; PE re-accept on INIT-GATEFLOW-007 TDD/spec PR |
 
 ## Context
 
 Gateflow starts waves through a programme-token control plane (ADR-005). Product
-now requires **two intake shapes**:
+requires **distinct intake shapes** (not one optional mega-body):
 
 1. **Implement lane** — board/wave identity (`ticket_id`, initiative, wave) and
    Enter-at an orchestrated implement skill. App workspace only.
 2. **Spec lane** — meta programme intake via a **prayog-meta PR URL**, with a
    **dual workspace bind**: app coding root (`workspace`) plus a checked-out
    meta tree (`meta_workspace`) for read intake.
+3. **Wave closeout (Pass-2)** — finish an existing wave after human live-verify:
+   **new run**, bind the **existing wave PR**, fixed Enter-at pin
+   `learning-extract` (orchestrated). Same route for both lanes; meta intake
+   fields are not required unless a later INIT adds them.
 
-A single optional mega-body for both lanes hides required fields and produces
-dishonest OpenAPI. This ADR decides **authority** for intake and bind — not
-HTTP path strings, pin skill ids, or forge publish/mutate (ADR-009).
+A single optional mega-body across these shapes hides required fields and
+produces dishonest OpenAPI. This ADR decides **authority** for intake and bind —
+not HTTP path strings, pin skill ids, or forge publish/mutate (ADR-009).
 
 ## Options considered
 
@@ -56,6 +61,17 @@ HTTP path strings, pin skill ids, or forge publish/mutate (ADR-009).
    intake; durable coding writes target the app workspace / app forge head.
 5. **Pin remains dispatch SSOT.** Spec Enter-at must be an orchestrated skill
    on the active pin; Gateflow does not invent orchestrated edges.
+6. **Closeout intake authority (INIT-GATEFLOW-007).** A **third** distinct
+   programme-token start contract finishes a wave (Pass-2). Authority =
+   wave identity + absolute app `workspace` + **required** existing PR bind
+   (`org`/`repo`/`pr_number` or equivalent) + dispatch defaults, with Enter-at
+   **fixed** to orchestrated `learning-extract` (client must not choose
+   arbitrary `start_node`). Creates a **new** `run_id` — does **not** resume a
+   stopped Pass-1 run (no authorize→resume). Concurrent **ACTIVE** run for the
+   same scope still fails closed (ADR-005 catalogue / existing RunStore policy).
+   Optional `prior_run_id` is audit-only. Learning rows and artifact ingest are
+   **not** intake authority — they follow ADR-001 + product/TDD data contract.
+   Exact path (e.g. `/waves/closeout/start`) remains TDD.
 
 Exact route paths, column names, and Gate 1 APPROVED evidence depth remain
 TDD / INIT — this ADR does not catalogue them.
@@ -67,6 +83,9 @@ TDD / INIT — this ADR does not catalogue them.
 - Pin packages that need meta must declare `meta_workspace` (and optionally
   `meta_pr_url`) — Gateflow consumes; it does not invent schema.
 - Callers of the former undifferentiated start must move in the same cutover.
+- Closeout callers use a dedicated body (PR required; fixed Enter-at); Pass-1
+  lane starts remain unchanged; pin `learning-extract` / `ground-spec` stay
+  dispatch SSOT for Pass-2 walk.
 
 ## Revisit triggers
 
@@ -74,3 +93,5 @@ TDD / INIT — this ADR does not catalogue them.
 - Meta intake becomes fetch-only (no local checkout) via a superseding ADR.
 - Spec writes are allowed directly into the meta tree as a product rule.
 - A superseding ADR changes lane intake authority.
+- Product mandates authorize→resume from `live-verify` into closeout skills
+  (same-run continuation) instead of new-run closeout Enter-at.
