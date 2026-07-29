@@ -106,7 +106,7 @@
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
 | INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W0.md` | **human_approved** (2026-07-28; live implement-lane prove-it deferred to W1 — D-W0-V1) |
 | INIT-005 W1 | Ingest-only `handoff_path` + dual-run isolation | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md` | **human_approved** (2026-07-28; live implement-lane deferred D-W1-V1 / D-W0-B1 — pin baton write) |
-| INIT-005 W2 | Multi-skill packaged dogfood (REQ-10) | (pending ground report) | **in_progress** — `feature/INIT-GATEFLOW-005-w2-dogfood` |
+| INIT-005 W2 | Multi-skill packaged dogfood (REQ-10) | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W2.md` | **ground-ready** — `feature/INIT-GATEFLOW-005-w2-dogfood`; live chain pending (D-W1-V1) |
 | INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
 | INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred |
 | INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
@@ -214,11 +214,11 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 D-W0-I1 closed. Live implement-lane deferred (D-W1-V1 / D-W0-B1 — pin must write
 envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.
 
-**INIT-GATEFLOW-005 W2 (2026-07-29):** **in_progress** on
+**INIT-GATEFLOW-005 W2 (2026-07-29):** **ground-ready** on
 `feature/INIT-GATEFLOW-005-w2-dogfood` — multi-skill dogfood (REQ-10): unit green
-(178); verify stage pass with in-run baton evidence (run `d781caaa-…`); full
-implement-lane live exit pending run completion. See
-`Verify-Report-INIT-GATEFLOW-005-BOUNDINPUT-W2.md`.
+(178); verify stage pass; ground report produced; orchestrated run `d781caaa-…`
+in progress for full live chain (D-W1-V1 / partial D-W0-B1). See
+`Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W2.md`.
 
 **INIT-GATEFLOW-006 (2026-07-29):** Product INIT **draft** at
 [`product/INIT-GATEFLOW-006-gateflow.md`](../product/INIT-GATEFLOW-006-gateflow.md).
