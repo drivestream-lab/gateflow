@@ -142,7 +142,8 @@ class TriggerRouter(BaseBusinessService):
                     precondition_id=WavePreconditionIdType.TRIGGER_LABEL,
                     reason=(
                         "Label-based wave start is disabled for 002 programmes; "
-                        "use POST /api/v1/waves/start"
+                        "use POST /api/v1/waves/implement/start or "
+                        "POST /api/v1/waves/spec/start"
                     ),
                 )
             )

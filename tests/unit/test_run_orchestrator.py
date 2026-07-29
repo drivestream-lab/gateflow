@@ -127,9 +127,6 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             human_checkpoint=True,
         )
     )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("packaged automate must not call find_latest_handoff (REQ-8b)")
-    )
     notifier = MagicMock()
     notifier.notify_precondition_failure = AsyncMock(return_value=False)
     notifier.post_run_event_comment = AsyncMock(return_value=False)
@@ -527,9 +524,6 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
             human_checkpoint=True,
         )
     )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("packaged automate must not call find_latest_handoff (REQ-8b)")
-    )
 
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
@@ -694,9 +688,6 @@ async def test_walker_continues_then_stops_at_gate() -> None:
             ),
         ]
     )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("packaged automate must not call find_latest_handoff (REQ-8b)")
-    )
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
     raw = _job_payload(event_type="api_trigger").model_dump()
@@ -720,7 +711,6 @@ async def test_walker_continues_then_stops_at_gate() -> None:
     assert stage_repo.create_stage.await_count == 2
     assert cursor_agent_runner.run_skill.await_count == 2
     assert handoff_reader.read_path.call_count == 2
-    handoff_reader.find_latest_handoff.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -751,9 +741,6 @@ async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
             human_checkpoint=False,
         )
     )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("packaged automate must not call find_latest_handoff (REQ-8b)")
-    )
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
     orchestrator = _build_orchestrator(
@@ -774,13 +761,12 @@ async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     assert summary.stop_reason is not None
     assert "Max orchestrated hops" in summary.stop_reason
     assert cursor_agent_runner.run_skill.await_count == 1
-    handoff_reader.find_latest_handoff.assert_not_called()
     OrchestrationSettings._instances.pop("OrchestrationSettings", None)
 
 
 @pytest.mark.asyncio
 async def test_packaged_ingest_uses_read_path_not_ambient() -> None:
-    """REQ-8b: success ingest calls read_path(stored) and never find_latest_handoff."""
+    """REQ-8b: success ingest calls read_path(stored) only."""
     from src.models.handoff_models import HandoffEnvelope
 
     cursor_agent_runner = MagicMock()
@@ -803,9 +789,6 @@ async def test_packaged_ingest_uses_read_path_not_ambient() -> None:
             human_checkpoint=True,
         )
     )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("ambient must not be automate SSOT")
-    )
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
     orchestrator = _build_orchestrator(
@@ -827,7 +810,6 @@ async def test_packaged_ingest_uses_read_path_not_ambient() -> None:
     stored = handoff_reader.read_path.call_args.args[0]
     assert isinstance(stored, str)
     assert stored.endswith("/handoff.md")
-    handoff_reader.find_latest_handoff.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -845,9 +827,6 @@ async def test_packaged_ingest_missing_path_fails_closed() -> None:
     handoff_reader = MagicMock()
     handoff_reader.read_path = MagicMock(
         side_effect=ValueError("Handoff path missing or not a file: /missing/handoff.md")
-    )
-    handoff_reader.find_latest_handoff = MagicMock(
-        side_effect=AssertionError("ambient must not be automate SSOT")
     )
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
@@ -868,7 +847,6 @@ async def test_packaged_ingest_missing_path_fails_closed() -> None:
     assert summary.terminal_status == RunStatusType.FAILED.value
     assert summary.stop_reason is not None
     assert "missing" in summary.stop_reason.lower() or "Handoff path" in summary.stop_reason
-    handoff_reader.find_latest_handoff.assert_not_called()
 
 
 @pytest.mark.asyncio

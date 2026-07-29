@@ -40,7 +40,7 @@ def main() -> int:
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}
-    start_url = f"{base_url}/api/v1/waves/start"
+    start_url = f"{base_url}/api/v1/waves/implement/start"
     identity, body = smoke_wave_start_fields(
         cfg.gateflow,
         branch_slug="verify-wave-start",
@@ -56,7 +56,7 @@ def main() -> int:
             if bare.status_code != 401:
                 print(f"[ERROR] expected 401 without token on wave-start, got {bare.status_code}")
                 return 1
-            print("[OK] POST /api/v1/waves/start without token → 401")
+            print("[OK] POST /api/v1/waves/implement/start without token → 401")
 
             started = client.post(start_url, json=body, headers=headers)
             if started.status_code not in {200, 201}:
@@ -70,7 +70,10 @@ def main() -> int:
             if not run_id:
                 print(f"[ERROR] missing run_id in wave-start response: {payload}")
                 return 1
-            print(f"[OK] POST /api/v1/waves/start → run_id={run_id} status={payload.get('status')}")
+            print(
+                f"[OK] POST /api/v1/waves/implement/start → "
+                f"run_id={run_id} status={payload.get('status')}"
+            )
 
             detail = client.get(f"{base_url}/api/v1/runs/{run_id}", headers=headers)
             if detail.status_code != 200:

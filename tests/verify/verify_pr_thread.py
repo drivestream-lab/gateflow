@@ -59,7 +59,7 @@ def main() -> int:
             print("[OK] GET /api/v1/metrics/runs → by_runner + by_model_id keys")
 
             started = client.post(
-                f"{base_url}/api/v1/waves/start",
+                f"{base_url}/api/v1/waves/implement/start",
                 headers=headers,
                 json=body,
             )

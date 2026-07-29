@@ -46,7 +46,8 @@ a pin `skill` with `dispatch: orchestrated`.
 1. Ensure workspace has pin + optional durable handoff under skill globs
    (hop 1 Enter-at ignores handoff for **node choice**; later hops use handoff
    facts + pin `outcomes` via PolicyEngine until a gate).
-2. `POST /api/v1/waves/start` with programme token and Enter-at body
+2. `POST /api/v1/waves/implement/start` with programme token and Enter-at body
+   (spec lane: `POST /api/v1/waves/spec/start` with meta PR + dual workspaces)
    (`start_node`, `runner`, `model_id`, PR targeting fields).
 3. Worker walks orchestrated skills until STOP/BLOCK or hop cap; comments land
    on the run PR opened at start.

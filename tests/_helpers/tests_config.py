@@ -51,7 +51,7 @@ class GateflowTargetConfig(BaseModel):
 
 
 class WaveStartApiConfig(BaseModel):
-    """Fields sent on POST /api/v1/waves/start (feature-owned)."""
+    """Fields sent on POST /api/v1/waves/implement/start (feature-owned)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -68,6 +68,14 @@ class WaveStartApiConfig(BaseModel):
     wave_id: str = Field(default="W0")
     ticket_id: str = Field(default="")
     branch_slug: str = Field(default="")
+    meta_pr_url: str = Field(
+        default="",
+        description="Spec-lane only — prayog-meta PR URL",
+    )
+    meta_workspace: str = Field(
+        default="",
+        description="Spec-lane only — absolute meta checkout path",
+    )
 
 
 class LaneFeatureConfig(BaseModel):

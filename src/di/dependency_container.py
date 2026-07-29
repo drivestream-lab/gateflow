@@ -30,6 +30,7 @@ def configure_container() -> Injector:
     from src.business_services.forge_action_service import ForgeActionService
     from src.business_services.handoff_reader import HandoffReader
     from src.business_services.job_worker_service import JobWorkerService
+    from src.business_services.meta_pr_intake import MetaPrIntakeService
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.policy_engine import PolicyEngine
@@ -87,6 +88,7 @@ def configure_container() -> Injector:
             AdapterRegistry,
             SlotValidator,
             PromptResolver,
+            MetaPrIntakeService,
             WaveStartService,
             BoardService,
             ForgeActionService,

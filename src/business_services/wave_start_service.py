@@ -1,12 +1,16 @@
-"""WaveStartService — authenticated API wave start (FR-15, ADR-005/006)."""
+"""WaveStartService — authenticated lane starts (ADR-010 / INIT-006 W3+W4)."""
 
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
+import httpx
 from injector import inject
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.trigger_router import API_TRIGGER_EVENT
@@ -20,13 +24,20 @@ from src.exceptions.app_exceptions import (
     ValidationError,
 )
 from src.infra_services.postgres_service import PostgresService
-from src.models.adapter_models import WaveStartRequest, WaveStartResponse
-from src.models.run_store_models import JobCreate, JobPayloadDocument, RunCreate, RunUpdate
+from src.models.meta_pr_models import MetaPrAcceptResult
+from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
+from src.models.wave_start_models import (
+    ImplementWaveStartRequest,
+    SpecWaveStartRequest,
+    WaveStartJobPayload,
+    WaveStartResponse,
+    WaveStartTargetingFields,
+)
 
 
 class WaveStartService(BaseBusinessService):
-    """Accept programme-token wave starts: validate, persist run, enqueue job."""
+    """Accept programme-token lane starts: validate, persist run, enqueue job."""
 
     @inject
     def __init__(
@@ -37,6 +48,7 @@ class WaveStartService(BaseBusinessService):
         metrics_emitter: MetricsEmitter,
         run_repository: RunRepository,
         job_repository: JobRepository,
+        meta_pr_intake: MetaPrIntakeService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -45,11 +57,88 @@ class WaveStartService(BaseBusinessService):
         self._metrics_emitter = metrics_emitter
         self._run_repository = run_repository
         self._job_repository = job_repository
+        self._meta_pr_intake = meta_pr_intake
         self._orchestration = OrchestrationSettings.get_instance()
 
-    async def start_wave(self, request: WaveStartRequest) -> WaveStartResponse:
-        """Validate identity + Enter-at + slots + concurrency; create run and enqueue."""
-        initiative_id, wave_id, issue_number, ticket = self._resolve_identity(request)
+    async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
+        """Implement-lane start: ticket identity + Enter-at; no meta fields."""
+        initiative_id, wave_id, issue_number, ticket = self._resolve_implement_identity(request)
+        return await self._enqueue_wave(
+            request,
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+            issue_number=issue_number,
+            ticket=ticket,
+            workspace_path=request.workspace_path,
+            meta_accept=None,
+            meta_workspace_path=None,
+        )
+
+    async def start_spec_wave(self, request: SpecWaveStartRequest) -> WaveStartResponse:
+        """Spec-lane start: meta accept-gate + dual workspace path checks."""
+        self._require_existing_directory(request.workspace_path, field="workspace_path")
+        self._require_existing_directory(request.meta_workspace_path, field="meta_workspace_path")
+        try:
+            meta_accept = await self._meta_pr_intake.accept(
+                meta_pr_url=request.meta_pr_url,
+                expected_initiative_id=request.initiative_id,
+            )
+        except PydanticValidationError as exc:
+            self.logger.warning(
+                "Meta PR accept-gate rejected invalid payload",
+                meta_pr_url=request.meta_pr_url,
+                error=str(exc),
+            )
+            raise ValidationError(
+                message=f"meta PR payload invalid: {exc}",
+                field_errors={"meta_pr_url": "invalid pull request payload"},
+            ) from exc
+        except ValueError as exc:
+            self.logger.warning(
+                "Meta PR accept-gate validation failed",
+                meta_pr_url=request.meta_pr_url,
+                initiative_id=request.initiative_id,
+                error=str(exc),
+            )
+            raise ValidationError(
+                message=str(exc),
+                field_errors={"meta_pr_url": str(exc)},
+            ) from exc
+        except httpx.HTTPError as exc:
+            self.logger.error("Meta PR accept-gate forge failure", error=str(exc), exc_info=True)
+            raise ServiceUnavailableError(
+                service_name="forge",
+                message="Unable to resolve meta_pr_url for spec accept-gate",
+            ) from exc
+
+        ticket = (
+            str(request.ticket_id).strip()
+            if request.ticket_id is not None and str(request.ticket_id).strip()
+            else f"{request.initiative_id}:{request.wave_id}"
+        )
+        return await self._enqueue_wave(
+            request,
+            initiative_id=request.initiative_id,
+            wave_id=request.wave_id,
+            issue_number=request.issue_number,
+            ticket=ticket,
+            workspace_path=request.workspace_path,
+            meta_accept=meta_accept,
+            meta_workspace_path=request.meta_workspace_path,
+        )
+
+    async def _enqueue_wave(
+        self,
+        request: WaveStartTargetingFields,
+        *,
+        initiative_id: str,
+        wave_id: str,
+        issue_number: Optional[int],
+        ticket: str,
+        workspace_path: Optional[str],
+        meta_accept: Optional[MetaPrAcceptResult],
+        meta_workspace_path: Optional[str],
+    ) -> WaveStartResponse:
         _ = request.head_branch()
 
         try:
@@ -124,6 +213,8 @@ class WaveStartService(BaseBusinessService):
                         issue_number=issue_number,
                         initiative_id=initiative_id,
                         wave_id=wave_id,
+                        meta_pr_url=meta_accept.meta_pr_url if meta_accept else None,
+                        meta_head_sha=meta_accept.meta_head_sha if meta_accept else None,
                     ),
                 )
                 if run.id is None:
@@ -143,37 +234,39 @@ class WaveStartService(BaseBusinessService):
                     initiative_id=initiative_id,
                     wave_id=wave_id,
                 )
+                job_payload = WaveStartJobPayload(
+                    delivery_id=delivery_id,
+                    event_type=API_TRIGGER_EVENT,
+                    run_id=str(run.id),
+                    org=request.org,
+                    repo=request.repo,
+                    initiative_id=initiative_id,
+                    wave_id=wave_id,
+                    ticket_id=ticket,
+                    branch_slug=request.branch_slug,
+                    base_branch=request.base_branch,
+                    start_node=request.start_node,
+                    dispatch_plan=dispatch_plan,
+                    pr_number=request.pr_number,
+                    issue_number=issue_number,
+                    workspace_path=workspace_path,
+                    handoff_path=handoff_path,
+                    trigger_source="api",
+                    meta_pr_url=meta_accept.meta_pr_url if meta_accept else None,
+                    meta_head_sha=meta_accept.meta_head_sha if meta_accept else None,
+                    meta_workspace_path=meta_workspace_path if meta_accept else None,
+                )
                 job = await self._job_repository.enqueue(
                     session,
                     JobCreate(
                         status_type=JobStatusType.PENDING,
                         delivery_id=delivery_id,
-                        payload=JobPayloadDocument.model_validate(
-                            {
-                                "delivery_id": delivery_id,
-                                "event_type": API_TRIGGER_EVENT,
-                                "run_id": str(run.id),
-                                "org": request.org,
-                                "repo": request.repo,
-                                "initiative_id": initiative_id,
-                                "wave_id": wave_id,
-                                "ticket_id": ticket,
-                                "branch_slug": request.branch_slug,
-                                "base_branch": request.base_branch,
-                                "start_node": request.start_node,
-                                "dispatch_plan": dispatch_plan.model_dump(mode="json"),
-                                "pr_number": request.pr_number,
-                                "issue_number": issue_number,
-                                "workspace_path": request.workspace_path,
-                                "handoff_path": handoff_path,
-                                "trigger_source": "api",
-                            }
-                        ),
+                        payload=job_payload.to_job_payload_document(),
                     ),
                 )
         except (ConflictError, ValidationError, UnprocessableEntityError):
             raise
-        except Exception as exc:
+        except (SQLAlchemyError, OSError) as exc:
             self.logger.error("Wave start persist failed", error=str(exc), exc_info=True)
             raise ServiceUnavailableError(
                 service_name="postgres",
@@ -189,7 +282,8 @@ class WaveStartService(BaseBusinessService):
             start_node=request.start_node,
             runner=request.runner,
             model_id=request.model_id,
-            ticket_present=True,
+            lane="spec" if meta_accept is not None else "implement",
+            meta_pr_url=meta_accept.meta_pr_url if meta_accept else None,
         )
         return WaveStartResponse(
             run_id=str(run.id),
@@ -206,18 +300,22 @@ class WaveStartService(BaseBusinessService):
             baton_path.write_text("", encoding="utf-8")
         return str(baton_path.resolve())
 
-    def _resolve_identity(self, request: WaveStartRequest) -> tuple[str, str, Optional[int], str]:
-        """Resolve initiative/wave; require non-empty ticket_id for packaged automate."""
+    def _require_existing_directory(self, path: str, *, field: str) -> None:
+        candidate = Path(path)
+        if not candidate.is_dir():
+            raise ValidationError(
+                message=f"{field} must be an existing directory",
+                field_errors={field: "not an existing directory"},
+            )
+
+    def _resolve_implement_identity(
+        self, request: ImplementWaveStartRequest
+    ) -> tuple[str, str, Optional[int], str]:
+        """Resolve initiative/wave; require non-empty ticket_id for implement lane."""
         initiative_id = request.initiative_id
         wave_id = request.wave_id
         issue_number = request.issue_number
-        has_ticket = request.ticket_id is not None and str(request.ticket_id).strip() != ""
-        if not has_ticket:
-            raise ValidationError(
-                message="ticket_id is required for packaged-skill automate",
-                field_errors={"ticket_id": "required"},
-            )
-        ticket = str(request.ticket_id).strip()
+        ticket = request.ticket_id
 
         if ":" in ticket:
             parsed_initiative, parsed_wave = ticket.split(":", 1)

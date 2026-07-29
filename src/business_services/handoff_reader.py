@@ -1,21 +1,14 @@
-"""HandoffReader — stored-path ingest (automate SSOT) and legacy ambient scan."""
+"""HandoffReader — stored-path ingest (packaged automate SSOT, ADR-008)."""
 
 import re
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 import yaml
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.models.handoff_models import HandoffEnvelope
-
-# Paths skills document for durable handoff artifacts (not programme.yaml).
-# Legacy / debug only — not SSOT for packaged-skill automated ingest (ADR-008).
-DEFAULT_ARTIFACT_GLOBS: tuple[str, ...] = (
-    "docs/specification/reports/**/*",
-    "prd/reports/**/*",
-)
 
 _HANDOFF_BLOCK_RE = re.compile(
     r"```ya?ml\s*\n(?P<body>handoff:\s*\n.*?)```",
@@ -24,7 +17,7 @@ _HANDOFF_BLOCK_RE = re.compile(
 
 
 class HandoffReader(BaseBusinessService):
-    """Parse durable handoff envelopes from an explicit path or ambient globs."""
+    """Parse durable handoff envelopes from an explicit Gateflow-owned path."""
 
     @inject
     def __init__(self) -> None:
@@ -50,32 +43,6 @@ class HandoffReader(BaseBusinessService):
         if block is None:
             raise ValueError(f"No handoff YAML block in stored path: {baton}")
         self.logger.info("Handoff artifact read from stored path", path=str(baton))
-        return self.parse_handoff_yaml(block)
-
-    def find_latest_handoff(
-        self,
-        workspace_root: Path,
-        artifact_globs: Optional[Sequence[str]] = None,
-    ) -> HandoffEnvelope:
-        """Scan artifact globs for the newest handoff (legacy/debug — not automate SSOT)."""
-        patterns = tuple(artifact_globs) if artifact_globs is not None else DEFAULT_ARTIFACT_GLOBS
-        candidates: list[tuple[float, Path, str]] = []
-        for pattern in patterns:
-            for path in workspace_root.glob(pattern):
-                if not path.is_file():
-                    continue
-                text = path.read_text(encoding="utf-8")
-                block = self._extract_handoff_yaml(text)
-                if block is None:
-                    continue
-                candidates.append((path.stat().st_mtime, path, block))
-
-        if not candidates:
-            raise ValueError("No durable handoff YAML block found under artifact globs")
-
-        candidates.sort(key=lambda item: item[0], reverse=True)
-        _, path, block = candidates[0]
-        self.logger.info("Handoff artifact selected", path=str(path))
         return self.parse_handoff_yaml(block)
 
     def parse_handoff_yaml(self, yaml_text: str) -> HandoffEnvelope:

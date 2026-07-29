@@ -37,6 +37,7 @@ from typing import Any
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.run_timeline import evaluate_lane_poll
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
 _LANE_NODES = ("pre-implement", "loop-spec", "verify", "ground-spec")
@@ -115,7 +116,7 @@ def main() -> int:
     try:
         with httpx.Client(timeout=60.0) as client:
             started = client.post(
-                f"{base_url}/api/v1/waves/start",
+                f"{base_url}/api/v1/waves/implement/start",
                 headers=headers,
                 json={
                     "org": identity["org"],
@@ -151,26 +152,33 @@ def main() -> int:
                     print(f"[ERROR] run detail {detail.status_code}: {detail.text}")
                     return 1
                 detail_body = detail.json()
-                status = detail_body.get("status_type")
-                stages = detail_body.get("stages") or []
-                cursor_ok = [
-                    s
-                    for s in stages
-                    if s.get("runner") == "cursor"
-                    and s.get("workflow_node") in _LANE_NODE_SET
-                    and s.get("outcome_type") == "success"
-                ]
-                nodes_done = {s.get("workflow_node") for s in cursor_ok}
-                if status in {"completed", "failed", "stopped"} and expected[-1] in nodes_done:
-                    break
-                if status in {"failed"}:
-                    break
-                time.sleep(5.0)
+                decision = evaluate_lane_poll(
+                    detail_body,
+                    expected_chain=expected,
+                    lane_nodes=_LANE_NODE_SET,
+                )
+                if decision == "continue":
+                    time.sleep(5.0)
+                    continue
+                if decision == "failed":
+                    stages = detail_body.get("stages") or []
+                    print(
+                        "[ERROR] run reached terminal status before implement-lane "
+                        f"chain completed; status={detail_body.get('status_type')!r} "
+                        f"workflow_node={detail_body.get('workflow_node')!r} "
+                        f"outcome_type={detail_body.get('outcome_type')!r} "
+                        f"expected={list(expected)} "
+                        f"stages={[ (s.get('workflow_node'), s.get('outcome_type'), s.get('runner')) for s in stages ]}"
+                    )
+                    return 1
+                # success — full expected Cursor chain under a terminal status
+                break
             else:
                 stages = detail_body.get("stages") or []
                 print(
                     f"[ERROR] timed out after {timeout_s}s waiting for implement-lane "
                     f"chain; last status={detail_body.get('status_type')} "
+                    f"workflow_node={detail_body.get('workflow_node')!r} "
                     f"stages={[ (s.get('workflow_node'), s.get('outcome_type')) for s in stages ]}"
                 )
                 return 1

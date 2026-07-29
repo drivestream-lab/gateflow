@@ -13,6 +13,7 @@ from src.infra_services.base_infra_service import BaseInfraService
 from src.infra_services.github_token_provider import GithubTokenProvider
 from src.logging import get_logger
 from src.models.forge_models import CommitPathsResult
+from src.models.meta_pr_models import GithubIssueDocument, GithubPullRequestDocument
 
 logger = get_logger()
 
@@ -409,12 +410,29 @@ class ForgeClient(BaseInfraService):
     def idempotency_label(key: str) -> str:
         return f"{BOARD_IDEMPOTENCY_LABEL_PREFIX}{key}"
 
-    async def get_issue(self, owner: str, repo: str, issue_number: int) -> dict[str, Any]:
+    async def get_pull_request(
+        self, owner: str, repo: str, pr_number: int
+    ) -> GithubPullRequestDocument:
+        """Fetch one pull request by number (spec-lane meta accept-gate)."""
+        client = self._require_client()
+        response = await client.get(f"/repos/{owner}/{repo}/pulls/{pr_number}")
+        response.raise_for_status()
+        document = GithubPullRequestDocument.model_validate(response.json())
+        logger.info(
+            "ForgeClient pull request fetched",
+            owner=owner,
+            repo=repo,
+            pr_number=pr_number,
+            operation="get_pull_request",
+        )
+        return document
+
+    async def get_issue(self, owner: str, repo: str, issue_number: int) -> GithubIssueDocument:
         """Fetch one issue by number."""
         client = self._require_client()
         response = await client.get(f"/repos/{owner}/{repo}/issues/{issue_number}")
         response.raise_for_status()
-        data = response.json()
+        document = GithubIssueDocument.model_validate(response.json())
         logger.info(
             "ForgeClient board issue fetched",
             owner=owner,
@@ -422,7 +440,7 @@ class ForgeClient(BaseInfraService):
             issue_number=issue_number,
             operation="board_get_issue",
         )
-        return data
+        return document
 
     async def update_issue_status(
         self,
@@ -443,17 +461,14 @@ class ForgeClient(BaseInfraService):
                 raise ValueError("state must be open or closed")
             payload["state"] = state
 
-        labels = [
-            str(label["name"] if isinstance(label, dict) else label)
-            for label in (current.get("labels") or [])
-        ]
+        labels = [label.name for label in current.labels]
         if column is not None:
             labels = [name for name in labels if not name.startswith(BOARD_COLUMN_LABEL_PREFIX)]
             labels.append(self.column_label(column))
             payload["labels"] = labels
 
         if not payload:
-            return current
+            return current.model_dump(mode="json")
 
         response = await client.patch(
             f"/repos/{owner}/{repo}/issues/{issue_number}",
