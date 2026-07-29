@@ -1,8 +1,8 @@
 """first version
 
-Revision ID: 69de74666068
+Revision ID: 1cd9a83a94a2
 Revises: 
-Create Date: 2026-07-28 05:53:29.269428
+Create Date: 2026-07-29 15:12:21.118712
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '69de74666068'
+revision: str = '1cd9a83a94a2'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,6 +33,8 @@ def upgrade() -> None:
     sa.Column('wave_id', sa.String(length=64), nullable=True),
     sa.Column('wave_duration_ms', sa.Integer(), nullable=True),
     sa.Column('handoff_path', sa.Text(), nullable=True),
+    sa.Column('meta_pr_url', sa.Text(), nullable=True),
+    sa.Column('meta_head_sha', sa.String(length=64), nullable=True),
     sa.Column('retry_counter', sa.Integer(), nullable=False),
     sa.Column('notify_pending', sa.Boolean(), nullable=False),
     sa.Column('id', sa.UUID(), nullable=False, comment='Unique identifier for the record'),
