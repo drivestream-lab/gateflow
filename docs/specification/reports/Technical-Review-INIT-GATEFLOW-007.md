@@ -16,7 +16,9 @@
 | Date | 2026-07-29 |
 | Branch | `chore/INIT-GATEFLOW-007-spec-gateflow` (Draft spec PR [#77](https://github.com/drivestream-lab/gateflow/pull/77)) |
 | Initiative segment | `INIT-GATEFLOW-007` |
-| Status | **Draft** — awaiting PE architecture acceptance (ADR-010 amendment + this TDD) |
+| Status | **Accepted** — PE direction 2026-07-29 via Cursor chat (fold closeout into ADR-010; proceed `/spec-implementation-plan` on Draft spec PR #77). Mid-lane architecture acceptance — not Gate 2 `spec-lgtm`. |
+| Approval evidence | Explicit PE acceptance by proceeding to `/spec-implementation-plan` after ADR-010 fold (no ADR-011); Draft spec PR https://github.com/drivestream-lab/gateflow/pull/77 |
+| Approved head | Record on acceptance commit tip before plan |
 | Review deadline | 2026-08-05 |
 | Deciders | PE: @nikd10x / @drivestream-lab/prayog-pe-team — explicit acceptance required |
 
@@ -179,7 +181,7 @@ Do not dispatch `verify` (manual).
 
 | Finding | Classification | ADR file / TDD section | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|--------------------------|--------|--------|
-| FF-05 (possible NEW-ADR closeout intake) | **TDD_ONLY** + **fold into ADR-010** | `docs/specification/adr/adr-010-lane-intake-and-dual-workspace-authority.md` §6 | Third start contract = closeout; **no ADR-011** | Amendment Draft (pending PE re-accept) | `sha256:66d1769e0cf0d5f66e3737693d65a6f6d7c5eb4c59c143cf9f65936ccc7d301a` |
+| FF-05 (possible NEW-ADR closeout intake) | **TDD_ONLY** + **fold into ADR-010** | `docs/specification/adr/adr-010-lane-intake-and-dual-workspace-authority.md` §6 | Third start contract = closeout; **no ADR-011** | **Accepted** (amendment) | `sha256:b627494120db5a68b8da272617b50686031413d7f0a6735672e310c9a60f23e5`* |
 | Learning store authority | **TDD_ONLY** | ADR-001 + §8 | Postgres SSOT; reports emit-only | Resolved | N/A |
 | Skill→API forbidden | **TDD_ONLY** | pin H6 + §3.4 | Worker ingest only | Resolved | N/A |
 
@@ -331,8 +333,8 @@ JSONB validated on read/write at repository boundary.
 | Draft ADR files written | 0 new; ADR-010 amended (pending PE re-accept) |
 | PM questions outstanding | 1 (Q-1 Gate 1) |
 | Domain questions outstanding | 0 |
-| Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE acceptance of TDD + ADR-010 amendment required** |
+| Ready for PE review | **YES** (accepted) |
+| **Ready for /spec-implementation-plan** | **YES — PE acceptance recorded 2026-07-29; plan may run** |
 
 ---
 

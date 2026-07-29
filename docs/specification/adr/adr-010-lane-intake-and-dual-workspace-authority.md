@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Accepted — **amendment Draft** for INIT-GATEFLOW-007 closeout intake (pending PE re-accept on Draft spec PR; no ADR-011) |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-006; amended by INIT-GATEFLOW-007 |
 | Relates to | Extends ADR-005 (programme-token wave mutations); ADR-007 (bound prompt inputs); ADR-008 (stored baton ingest); ADR-009 (forge mutate remains separate); ADR-001 (Postgres SSOT for learning ingest is orthogonal — product INIT-007) |
 | Decision owner | @nikd10x |
-| Approval evidence | Explicit PE acceptance directed on 2026-07-29 via Cursor chat (INIT-GATEFLOW-006 interactive implement session — “Go ahead let us implement this now”) |
-| Approved head | Record on merge of the ADR+W3 accept commit |
-| Amendment | Closeout (Pass-2) intake folded here — see Recommendation §6; PE re-accept on INIT-GATEFLOW-007 TDD/spec PR |
+| Approval evidence | Explicit PE acceptance directed on 2026-07-29 via Cursor chat (INIT-GATEFLOW-006 interactive implement session — “Go ahead let us implement this now”); **closeout amendment** accepted 2026-07-29 via Cursor chat (INIT-GATEFLOW-007 — fold into ADR-010, no ADR-011; proceed to `/spec-implementation-plan` on https://github.com/drivestream-lab/gateflow/pull/77) |
+| Approved head | Record on INIT-GATEFLOW-007 acceptance + plan commit tip |
+| Amendment | Closeout (Pass-2) intake — Recommendation §6; **Accepted** with INIT-GATEFLOW-007 TDD |
 
 ## Context
 
