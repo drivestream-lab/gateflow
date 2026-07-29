@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-29 |
-| Source | INIT-GATEFLOW-006 product INIT draft in progress; forge unit on `develop` (#70); prior INIT-003 W1 wave-signoff; lane naming adopted (spec / implement) |
+| Source | INIT-GATEFLOW-007 product INIT **draft** (closeout + learning DB); INIT-006 forge/lane starts on `develop`; Pass-1 pin remount (#76) |
 
 ## Engineering lane naming
 
@@ -180,6 +180,19 @@
 | Human Alembic for `runs.meta_pr_url` + `runs.meta_head_sha` | **Required before live spec start** — ORM already declares columns |
 | Spec-lane skills `dispatch: orchestrated` | Pin still `manual` — prayog-skills dependency (REQ-20) |
 
+## INIT-GATEFLOW-007 — wave closeout + learning DB (draft)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Closeout start API | REQ-1…8 | — | — | — | `POST /api/v1/waves/closeout/start`; Enter-at `learning-extract`; new run + PR bind |
+| Learning Postgres SSOT | REQ-9…13 | — | — | — | Ingest Learning-Extract YAML; no skill→HTTP (H6) |
+| Pass-2 prove-it | REQ-14…17 | — | — | — | Both lanes; after Pass-1 `live-verify` stop (#76) |
+
+| Gap | Status |
+|-----|--------|
+| Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
+| Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
+
 ## Verdict
 
 INIT-GATEFLOW-001 remains **human_approved**. INIT-GATEFLOW-002 **W0**, **W1**, and **W2** are
@@ -209,3 +222,8 @@ envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`
 cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
+
+**INIT-GATEFLOW-007 (2026-07-29):** Product INIT **draft** at
+[`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md)
+— wave closeout start + learning DB ingest. Pass-1 pin remounted (#76). Closeout
+HTTP / learning tables / Pass-2 live prove-it **not** implemented.
