@@ -124,6 +124,37 @@ def test_require_orchestrated_skill_rejects_manual() -> None:
         engine.require_orchestrated_skill("validate-requirements")
 
 
+def test_loop_spec_pass_stops_at_human_checkpoint() -> None:
+    """Pass-1 overlay: loop-spec pass → wave-human-decision (local pin dogfood)."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    loop = engine.get_node("loop-spec")
+    if loop.outcomes.get("pass") != "wave-human-decision":
+        pytest.skip("Pass-1 pin overlay not present (stock pin still routes to verify)")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="loop-spec",
+        outcome="pass",
+    )
+    resolved = engine.resolve_next(handoff)
+    assert resolved.node_id == "wave-human-decision"
+    assert resolved.node_type == "human-checkpoint"
+
+
+def test_verify_is_manual_ground_spec_is_orchestrated() -> None:
+    """Pass-1 overlay: verify manual; ground-spec orchestrated for closeout Enter-at."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    if engine.get_node("verify").dispatch != "manual":
+        pytest.skip("Pass-1 pin overlay not present (stock pin still orchestrates verify)")
+    assert engine.get_node("verify").dispatch == "manual"
+    assert engine.get_node("ground-spec").dispatch == "orchestrated"
+    with pytest.raises(ValueError, match="orchestrated"):
+        engine.require_orchestrated_skill("verify")
+    node = engine.require_orchestrated_skill("ground-spec")
+    assert node.node_id == "ground-spec"
+
+
 def test_workflow_missing_pin_fails(tmp_path: Path) -> None:
     engine = WorkflowEngine()
     with pytest.raises(FileNotFoundError):

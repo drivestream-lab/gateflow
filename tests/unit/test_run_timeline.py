@@ -2,8 +2,8 @@
 
 from tests._helpers.run_timeline import evaluate_lane_poll, is_terminal_status
 
-_LANE = frozenset({"pre-implement", "loop-spec", "verify", "ground-spec"})
-_CHAIN = ("pre-implement", "loop-spec", "verify", "ground-spec")
+_LANE = frozenset({"pre-implement", "loop-spec"})
+_CHAIN = ("pre-implement", "loop-spec")
 
 
 def test_active_continues() -> None:

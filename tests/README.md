@@ -5,7 +5,7 @@
 | Name | Legacy name | Pin skills (today) | Verify |
 |------|-------------|--------------------|--------|
 | **spec lane** | Scenario A | `spec-draft` … `spec-implementation-plan` | `verify_spec_lane` (scaffold; W2) |
-| **implement lane** | Scenario B | `pre-implement` … `ground-spec` | `verify_implement_lane` |
+| **implement lane** | Scenario B | `pre-implement` → `loop-spec` (verify manual; ground Enter-at) | `verify_implement_lane` |
 
 Both are wave-shaped Gateflow features.
 
@@ -189,8 +189,10 @@ Packaged-skill automate ingest SSOT is the stored baton path under that root
 
 ### Implement-lane live verify prereqs
 
-Pin chain (Enter-at `pre-implement`):  
-`pre-implement` → `loop-spec` → `verify` → `ground-spec` → STOP at `wave-human-decision`.
+Pin chain (Enter-at `pre-implement`; local dogfood overlay — Pass 1 only):  
+`pre-implement` → `loop-spec` → STOP at `wave-human-decision`  
+(`verify` is `dispatch: manual` — human live-proves the PR;  
+`ground-spec` is orchestrated for wave closeout — INIT-GATEFLOW-007).
 
 App secrets in `.env`; verify flags in `tests/config.yaml`. Shared Postgres/Redis via
 `POSTGRES_*` / `REDIS_*` — do not require `docker compose` when those already
