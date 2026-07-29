@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-07-28 |
-| Source | INIT-GATEFLOW-003 W1 wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`; lane naming adopted (spec / implement) |
+| Updated | 2026-07-29 |
+| Source | INIT-GATEFLOW-005 W2 in_progress on `feature/INIT-GATEFLOW-005-w2-dogfood`; INIT-006 forge unit on `develop` (#70); lane naming adopted (spec / implement) |
 
 ## Engineering lane naming
 
@@ -18,9 +18,9 @@
 | Layer | Command / path | Status |
 |-------|----------------|--------|
 | Toolchain | `make check` | Wired (black, ruff, pyright, import-linter) |
-| Unit | `make test` → `tests/unit/` | INIT-001 + INIT-002 + INIT-003 W0/W1 (110 passed) |
+| Unit | `make test` → `tests/unit/` | INIT-001…006 unit green on forge branch (`make test`) |
 | Live verify | `tests/verify/verify_all.py` | health…board (implement-lane **separate** opt-in) |
-| Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | **Live pass** 2026-07-25 (run `de780ba2-…`) |
+| Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
@@ -34,7 +34,7 @@
 | PolicyEngine | FR-7,8,10 | `policy_engine.py` | `test_trigger_policy` | — | Pin-driven; no allowlists |
 | RunOrchestrator walker + Notifier | FR-2,9,11 | `run_orchestrator.py`, `notifier.py` | `test_run_orchestrator` | worker + implement-lane | Multi-hop until gate; hop cap |
 | AgentRunner + launchpad | FR-9,17 | `cursor_agent_runner.py`, `launchpad_client.py` | via orchestrator tests | implement-lane | Live local SDK; launchpad W1 stub sync |
-| ToolProvider none | FR-14 | (no StageToolResolver; empty tool context) | — | — | Slot map removed with programme.yaml |
+| ToolProvider none | FR-14 | (no StageToolResolver; empty tool context) | — | — | Slot map removed with YAML programme carrier |
 | Status + metrics APIs | FR-13,15 | `runs_routes`, `metrics_routes` | `test_programme_token_api` | `verify_status_metrics` | Programme token |
 | Orchestration settings | FR-18 | `orchestration_settings.py` (`GATEFLOW_*`) | wave-start / policy tests | — | notifier + hop cap + findings/metrics |
 | W1 runbook | FR-19 | `docs/runbooks/orchestrate-new-initiative-repo.md` | — | inspection | |
@@ -44,9 +44,10 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Env notifier + SlotValidator | FR-16/23/18 | `GATEFLOW_NOTIFIER` + `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | No programme.yaml |
+| Env notifier + SlotValidator | FR-16/23/18 | `GATEFLOW_NOTIFIER` + `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | No YAML programme file |
 | Adapter registry + SlotValidator | FR-17/18 | `adapter_registry.py`, `slot_validator.py` | `test_slot_validator` | — | ADR-006 |
-| API wave-start Enter-at | FR-15 | `POST /api/v1/waves/start` (`start_node`+runner/model) | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005; manual node → 400 |
+| API implement-lane start | FR-15; REQ-14/15 | `POST /api/v1/waves/implement/start` | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005/010; manual node → 400 |
+| API spec-lane start | REQ-14/16/17 | `POST /api/v1/waves/spec/start` | `test_wave_start`, `test_meta_pr_intake` | `verify_spec_lane` (opt-in) | Meta PR accept + dual dirs; pin must orchestrate start_node |
 | Label start disabled | FR-15 | `trigger_router.py` | `test_trigger_policy` | note in wave-start | Webhook may still 202 |
 | Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | Live pass |
 | `runs.wave_id` column | FR-15/20 | ORM/repo + Alembic `bc8abad9a701` | — | via wave-start | Human migration applied |
@@ -90,7 +91,7 @@
 | Failure-path stage + duration | REQ-29/30 | `run_orchestrator.py`, `metrics_emitter.py` | `test_run_orchestrator`, `test_metrics_emitter` | — | FF-05 |
 | `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_implement_lane` **pass** | Alembic `7e79269bd50b`; live `492608` ms |
 | Implement-lane live prove-it | REQ-27/31 | `verify_implement_lane.py` | — | **pass** 2026-07-25 | Full chain → `stopped` at `wave-human-decision`; D-W1-L1 closed |
-| Pin walker (no programme.yaml) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | implement-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
+| Pin walker (env + API + pin) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | implement-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
 
 ## Wave status
 
@@ -105,6 +106,10 @@
 | INIT-003 W1 | Implement-lane prove-it + cycle-time + Docker spike | `Ground-Report-INIT-GATEFLOW-003-W1.md` | **human_approved** |
 | INIT-005 W0 | Bound-input resolve/render + thin Cursor + handoff_path | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W0.md` | **human_approved** (2026-07-28; live implement-lane prove-it deferred to W1 — D-W0-V1) |
 | INIT-005 W1 | Ingest-only `handoff_path` + dual-run isolation | `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md` | **human_approved** (2026-07-28; live implement-lane deferred D-W1-V1 / D-W0-B1 — pin baton write) |
+| INIT-005 W2 | Multi-skill packaged dogfood (REQ-10) | (pending ground report) | **in_progress** — `feature/INIT-GATEFLOW-005-w2-dogfood` |
+| INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
+| INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred |
+| INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
 
@@ -114,6 +119,77 @@
 | Packaged ingest SSOT = stored path | REQ-8b, REQ-9 | `run_orchestrator._ingest_handoff_after_stage` | `test_packaged_ingest_*` | fail-closed on empty baton | No ambient `find_latest_handoff`; D-W0-I1 closed |
 | Dual-run baton isolation | REQ-8b | distinct `{root}/{run_id}/handoff.md` | `test_dual_run_isolation_*` | — | Shared workspace decoy ignored |
 | Implement-lane live prove-it | REQ-10 | `verify_implement_lane` | — | **deferred** (D-W1-V1) | Hop-1 success + prompt ids; baton empty (D-W0-B1) |
+
+## Capability matrix (INIT-GATEFLOW-005 W2)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Pin orchestrated skills (no allowlist) | REQ-10 | `workflow_engine.require_orchestrated_skill` | `test_require_orchestrated_skill_*` | implement-lane | Dispatch SSOT = pin; ADR-006 |
+| Multi-skill prompt telemetry | REQ-10 | `RunOrchestrator` → `CursorAgentRunner` | `test_run_orchestrator` | implement-lane | Each stage persists `prompt_id` + `prompt_revision` |
+| Baton dual-write (pin templates) | REQ-8b | packaged skill templates | — | **partial** (run `d781caaa-…`) | loop-spec baton non-empty at stored path; full chain closes D-W0-B1 |
+| Multi-skill evidence block | REQ-10 | `verify_implement_lane` | — | pending | ≥2 skill ids documented; harness landed TASK-W2-01 |
+| Implement-lane live prove-it | REQ-10 | `verify_implement_lane` | — | **in_progress** (D-W1-V1) | Orchestrated run `d781caaa-…`; standalone script 409 until complete |
+
+## INIT-GATEFLOW-006 — truth split
+
+| Layer | Owns for forge / lane work |
+|-------|----------------------------|
+| **ADR-009** (**Accepted**) | Publish/mutate **authority** (pin SSOT, ForgeClient, dual executor pattern, publish-before-ingest) |
+| **ADR-010** (**Accepted**) | Lane intake **authority** (separate start contracts; meta PR accept; dual workspace bind) |
+| **Pin** (`prayog-skills/workflow.yaml` + forge-side-effects) | Per-node `forge:` wiring, action vocabulary, orchestrated edges |
+| **As-built (this section)** | What is implemented, unit-covered, live-deferred |
+| **Product INIT** | Still **missing** for 006 — PE should add INIT/TDD when accepting ADR |
+
+## Capability matrix (INIT-GATEFLOW-006 W0/W1 — workspace publish)
+
+| Capability | Spec / authority | Code | Unit | Live verify | Notes |
+|------------|------------------|------|------|-------------|-------|
+| Parse pin `forge` on nodes | ADR-009; pin | `forge_models.py`, `WorkflowEngine.get_node` | `test_forge_policy` | — | Absent skill forge ⇒ publish disabled |
+| `handoff.forge` instance slots | pin forge-side-effects | `HandoffEnvelope.forge` | `test_forge_policy` | — | Instance only; pin wins policy |
+| Path collect (ignore + denylist) | ADR-009 path class | `workspace_commit_paths.py` | `test_workspace_commit_paths` | — | Excludes handoff batons + secrets |
+| Commit paths to run head | ADR-009 | `ForgeClient.commit_paths_to_branch` | `test_forge_client` | — | blobs → tree → commit → ref |
+| Post-hop publish before ingest | ADR-009 ordering | `run_orchestrator._publish_stage_workspace_if_needed` | `test_publish_stage_workspace_*` | **deferred** | optional empty OK; required empty fail closed |
+| Implement-lane assert `stage_commit` | as-built verify | `verify_implement_lane` | — | **deferred** | Required nodes must leave timeline commits when opted in |
+
+## Capability matrix (INIT-GATEFLOW-006 W2 — external-action forge)
+
+| Capability | Spec / authority | Code | Unit | Live verify | Notes |
+|------------|------------------|------|------|-------------|-------|
+| Merge pin ⋉ handoff; `requires` fail closed | ADR-009; pin | `merge_pin_and_handoff_forge` | `test_forge_merge` | — | Invented labels / action conflict fail closed |
+| STOP at external-action + pending forge event | ADR-009 explicit auth | `run_orchestrator` STOP path | walker / policy tests | — | Content hop does not mutate |
+| Open draft PR + projection labels | pin `open_draft_pr` | `ForgeClient.open_draft_pr`, `ForgeActionService` | `test_forge_client`, `test_forge_action_service` | **deferred** | Never `*-lgtm` |
+| Board ticket seed from plan §9 | pin `create_board_tickets`; FR-24 primitives | `ForgeActionService` → `BoardService.create_ticket` | `test_forge_action_service` | **deferred** | Idempotent EPIC + wave Features |
+| Programme authorize path | TDD / as-built | `POST /api/v1/runs/{id}/forge/authorize` | `test_forge_action_service` | **deferred** | Dual executor vs human forge skills |
+| Worker board isolation | FR-24 | no BoardService in `process_job` | `test_process_job_never_calls_board_forge_mutations` | — | Authorize path may call board; walker must not |
+
+## Capability matrix (INIT-GATEFLOW-006 W2 — sparse PR comments)
+
+| Capability | Spec / authority | Code | Unit | Live verify | Notes |
+|------------|------------------|------|------|-------------|-------|
+| Milestone-only PR run-event comments | as-built UX | `Notifier.posts_run_event_to_pr` | `test_notifier` | — | `stage_*` skipped; `run_stopped` posts |
+| `stage_started` on RunStore timeline | as-built | `run_orchestrator` append | orchestrator tests | — | Compensates skipping PR hop chatter |
+
+## Capability matrix (INIT-GATEFLOW-006 W3/W4 — lane starts + meta intake)
+
+| Capability | Spec / authority | Code | Unit | Live verify | Notes |
+|------------|------------------|------|------|-------------|-------|
+| Separate implement/spec start APIs | ADR-010; REQ-14…16 | `waves_routes`, `wave_start_models` | `test_wave_start` | `verify_wave_start` | Legacy `/waves/start` **deleted** |
+| Spec meta accept-gate | ADR-010; REQ-17 | `meta_pr_intake`, ForgeClient `get_pull_request` | `test_meta_pr_intake` | `verify_spec_lane` opt-in | Initiative derive + mismatch fail closed |
+| Dual bind `workspace` + `meta_workspace` | ADR-010; REQ-18 | `BoundPromptInputs`, orchestrator | `test_prompt_resolver` (existing) | deferred until pin schemas | |
+| Persist `runs.meta_pr_url` / `meta_head_sha` | REQ-17 | ORM + models | unit create path | **needs human Alembic** | See open gaps |
+
+## INIT-GATEFLOW-006 — open gaps
+
+| Gap | Status |
+|-----|--------|
+| PE accept ADR-009 | **Accepted** 2026-07-28 (Cursor chat); approved head on accept commit |
+| PE accept ADR-010 | **Accepted** 2026-07-29 (Cursor chat — implement session) |
+| Product INIT / TDD for 006 | **Draft** — [`product/INIT-GATEFLOW-006-gateflow.md`](../product/INIT-GATEFLOW-006-gateflow.md); Gate 1 / meta PRD TBD (INIT Q-1) |
+| Live dogfood (publish + `stage_commit` on run PR) | Deferred |
+| Live authorize (`open_draft_pr` / board seed) | Deferred |
+| Authorize then **resume** walker to next orchestrated node | Not implemented (mutate only; run stays STOPPED) |
+| Human Alembic for `runs.meta_pr_url` + `runs.meta_head_sha` | **Required before live spec start** — ORM already declares columns |
+| Spec-lane skills `dispatch: orchestrated` | Pin still `manual` — prayog-skills dependency (REQ-20) |
 
 ## Verdict
 
@@ -137,3 +213,16 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 `HandoffReader.read_path(run.handoff_path)` only; dual-run isolation unit green;
 D-W0-I1 closed. Live implement-lane deferred (D-W1-V1 / D-W0-B1 — pin must write
 envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.
+
+**INIT-GATEFLOW-005 W2 (2026-07-29):** **in_progress** on
+`feature/INIT-GATEFLOW-005-w2-dogfood` — multi-skill dogfood (REQ-10): unit green
+(178); verify stage pass with in-run baton evidence (run `d781caaa-…`); full
+implement-lane live exit pending run completion. See
+`Verify-Report-INIT-GATEFLOW-005-BOUNDINPUT-W2.md`.
+
+**INIT-GATEFLOW-006 (2026-07-29):** Product INIT **draft** at
+[`product/INIT-GATEFLOW-006-gateflow.md`](../product/INIT-GATEFLOW-006-gateflow.md).
+**ADR-009** + **ADR-010 Accepted**. Forge unit-complete (#70); lane start APIs
+cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
+unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
+pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
