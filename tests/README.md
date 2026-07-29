@@ -112,7 +112,9 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Full live smoke (product) | `python -m tests.verify.verify_all` | — |
 | Worker claim | `src.worker_main` (manual / compose) | `tests/unit/test_job_worker.py` |
 | Handoff / workflow resolve | — | `tests/unit/test_handoff_workflow.py` |
-| ForgeClient forbid gates | — | `tests/unit/test_forge_client.py` |
+| Pin `forge:` policy + handoff.forge | — | `tests/unit/test_forge_policy.py` |
+| Workspace commit path filter | — | `tests/unit/test_workspace_commit_paths.py` |
+| ForgeClient forbid gates + commit_paths | — | `tests/unit/test_forge_client.py` |
 
 ## Feature map (INIT-GATEFLOW-002 — W0)
 
@@ -175,6 +177,9 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Stage `prompt_id` / `prompt_revision` | `verify_implement_lane` (assert fields) | `test_run_orchestrator` |
 | Ingest from stored `handoff_path` only (REQ-8b) | `verify_implement_lane` (W1 live) | `test_handoff_workflow`, `test_run_orchestrator` |
 | Dual-run baton isolation | — | `test_dual_run_isolation_distinct_handoff_paths` |
+| Stage forge workspace publish (ADR-009 authority) | `verify_implement_lane` (assert `stage_commit` / non-bootstrap tip) | `test_forge_policy`, `test_workspace_commit_paths`, `test_publish_stage_workspace_*` |
+| External-action forge authorize (as-built / pin) | — (API authorize after STOP) | `test_forge_merge`, `test_forge_action_service`, `test_forge_client` open_draft_pr |
+| Sparse PR run-event comments (as-built) | — | `test_notifier` (stage hops skip Forge comment; `run_stopped` posts) |
 
 Requires absolute `GATEFLOW_HANDOFF_ROOT` in `.env` and human Alembic for
 `runs.handoff_path` + `stages.prompt_id` / `stages.prompt_revision` before live prove-it.

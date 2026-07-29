@@ -16,6 +16,7 @@ Asserts (when opted in, start_node=pre-implement):
   - Cursor stages for all four lane skills (success)
   - Terminal status stopped (gate after ground-spec)
   - wave_duration_ms present
+  - stage_commit events for required forge nodes (loop-spec, ground-spec)
   - Coding-work evidence file written by the live agent
 
 Usage:
@@ -232,6 +233,30 @@ def main() -> int:
                 )
                 return 1
             print(f"[OK] wave_duration_ms={detail_body.get('wave_duration_ms')}")
+
+            # ADR-009: required commit_workspace nodes must leave stage_commit events
+            # (empty publish fails closed — a green lane implies those hops published).
+            _REQUIRED_COMMIT_NODES = frozenset({"loop-spec", "ground-spec"})
+            events = detail_body.get("events") or []
+            commit_nodes = {
+                str(e.get("workflow_node"))
+                for e in events
+                if e.get("event_type") == "stage_commit" and e.get("workflow_node")
+            }
+            missing_commits = [
+                n for n in expected if n in _REQUIRED_COMMIT_NODES and n not in commit_nodes
+            ]
+            if missing_commits:
+                print(
+                    f"[ERROR] expected stage_commit events for required forge nodes "
+                    f"{missing_commits}; commit_nodes={sorted(commit_nodes)} "
+                    f"(run PR tip should be non-bootstrap after loop-spec/ground-spec)"
+                )
+                return 1
+            print(
+                f"[OK] stage_commit events for required nodes: "
+                f"{sorted(commit_nodes & _REQUIRED_COMMIT_NODES)}"
+            )
 
             if not evidence_path.is_file():
                 print(

@@ -7,6 +7,9 @@
 | Package | `cursor-sdk` via Poetry main deps (installed in image builder stage) |
 | Scope | Gateflow-like Linux worker image + `CURSOR_API_KEY` + cwd |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Contract probed
 
 Official local path inside the container (same as laptop W0):
@@ -38,7 +41,7 @@ Vendored bits (no separate Node install required on the image):
 
 - Current `Dockerfile` already installs main Poetry deps (includes `cursor-sdk`); bridge Node is **vendored** — do not assume host Node.
 - Slim base provides glibc/`libstdc++` needed by the Linux Node binary (verified via `ldd`).
-- Inject `CURSOR_API_KEY` at runtime (env / secret store). Never bake the key into the image or `programme.yaml`.
+- Inject `CURSOR_API_KEY` at runtime (env / secret store). Never bake the key into the image or committed programme config.
 - Worker cwd must be the target workspace (bind-mount or checkout) so `LocalAgentOptions(cwd=…)` matches the run workspace.
 - Full Scenario B prove-it (`send`/`wait` + coding work) is **TASK-W1-04** live verify — this spike only proves bridge start in-image.
 

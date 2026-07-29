@@ -150,7 +150,7 @@ async def test_wave_start_initiative_wave_ok() -> None:
 async def test_wave_start_rejects_manual_start_node() -> None:
     service = _service()
     with pytest.raises(ValidationError, match="orchestrated"):
-        await service.start_wave(_wave_req(start_node="board-seed"))
+        await service.start_wave(_wave_req(start_node="validate-requirements"))
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,9 @@
-"""BoardService — dumb forge board primitives (FR-24); never called by wave worker."""
+"""BoardService — dumb forge board primitives (FR-24).
+
+Wave ``RunOrchestrator.process_job`` must not call these on start/finish.
+Authorized forge seeding uses ``ForgeActionService`` → these primitives after
+``POST .../forge/authorize`` (or the human ``/create-board-tickets`` skill).
+"""
 
 from typing import Optional
 

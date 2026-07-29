@@ -20,6 +20,12 @@
 | Review deadline | 2026-07-30 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML
+> `ProgrammeConfig` load were removed after this TDD. Live authority is
+> env-backed settings (`GATEFLOW_*`), wave-start API fields, and pin
+> `workflow.yaml` — **ADR-004**, INIT-002 **A-7**, as-built. Rows below that
+> name `programme.yaml` are wave-time design only.
+
 ---
 
 ## 1. Problem statement
@@ -50,7 +56,7 @@ ORM) or writing gate-approval labels.
 | `src/database/postgres/schema/*` | base only | runs, stages, events, jobs, webhook_deliveries | ORM tables |
 | `src/database/postgres/repository/*` | base only | RunStore + job repos | Persistence mapping |
 | `src/models/*` | scaffold | Run/handoff/job/programme/config DTOs | Pydantic contracts |
-| `config/programme.yaml` | new | W1 programme config | Non-secret programme knobs |
+| `config/programme.yaml` | **removed (superseded)** | Was W1 YAML carrier; live knobs = env + wave-start API + pin | See ADR-004 / as-built |
 | `postgres_migrations/versions/` | empty | human revisions | DDL |
 
 **Boundary diagram (text):**
@@ -114,7 +120,7 @@ PE ──Bearer programme token──► GET /api/v1/runs/{id}
 **Arguments:**
 - `handoff`: validated handoff envelope model
 - `trigger`: authorised trigger context (label, repo, pr/issue ids)
-- `programme_config`: ProgrammeConfig
+- `programme_config`: ProgrammeConfig (wave-time; living: env + wave-start + pin — see supersession)
 - `pin_workflow`: loaded workflow + delivery-contract from pin `v0.5.0-rc.2`
 
 **Return:**
@@ -179,7 +185,7 @@ Inbound webhooks remain ADR-002 forge-signature zone (GITHUB_WEBHOOK_SECRET);
 webhook auth is out of scope for TokenProvider.
 ```
 
-**Settings (env — secrets never in programme.yaml):**
+**Settings (env — secrets never in committed programme config):**
 
 | Env / field | Purpose |
 |-------------|---------|
@@ -310,7 +316,7 @@ moved into this TDD). Prior filenames under `adr-00{1-6}-*` are removed.
 | AgentRunner timeout/crash | AgentRunner | stop run `failed` + notify | terminal for run; no workflow advance |
 | Retry budget exhausted | PolicyEngine | stop + comment | terminal |
 | ForgeClient 5xx/rate limit | ForgeClient | retry/backoff; `notify_pending` | recoverable notification |
-| Missing programme config | ProgrammeConfig load | fail startup | terminal process |
+| Missing programme / required env config | Settings / orchestration settings load | fail startup | terminal process |
 
 ---
 
@@ -333,7 +339,7 @@ Align with `logging-loguru.mdc`: static messages + structured kwargs; correlatio
 
 | Schema / data type | Owner (defines + validates) | Validation layer | Versioning |
 |--------------------|----------------------------|------------------|------------|
-| ProgrammeConfig | gateflow (`src/models` + YAML) | startup load | amend-by-PE via PR |
+| Programme/runtime config (living) | gateflow env settings + wave-start API + pin | startup / accept | amend-by-PE via PR / env |
 | Handoff envelope | prayog-skills pin + gateflow HandoffReader | edge parse in HandoffReader | pin version |
 | Workflow / delivery-contract | prayog-skills pin | WorkflowEngine load | pin `v0.5.0-rc.2` |
 | Run / stage / event DTOs | gateflow models + repos | repository on read/write | amend with migrations |

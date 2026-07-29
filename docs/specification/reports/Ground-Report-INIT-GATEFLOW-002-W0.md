@@ -10,6 +10,9 @@
 | Review deadline | 2026-07-28 |
 | Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-24 (live `verify_all` green) |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Automated check output
 
 `ground_command`: N/A. Evidence: `make check`, `make test`, `.venv/bin/python -m tests.verify.verify_all`.
@@ -71,7 +74,7 @@ W0 plan scope: FR-15, FR-17, FR-18, FR-20, FR-23 skeleton, FR-16 config partial.
 | Programme-token mutations on allowlisted control-plane routes | ADR-005 | **pass** — `/api/v1/waves` in `public_paths` + Bearer dependency |
 | Business registry + fail-closed before accept | ADR-006 | **pass** — `AdapterRegistry` + `SlotValidator` before enqueue |
 | Adapters = infra; validation/orchestration = business | ADR-003 | **pass** — stub runners/notifiers under `infra_services/` |
-| Programme YAML authority; secrets in env | ADR-004 | **pass** — `notifier.*` in YAML; token in env |
+| Programme config authority (this repo); secrets in env | ADR-004 | **pass** (wave used YAML for knobs; living carrier removed — see supersession) |
 | Dual process; durable RunStore | ADR-001 | **pass** — run + job at accept; worker reuses `run_id` |
 | Models in `src/models/`; repos map ORM↔Pydantic | pydantic-schemas / repository-pattern | **pass** |
 | Human owns Alembic versions | database-migrations.mdc | **pass** — `bc8abad9a701_add_runs_wave_id` human-authored |
@@ -83,7 +86,7 @@ Source: `Ground-Report-INIT-GATEFLOW-001-W1.md` §Contracts produced.
 
 | Assumed contract | Source | Match? |
 |-----------------|--------|--------|
-| ProgrammeConfig load | Ground-Report-001-W1 | yes — extended with `notifier` + `NodeOverride` |
+| ProgrammeConfig load (wave; living: removed — see supersession) | Ground-Report-001-W1 | yes (wave) — extended with `notifier` + `NodeOverride` |
 | Webhook enqueue | Ground-Report-001-W1 | yes — still live-verified |
 | Trigger authorize | Ground-Report-001-W1 | yes with **intentional drift** — label start disabled; `api_trigger` path added |
 | Job orchestration | Ground-Report-001-W1 | yes — reuses pre-created `run_id` from API start |
@@ -115,7 +118,7 @@ No blocking discrepancies for W0 exit if PE accepts D-W0-V1/M1/L1 as in-scope.
 | API trigger job | WaveStartService → JobRepository | enqueue with `event_type=api_trigger` | delivery id + run_id + org/repo/wave identity | pending job row | Worker must reuse `run_id`; exclude self from concurrent check | W1 |
 | Run list | runs route + MetricsEmitter | `GET /api/v1/runs` | Bearer + filters (initiative, wave, status, org, repo, limit, skip) | `{ items, limit, skip }` | 401 without token; invalid limit/skip → 400 | W1 / ops |
 | Run detail timeline | runs route + MetricsEmitter | `GET /api/v1/runs/{run_id}` | Bearer + run id | header + `stages[]` + `events[]` (+ wave_id) | 401/404; timeline from RunStore only | W1 |
-| Programme config v2 | ProgrammeConfig | `load_programme_config` | YAML | validated config incl. `notifier.default`, `model.overrides` as objects | Missing notifier fails load; legacy override strings coerce | W1 (`pr.*`) |
+| Programme config v2 (wave; living: removed — see supersession) | ProgrammeConfig (wave) | `load_programme_config` | YAML (wave) | validated config incl. `notifier.default`, `model.overrides` as objects | Missing notifier fails load; legacy override strings coerce | Living: env + wave-start API |
 | Wave identity store | RunStore schema/repo | `create_run` / `find_active_run` / `list_runs` | wave_id + initiative_id fields | Pydantic run models | Concurrent by wave identity or PR/issue; human Alembic applied | W1 |
 | Wave-start verify | tests.verify | `verify_wave_start` / `verify_all` | running API + secrets + migrated DB | exit 0 | API start primary; label smoke superseded as primary | W1 verify extend |
 

@@ -11,8 +11,8 @@ from src.models.handoff_models import HandoffEnvelope
 
 _HANDOFF_BODY = (
     "handoff:\n  contract: sdd-delivery/v2\n"
-    "  stage: board-seed\n  outcome: pass\n  blockers: []\n"
-    "  signals: {}\n  next_candidates:\n    - pre-implement\n"
+    "  stage: pre-implement\n  outcome: pass\n  blockers: []\n"
+    "  signals: {}\n  next_candidates:\n    - loop-spec\n"
     "  human_checkpoint: false\n  external_action: false\n"
 )
 
@@ -26,7 +26,7 @@ def test_parse_and_find_handoff(tmp_path: Path) -> None:
     )
     reader = HandoffReader()
     envelope = reader.find_latest_handoff(tmp_path)
-    assert envelope.stage == "board-seed"
+    assert envelope.stage == "pre-implement"
     assert envelope.outcome == "pass"
 
 
@@ -36,7 +36,7 @@ def test_read_path_parses_stored_baton(tmp_path: Path) -> None:
     baton.write_text(f"```yaml\n{_HANDOFF_BODY}```\n", encoding="utf-8")
     reader = HandoffReader()
     envelope = reader.read_path(baton)
-    assert envelope.stage == "board-seed"
+    assert envelope.stage == "pre-implement"
     assert envelope.outcome == "pass"
 
 
@@ -44,7 +44,7 @@ def test_read_path_plain_yaml_without_fence(tmp_path: Path) -> None:
     baton = tmp_path / "handoff.md"
     baton.write_text(_HANDOFF_BODY, encoding="utf-8")
     envelope = HandoffReader().read_path(str(baton))
-    assert envelope.stage == "board-seed"
+    assert envelope.stage == "pre-implement"
 
 
 def test_read_path_missing_fails_closed(tmp_path: Path) -> None:
@@ -115,13 +115,12 @@ def test_workflow_resolve_next_from_pin() -> None:
     engine.load_pin()
     handoff = HandoffEnvelope(
         contract="sdd-delivery/v2",
-        stage="board-seed",
+        stage="pre-implement",
         outcome="pass",
     )
     resolved = engine.resolve_next(handoff)
-    assert resolved.node_id == "pre-implement"
+    assert resolved.node_id == "loop-spec"
     assert resolved.node_type == "skill"
-    # board-seed is manual in pin; next node pre-implement is orchestrated
     assert resolved.dispatch == "orchestrated"
 
 
@@ -137,7 +136,7 @@ def test_require_orchestrated_skill_rejects_manual() -> None:
     engine = WorkflowEngine()
     engine.load_pin()
     with pytest.raises(ValueError, match="orchestrated"):
-        engine.require_orchestrated_skill("board-seed")
+        engine.require_orchestrated_skill("validate-requirements")
 
 
 def test_workflow_missing_pin_fails(tmp_path: Path) -> None:

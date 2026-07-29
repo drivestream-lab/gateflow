@@ -26,13 +26,16 @@ Produced by `/pre-implement` on 2026-07-23. **No product code in this stage.**
 
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 ### Contracts consumed (from prior Ground Report)
 
 Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Contracts produced. Confirmed against `src/`.
 
 | Assumed contract | Entry point | Input shape | Output shape | Source | Confirmed? |
 |-----------------|-------------|-------------|--------------|--------|------------|
-| ProgrammeConfig load | `load_programme_config` / `ProgrammeConfig.get_instance` | YAML path / env path | Validated programme sections (trigger, handoff, retry, …) | Ground-Report-W0 | **yes** — `src/configs/programme_config_loader.py`, `src/models/programme_config_models.py` |
+| ProgrammeConfig load (wave; living: removed — see supersession) | `load_programme_config` / `ProgrammeConfig.get_instance` (wave) | YAML path (wave) | Validated programme sections | Ground-Report-W0 | **wave yes / living no** — superseded by env + API + pin |
 | Webhook enqueue | `WebhookIngressService.enqueue_webhook_job` / `POST /webhooks/github` | delivery id, event type, payload, signature validity | job id or duplicate no-op; 401/503 | Ground-Report-W0 | **yes** — live `verify_all` pass |
 | Job claim stub | `JobWorkerService.claim_and_process_one` / `worker_main` | pending job rows | claimed then processed (stub) | Ground-Report-W0 | **yes** (code/unit) — **live docker claim deferred (D-W0-V2)** |
 | RunStore persistence | repos create/enqueue/claim/mark_* | Pydantic create DTOs | Pydantic models | Ground-Report-W0 | **yes** — migration `36b36d3d4fc9` applied; create includes defaults |
@@ -100,7 +103,7 @@ Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W0.md` §Con
 - [ ] Assume W0 live worker claim is proven (D-W0-V2) — prove in W1-07 or flag deferral
 - [ ] Hardcode workflow node allowlists / node→tool slot maps
 - [ ] Write gate-approval labels or enable auto-merge via ForgeClient
-- [ ] Put programme token or App secrets in `programme.yaml`
+- [ ] Put programme token or App secrets in committed programme config / env-backed docs (secrets belong in env / secret store only)
 - [ ] Define Pydantic models under `src/api/`
 - [ ] Agent-authored Alembic revisions under `postgres_migrations/versions/`
 

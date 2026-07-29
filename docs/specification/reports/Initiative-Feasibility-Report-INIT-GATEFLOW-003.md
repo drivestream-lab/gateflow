@@ -19,6 +19,11 @@
 | Review deadline | 2026-07-29 |
 | Deciders | PM: programme PM · Domain SME: prayog-pe-team |
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML
+> `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`),
+> wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and
+> `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Summary
 
 INIT-GATEFLOW-003 is **buildable** on the delivered INIT-001/002 control plane
@@ -113,7 +118,7 @@ wave duration field, stub quarantine), then plan W0→W1→W2.
 |----|-------|---------|----------|
 | FF-01 | F2/F5 | **Live Cursor path absent** — REQ-27 requires SDK AgentRunner performing live coding work; current path is stub/`mock-*`/`GATEFLOW_AGENT_STUB` only | Spec REQ-27; `src/infra_services/cursor_agent_runner.py`; as-built “real SDK deferred”; no cursor package in `pyproject.toml` |
 | FF-02 | F5/F13 | **Registry honesty drift** — `cursor` marked `implemented=True` while AgentRunner cannot run real skills without stub env | Spec precondition #10 / REQ-28; `adapter_registry.py:62`; `cursor_agent_runner.py:99–114` |
-| FF-03 | F2/F10 | **No Cursor credentials / PC-12** — REQ-29 wave-run precondition #12 not modeled in settings or TriggerRouter/SlotValidator | Spec REQ-29; no Cursor keys in `ProgrammeConfig` / `.env.example`; `WavePreconditionIdType` has no credential check |
+| FF-03 | F2/F10 | **No Cursor credentials / PC-12** — REQ-29 wave-run precondition #12 not modeled in settings or TriggerRouter/SlotValidator | Spec REQ-29; no Cursor keys in settings / `.env.example` at report date; `WavePreconditionIdType` has no credential check |
 | FF-04 | F2 | **Wave cycle-time missing** — no `wave_duration_ms` (or equivalent) from API accept → contract stop/fail | Spec REQ-30 / Q-2; `RunSchema` / `RunModel` lack field; `record_api_trigger` exists as start anchor only |
 | FF-05 | F2/F4 | **Failed AgentRunner stages omit duration metrics** — success path records stage + `duration_ms`; failure finalizes without `StageCreate` / `record_stage_duration` | Spec REQ-30 “every live Cursor orchestrated stage”; `run_orchestrator.py` failure branch vs success `302–326` |
 | FF-06 | F2 | **Orchestrator hardwires Cursor** — non-cursor resolved runner fails at **worker** with “W1 Cursor path only”, not always at wave-start via registry routing | Spec REQ-28 “blocks at start”; `run_orchestrator.py:239–255` vs `WaveStartService` SlotValidator |

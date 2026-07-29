@@ -1,6 +1,8 @@
 """ForgeClient — outbound GitHub comments/PR/board ops with forbidden-op guards (ADR-003)."""
 
-from typing import Any, Optional
+import base64
+from pathlib import Path, PurePosixPath
+from typing import Any, Optional, Sequence
 
 import httpx
 from injector import inject
@@ -10,6 +12,7 @@ from src.configs.github_settings import GithubSettings
 from src.infra_services.base_infra_service import BaseInfraService
 from src.infra_services.github_token_provider import GithubTokenProvider
 from src.logging import get_logger
+from src.models.forge_models import CommitPathsResult
 
 logger = get_logger()
 
@@ -204,10 +207,13 @@ class ForgeClient(BaseInfraService):
         body: str,
         head: str,
         base: str,
+        draft: bool = False,
     ) -> int:
         """Open or update a PR by head branch. Returns PR number.
 
         Does not auto-merge or write gate-approval labels (ADR-003).
+        When ``draft=True`` on create, opens as Draft. Update path patches title/body
+        and draft flag when the API allows.
         """
         client = self._require_client()
         head_ref = f"{owner}:{head}"
@@ -220,9 +226,13 @@ class ForgeClient(BaseInfraService):
         existing = listed.json()
         if isinstance(existing, list) and existing:
             pr_number = int(existing[0]["number"])
+            patch_body: dict[str, Any] = {"title": title, "body": body}
+            # GitHub allows toggling draft via dedicated endpoint on some plans;
+            # include draft in PATCH when updating (ignored if unsupported).
+            patch_body["draft"] = draft
             patch = await client.patch(
                 f"/repos/{owner}/{repo}/pulls/{pr_number}",
-                json={"title": title, "body": body},
+                json=patch_body,
             )
             patch.raise_for_status()
             logger.info(
@@ -230,13 +240,20 @@ class ForgeClient(BaseInfraService):
                 owner=owner,
                 repo=repo,
                 pr_number=pr_number,
+                draft=draft,
                 operation="create_or_update_pull_request",
             )
             return pr_number
 
         created = await client.post(
             list_path,
-            json={"title": title, "body": body, "head": head, "base": base},
+            json={
+                "title": title,
+                "body": body,
+                "head": head,
+                "base": base,
+                "draft": draft,
+            },
         )
         created.raise_for_status()
         data = created.json()
@@ -246,8 +263,108 @@ class ForgeClient(BaseInfraService):
             owner=owner,
             repo=repo,
             pr_number=pr_number,
+            draft=draft,
             operation="create_or_update_pull_request",
         )
+        return pr_number
+
+    def _assert_projection_labels(self, labels: list[str]) -> None:
+        for label in labels:
+            if label.endswith("-lgtm"):
+                raise PermissionError(f"ForgeClient forbids approval label writes: {label}")
+            if label in _FORBIDDEN_LABEL_EXACT or any(
+                label.startswith(prefix) for prefix in _FORBIDDEN_LABEL_PREFIXES
+            ):
+                raise PermissionError(f"ForgeClient forbids gate-approval label writes: {label}")
+
+    async def apply_pull_request_labels(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        labels: list[str],
+    ) -> None:
+        """Add projection labels on a PR (issues labels API). Never ``*-lgtm``."""
+        self.assert_no_gh_cli_transport()
+        if not labels:
+            return
+        self._assert_projection_labels(labels)
+        client = self._require_client()
+        response = await client.post(
+            f"/repos/{owner}/{repo}/issues/{pr_number}/labels",
+            json={"labels": labels},
+        )
+        response.raise_for_status()
+        logger.info(
+            "ForgeClient PR labels applied",
+            owner=owner,
+            repo=repo,
+            pr_number=pr_number,
+            labels=labels,
+            operation="apply_pull_request_labels",
+        )
+
+    async def remove_pull_request_labels(
+        self,
+        owner: str,
+        repo: str,
+        pr_number: int,
+        labels: list[str],
+    ) -> None:
+        """Remove projection labels from a PR. Never touches ``*-lgtm`` removals as a policy."""
+        self.assert_no_gh_cli_transport()
+        if not labels:
+            return
+        self._assert_projection_labels(labels)
+        client = self._require_client()
+        for label in labels:
+            response = await client.delete(
+                f"/repos/{owner}/{repo}/issues/{pr_number}/labels/{label}",
+            )
+            # 404 = already absent — treat as success for idempotent remove
+            if response.status_code not in {200, 204, 404}:
+                response.raise_for_status()
+        logger.info(
+            "ForgeClient PR labels removed",
+            owner=owner,
+            repo=repo,
+            pr_number=pr_number,
+            labels=labels,
+            operation="remove_pull_request_labels",
+        )
+
+    async def open_draft_pr(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        title: str,
+        body: str,
+        head: str,
+        base: str,
+        draft: bool = True,
+        apply_labels: Optional[list[str]] = None,
+        remove_labels: Optional[list[str]] = None,
+    ) -> int:
+        """Create/update Draft PR and apply/remove projection labels. Returns PR number."""
+        self.assert_no_gh_cli_transport()
+        to_apply = list(apply_labels or [])
+        to_remove = list(remove_labels or [])
+        self._assert_projection_labels(to_apply)
+        self._assert_projection_labels(to_remove)
+        pr_number = await self.create_or_update_pull_request(
+            owner,
+            repo,
+            title=title,
+            body=body,
+            head=head,
+            base=base,
+            draft=draft,
+        )
+        if to_remove:
+            await self.remove_pull_request_labels(owner, repo, pr_number, to_remove)
+        if to_apply:
+            await self.apply_pull_request_labels(owner, repo, pr_number, to_apply)
         return pr_number
 
     def add_labels(self, labels: list[str]) -> None:
@@ -474,6 +591,113 @@ class ForgeClient(BaseInfraService):
             operation="board_apply_issue_labels",
         )
         return data
+
+    async def commit_paths_to_branch(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        branch: str,
+        workspace_path: str | Path,
+        paths: Sequence[str],
+        message: str,
+    ) -> CommitPathsResult:
+        """Create blobs + tree + commit and advance ``branch`` tip (no force).
+
+        ``paths`` are workspace-relative POSIX paths that must exist as files.
+        Caller applies pin ``commit_workspace`` policy (optional vs required empty).
+        """
+        self.assert_no_gh_cli_transport()
+        if not paths:
+            raise ValueError("commit_paths_to_branch requires at least one path")
+        if not str(branch).strip():
+            raise ValueError("branch is required")
+        if not str(message).strip():
+            raise ValueError("commit message is required")
+
+        root = Path(workspace_path).resolve()
+        if not root.is_dir():
+            raise ValueError(f"workspace_path is not a directory: {root}")
+
+        normalized: list[str] = []
+        for raw in paths:
+            rel = PurePosixPath(str(raw).replace("\\", "/"))
+            if rel.is_absolute() or ".." in rel.parts or not str(rel):
+                raise ValueError(f"Invalid commit path: {raw!r}")
+            abs_file = root / rel
+            if not abs_file.is_file():
+                raise ValueError(f"Commit path missing or not a file: {rel}")
+            normalized.append(str(rel))
+
+        client = self._require_client()
+        ref = await client.get(self._git_ref_get_path(owner, repo, branch))
+        ref.raise_for_status()
+        head_sha = str(ref.json()["object"]["sha"])
+
+        parent = await client.get(f"/repos/{owner}/{repo}/git/commits/{head_sha}")
+        parent.raise_for_status()
+        base_tree_sha = str(parent.json()["tree"]["sha"])
+
+        tree_entries: list[dict[str, str]] = []
+        for rel in normalized:
+            content = (root / rel).read_bytes()
+            blob = await client.post(
+                f"/repos/{owner}/{repo}/git/blobs",
+                json={
+                    "content": base64.b64encode(content).decode("ascii"),
+                    "encoding": "base64",
+                },
+            )
+            blob.raise_for_status()
+            blob_sha = str(blob.json()["sha"])
+            tree_entries.append(
+                {
+                    "path": rel,
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": blob_sha,
+                }
+            )
+
+        tree = await client.post(
+            f"/repos/{owner}/{repo}/git/trees",
+            json={"base_tree": base_tree_sha, "tree": tree_entries},
+        )
+        tree.raise_for_status()
+        new_tree_sha = str(tree.json()["sha"])
+
+        commit = await client.post(
+            f"/repos/{owner}/{repo}/git/commits",
+            json={
+                "message": message,
+                "tree": new_tree_sha,
+                "parents": [head_sha],
+            },
+        )
+        commit.raise_for_status()
+        new_sha = str(commit.json()["sha"])
+
+        updated = await client.patch(
+            self._git_ref_update_path(owner, repo, branch),
+            json={"sha": new_sha, "force": False},
+        )
+        updated.raise_for_status()
+
+        logger.info(
+            "ForgeClient committed paths to branch",
+            owner=owner,
+            repo=repo,
+            branch=branch,
+            commit_sha=new_sha,
+            path_count=len(normalized),
+            operation="commit_paths_to_branch",
+        )
+        return CommitPathsResult(
+            commit_sha=new_sha,
+            branch=branch,
+            path_count=len(normalized),
+            paths=list(normalized),
+        )
 
 
 def get_forge_client() -> ForgeClient:

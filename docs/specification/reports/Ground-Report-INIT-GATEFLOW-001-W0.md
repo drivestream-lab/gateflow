@@ -10,6 +10,9 @@
 | Review deadline | 2026-07-27 |
 | Deciders | Tech lead / reviewer: @nikd10x — human LGTM recorded 2026-07-23 (live verify green) |
 
+
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
 ## Automated check output
 
 `ground_command`: N/A (no Makefile ground target). Evidence: `make check`, `make test`, live `verify_all`.
@@ -50,7 +53,7 @@ Out-of-wave (W1 — expected fail/not started): FR-2–4, FR-8–11, FR-13–16,
 | Dual process API + worker; jobs in Postgres | ADR-001 | **pass** (code); live worker claim deferred |
 | Webhook on `public_paths`; signature zone | ADR-002 | **pass** |
 | ForgeClient infra; handoff/workflow business | ADR-003 | **pass** |
-| Programme YAML singleton; secrets in env | ADR-004 | **pass** |
+| Programme/runtime config fail-fast (living: env settings) | ADR-004 | **pass** (wave used YAML; carrier later removed — see supersession) |
 | Models in `src/models/`; repos map ORM→Pydantic | pydantic-schemas / repository-pattern | **pass** |
 | import-linter layers | python-tooling | **pass** |
 | Human-owned Alembic revisions | database-migrations | **pass** — first RunStore revision applied |
@@ -70,7 +73,7 @@ Usable as W1 `/pre-implement` baseline.
 
 | Contract | Module / component | Entry point | Input shape | Output shape | Invariants | Next wave |
 |----------|--------------------|-------------|-------------|--------------|------------|-----------|
-| ProgrammeConfig load | programme config loader + models | `load_programme_config` / `ProgrammeConfig.get_instance` | YAML path | Validated programme sections | Missing/invalid fails start | W1 |
+| Programme/runtime config load (wave: YAML; living: env — see supersession) | programme config loader + models (wave) / `OrchestrationSettings` (living) | startup load | YAML path (wave) / env (living) | Validated knobs | Missing/invalid fails start | W1 |
 | Webhook enqueue | webhook ingress + route | `enqueue_webhook_job` / `POST /webhooks/github` | delivery id, event, payload, sig | job id or duplicate no-op; 401/503 | Idempotent on delivery id | W1 TriggerRouter |
 | Job claim stub | job worker + worker entry | `claim_and_process_one` | pending jobs | claimed then processed (stub) | SKIP LOCKED; no agent dispatch | W1 RunOrchestrator |
 | RunStore persistence | schema + repositories | create/enqueue/claim/mark_* | Pydantic create DTOs | Pydantic models | Create dumps include defaults | W1 status/metrics |

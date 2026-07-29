@@ -28,13 +28,16 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 ### Contracts consumed (from prior Ground Report)
 
 > Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-001-W1.md` §Contracts produced (cross-initiative baseline). Confirmed against `src/`.
 
 | Assumed contract | Entry point | Input shape | Output shape | Source | Confirmed? |
 |-----------------|-------------|-------------|--------------|--------|------------|
-| ProgrammeConfig load | `ProgrammeConfig.get_instance` / YAML loader | YAML path / env | Validated sections (trigger, handoff, retry, runner, model, tools, metrics) | Ground-Report-001-W1 / W0 | **yes** — `src/models/programme_config_models.py`, `config/programme.yaml` |
+| ProgrammeConfig load (wave; living: removed — see supersession) | `ProgrammeConfig.get_instance` / YAML loader (wave) | YAML path (wave) | Validated sections | Ground-Report-001-W1 / W0 | **wave yes / living no** — superseded by env + API + pin |
 | Webhook enqueue | `POST /webhooks/github` → job row | delivery id, event, payload, signature | job id or duplicate; 401/503 | Ground-Report-001-W0/W1 | **yes** — live `verify_all` |
 | Trigger authorize | `TriggerRouter.authorize_and_check` | event type, delivery id, payload, programme config | authorized + context **or** precondition failures | Ground-Report-001-W1 | **yes** — label match + PC checklist; **W0 must change** label start path (FR-15) |
 | Job orchestration | `RunOrchestrator.process_job` | claimed job DTO | run summary (run id, terminal status, dispatched) | Ground-Report-001-W1 | **yes** — worker path exists |
@@ -78,7 +81,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
   - [x] ADR-001 — dual process; durable RunStore (wave identity columns)
   - [x] ADR-002 — trust zones (JWT / webhook / programme token) — programme-token **write** row superseded by ADR-005
   - [x] ADR-003 — adapters = infra; policy/orchestrator/registry validation = business
-  - [x] ADR-004 — programme YAML authority; secrets in env
+  - [x] ADR-004 — programme config authority in this repo; secrets in env (YAML carrier later removed)
   - [x] ADR-005 — programme-token **mutations** for documented control-plane writes (`sha256:88eab400…` matches disk)
   - [x] ADR-006 — business registry + fail-closed before accept (`sha256:fff0c515…` matches plan; TDD table still cites older digest — hygiene only)
 - [x] Spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` (FR-15, 17, 18, 20, 23 skeleton; preconditions)
@@ -114,7 +117,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 - [ ] Assume `wave_id` / list/timeline / registry exist without building them
 - [ ] Agent-authored Alembic under `postgres_migrations/versions/` (human only — DEP-06)
 - [ ] Silent fallback to Cursor or GitHub when stub selected (ADR-006)
-- [ ] Put programme token / App secrets in `programme.yaml`
+- [ ] Put programme token / App secrets in committed programme config (secrets belong in env / secret store only)
 - [ ] Define Pydantic models under `src/api/`
 - [ ] Call board APIs from wave-start or worker (FR-24 is W2; worker isolation)
 - [ ] Keep label-based wave start as a supported path for 002 programmes
@@ -137,7 +140,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 
 | Path | Action |
 |------|--------|
-| `config/programme.yaml`, `config/programme.yaml.example` | edit — `notifier.*`; override shape |
+| `config/programme.yaml` (wave target; **living: removed**) | edit — `notifier.*`; override shape — see supersession |
 | `src/models/programme_config_models.py`, wave/run list models | edit/create |
 | `src/business_services/slot_validator.py`, adapter registry module | create |
 | stub runner/notifier infra modules | create |

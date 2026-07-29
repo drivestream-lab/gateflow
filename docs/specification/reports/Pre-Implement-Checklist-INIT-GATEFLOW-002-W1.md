@@ -28,6 +28,9 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 
 ---
 
+> **Living supersession (config carrier):** `config/programme.yaml` / YAML `ProgrammeConfig` load are **removed**. Live authority is env (`GATEFLOW_*`), wave-start API, and pin `workflow.yaml` — ADR-004, INIT-002 A-7, as-built, and `docs/specification/reports/README.md`. Mentions below are wave-time evidence only.
+
+
 ### Contracts consumed (from prior Ground Report)
 
 > Source: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-002-W0.md` §Contracts produced. Confirmed against `src/` / `config/` / `tests/verify/`.
@@ -41,7 +44,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 | Label start policy | TriggerRouter `authorize_and_check` | event + payload | authorized context or failures | Ground-Report-002-W0 | **yes** — non-`api_trigger` start rejected |
 | API trigger job | WaveStartService → JobRepository | `event_type=api_trigger` + run_id | pending job | Ground-Report-002-W0 | **yes** — worker must reuse `run_id` (**D-W0-V1**: live verify does not yet assert claim→orchestrator e2e) |
 | Run list / detail timeline | MetricsEmitter + runs routes | Bearer + filters / run id | list items or header+stages+events | Ground-Report-002-W0 | **yes** |
-| Programme config v2 | ProgrammeConfig load | YAML | validated config incl. `notifier.default`, `NodeOverride` objects | Ground-Report-002-W0 | **yes** — **`pr.*` section not present yet** (W1 TASK-W1-02) |
+| Programme config v2 (wave; living: removed — see supersession) | ProgrammeConfig load (wave) | YAML (wave) | validated config incl. `notifier.default`, `NodeOverride` objects | Ground-Report-002-W0 | **wave yes / living no** |
 | Wave identity store | RunStore create / find_active / list | `wave_id` + identity fields | Pydantic run models | Ground-Report-002-W0 | **yes** — stage columns `runner` / `model_profile` / `model_id` / `model_provider` already on ORM+DTOs |
 | Programme-token AuthN | Bearer programme token on control-plane routes | Authorization header | void or 401 | Ground-Report-002-W0 / ADR-005 | **yes** |
 | Forge comments | Notifier → ForgeClient `post_comment` | org/repo/issue + body | comment id or `notify_pending` | Ground-Report-002-W0 | **yes** — comments today target issue/PR number from context; **no PR create/update** |
@@ -51,7 +54,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 
 **Unconfirmed contracts** (new in INIT-002 W1 — no Ground Report backing):
 
-- Programme `pr.*` templates (`branch_prefix`, `title_template`, `body_template`) — **missing** from `config/programme.yaml` / models (TDD §8 / Q-2)
+- Programme `pr.*` templates (wave gap at checklist time; living: no programme.yaml — PR targeting via wave-start / forge)
 - ForgeClient `create_or_update_pull_request` — **not implemented** (`post_comment` + forbid-only helpers only)
 - Orchestrator **PR-at-run-start** before first orchestrated stage; Notifier comments on **that** PR; `notify_pending` on PR open/update failure (Q-5 default) — **not implemented**
 - Per-node **runner** selection from `NodeOverride.runner` / `runner.default` (not hardwired Cursor) + persist four fields from resolved config (today fields come from agent_result only) — **partial gap** (D-W0-M1)
@@ -85,7 +88,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 - [x] ADRs (keyword-matched):
   - [x] ADR-001 — dual process; durable RunStore (stage persistence; jobs)
   - [x] ADR-003 — ForgeClient / AgentRunner = infra; orchestrator / notifier / metrics = business; no auto-merge / gate labels
-  - [x] ADR-004 — `pr.*` + overrides live in programme YAML; secrets in env
+  - [x] ADR-004 — programme config authority; secrets in env (`pr.*` was YAML in wave; living carrier removed)
   - [x] ADR-005 — programme-token control-plane reads (metrics/runs) unchanged; no new write surface required for W1 core
   - [x] ADR-006 — fail-closed selection still applies when resolving required runners for overrides
   - [x] ADR-002 — background trust zones (JWT/webhook); programme-token write row superseded by ADR-005
@@ -128,7 +131,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 - [ ] Board API calls from orchestrator / worker (FR-24 is W2)
 - [ ] Require real Cursor SDK for W1 exit (V-3 deferred — document stub path in as-built)
 - [ ] Invent dedicated PE alert channel beyond `notify_pending` + status API (Q-5 default)
-- [ ] Put secrets in `programme.yaml`
+- [ ] Put secrets in committed programme config (secrets belong in env / secret store only)
 - [ ] Define Pydantic models under `src/api/`
 - [ ] Agent-authored Alembic under `postgres_migrations/versions/` (human only if DDL needed)
 - [ ] Implement W2 board / `gh`-free production proof scope
@@ -154,7 +157,7 @@ Produced by `/pre-implement` on 2026-07-24 for **INIT-GATEFLOW-002**. **No produ
 | `src/business_services/notifier.py` | edit — comment target = run PR |
 | `src/business_services/metrics_emitter.py`, `src/api/v1/metrics_routes.py`, metrics models | edit — dims + `api_trigger` |
 | `src/infra_services/cursor_agent_runner.py` | edit as needed — stub happy path |
-| `config/programme.yaml`, `config/programme.yaml.example` | edit — `pr.*`; sample multi-node overrides for fixtures |
+| `config/programme.yaml` (wave target; **living: removed**) | edit — `pr.*`; sample overrides — see supersession |
 | `src/models/programme_config_models.py` (+ metrics/run models as needed) | edit/create — `PrConfig` |
 | `tests/unit/**` | edit/create — overrides, PR order, metrics dims, stub cursor |
 | `tests/verify/verify_pr_thread.py` (or extended smoke), `verify_all.py` | create/edit |

@@ -145,3 +145,124 @@ async def test_ensure_branch_from_base_noop_when_present() -> None:
     )
     assert created_new is False
     http.post.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_commit_paths_to_branch_creates_blobs_tree_commit(tmp_path) -> None:
+    from pathlib import Path
+
+    workspace = Path(tmp_path)
+    (workspace / "docs").mkdir()
+    (workspace / "docs" / "a.md").write_text("hello\n", encoding="utf-8")
+
+    client = _forge_client()
+    http = MagicMock()
+
+    ref = MagicMock()
+    ref.raise_for_status = MagicMock()
+    ref.json.return_value = {"object": {"sha": "headsha"}}
+
+    parent = MagicMock()
+    parent.raise_for_status = MagicMock()
+    parent.json.return_value = {"tree": {"sha": "treesha"}}
+
+    blob = MagicMock()
+    blob.raise_for_status = MagicMock()
+    blob.json.return_value = {"sha": "blobsha"}
+
+    tree = MagicMock()
+    tree.raise_for_status = MagicMock()
+    tree.json.return_value = {"sha": "newtree"}
+
+    commit = MagicMock()
+    commit.raise_for_status = MagicMock()
+    commit.json.return_value = {"sha": "newcommit"}
+
+    patched = MagicMock()
+    patched.raise_for_status = MagicMock()
+
+    http.get = AsyncMock(side_effect=[ref, parent])
+    http.post = AsyncMock(side_effect=[blob, tree, commit])
+    http.patch = AsyncMock(return_value=patched)
+    client._client = http
+    client._initialized = True
+
+    result = await client.commit_paths_to_branch(
+        "acme",
+        "widget",
+        branch="feature/wave",
+        workspace_path=workspace,
+        paths=["docs/a.md"],
+        message="chore: publish",
+    )
+    assert result.commit_sha == "newcommit"
+    assert result.path_count == 1
+    assert result.paths == ["docs/a.md"]
+    assert http.post.await_count == 3
+    http.patch.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_commit_paths_to_branch_empty_fails() -> None:
+    client = _forge_client()
+    client._client = MagicMock()
+    client._initialized = True
+    with pytest.raises(ValueError, match="at least one path"):
+        await client.commit_paths_to_branch(
+            "acme",
+            "widget",
+            branch="feature/wave",
+            workspace_path=".",
+            paths=[],
+            message="x",
+        )
+
+
+@pytest.mark.asyncio
+async def test_open_draft_pr_applies_projection_labels() -> None:
+    client = _forge_client()
+    http = MagicMock()
+    listed = MagicMock()
+    listed.raise_for_status = MagicMock()
+    listed.json.return_value = []
+    created = MagicMock()
+    created.raise_for_status = MagicMock()
+    created.json.return_value = {"number": 42}
+    labeled = MagicMock()
+    labeled.raise_for_status = MagicMock()
+    http.get = AsyncMock(return_value=listed)
+    http.post = AsyncMock(side_effect=[created, labeled])
+    client._client = http
+    client._initialized = True
+
+    pr = await client.open_draft_pr(
+        "acme",
+        "widget",
+        title="t",
+        body="b",
+        head="feature/x",
+        base="develop",
+        draft=True,
+        apply_labels=["impact-map-pending"],
+    )
+    assert pr == 42
+    assert http.post.await_count == 2
+    create_json = http.post.await_args_list[0].kwargs["json"]
+    assert create_json["draft"] is True
+
+
+@pytest.mark.asyncio
+async def test_open_draft_pr_forbids_lgtm_labels() -> None:
+    client = _forge_client()
+    client._client = MagicMock()
+    client._initialized = True
+    with pytest.raises(PermissionError, match="lgtm"):
+        await client.open_draft_pr(
+            "acme",
+            "widget",
+            title="t",
+            body="b",
+            head="feature/x",
+            base="develop",
+            apply_labels=["spec-lgtm"],
+        )
