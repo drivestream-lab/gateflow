@@ -4,20 +4,24 @@ initiative: INIT-GATEFLOW-005-BOUNDINPUT
 status: Planned
 date_created: 2026-07-27
 source_spec: docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md
-source_spec_digest: sha256:5a2bb4965b705911c8ffb0673ac1a8bf5cbe948f1b6376a4b29ea2a9e716a861
+source_spec_digest: sha256:1057982743257a4ad4b9a5d1b7739db2a2e4b597bbe172b2a4411cc4a299f320
 feasibility_report: docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md
-feasibility_digest: sha256:e34b9f54fdb509cc4847f6300ae2c68546999485c68f781fca3a1c92499dd15a
+feasibility_digest: sha256:4aa8038c2e13345dcfef78c92a6ce2617a30094e18a88d7344f27e3c8a4bfc2a
 technical_review: docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-technical_review_digest: sha256:4feaf5973657ce72bca73cdbc1bcd892b2dd20fbfe6b700e5fdd7edafe83891a
+technical_review_digest: sha256:1493c3f7428c69fae937a6842f43f375d58daf7b197d78378b02a34ab4af7fa3
 prd_digest: sha256:40fb856dd5068290c1d14f010239e6206bee2625aaf6a6e3970d769e9bb5e970
 impact_map: prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-005-BOUNDINPUT.md
 impact_map_revision: 1
 repo_scope_digest: sha256:2cc5e2151451c47b973fdc86dafe19d5cb2fadd651212a5a00f9d681f274039b
 approved_meta_pr_head: 0b6b11e4470517842affb894d7ea581c3819ead3
-branch: chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-gateflow
+branch: chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-digest-backfill
 review_deadline: 2026-07-30
-deciders: PE — spec-lgtm + Approve on exact head after plan package (post-merge recovery)
-recovery_note: Spec package (spec + feasibility + TDD + ADR-007/008) merged on PR #52 without this plan; this branch restores Gate 2 plan artifact on develop before /board-seed
+deciders: PE — Approve tip after digest backfill (Gate 2 historically open via #52/#53)
+recovery_note: >
+  Digests backfilled 2026-07-29 after f49aab3 cosmetic ADR-004 wording in
+  feasibility + TDD invalidated plan § Source freshness (blocked /pre-implement
+  W2). Waves W0–W1 human_approved; board seeded (#54–#57). No WorkManifest or
+  TASK changes — freshness rows only. Prior plan recovery: #53.
 ---
 
 # Implementation plan — INIT-GATEFLOW-005-BOUNDINPUT
@@ -27,8 +31,8 @@ recovery_note: Spec package (spec + feasibility + TDD + ADR-007/008) merged on P
 | Item | Value | Status |
 |------|-------|--------|
 | Spec / digest | `docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md` / `sha256:5a2bb4965b705911c8ffb0673ac1a8bf5cbe948f1b6376a4b29ea2a9e716a861` | CURRENT |
-| Feasibility / digest | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md` / `sha256:e34b9f54fdb509cc4847f6300ae2c68546999485c68f781fca3a1c92499dd15a` | CURRENT |
-| Technical review / digest | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md` / `sha256:4feaf5973657ce72bca73cdbc1bcd892b2dd20fbfe6b700e5fdd7edafe83891a` | CURRENT |
+| Feasibility / digest | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md` / `sha256:4aa8038c2e13345dcfef78c92a6ce2617a30094e18a88d7344f27e3c8a4bfc2a` | CURRENT |
+| Technical review / digest | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md` / `sha256:1493c3f7428c69fae937a6842f43f375d58daf7b197d78378b02a34ab4af7fa3` | CURRENT |
 | Impact map / revision | `prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-005-BOUNDINPUT.md` / `1` | CURRENT |
 | Repo scope digest | `sha256:2cc5e2151451c47b973fdc86dafe19d5cb2fadd651212a5a00f9d681f274039b` | CURRENT |
 | Approved meta PR head | `0b6b11e4470517842affb894d7ea581c3819ead3` | CURRENT |
@@ -51,8 +55,9 @@ recovery_note: Spec package (spec + feasibility + TDD + ADR-007/008) merged on P
 | Outstanding PM questions | none — all resolved |
 | Outstanding domain questions | none — Q-1…Q-4 + FF-* resolved in TDD §9 |
 
-> Do not start W0 implementation until this plan is merged to `develop` and
-> `/board-seed` has created the wave issues (post Gate 2 on this recovery PR).
+> **Digest backfill (2026-07-29):** W0–W1 already `human_approved`; EPIC/waves
+> seeded (#54–#57). After this tip merges to `develop`, re-run `/pre-implement`
+> for W2 (#57) — do **not** re-seed the board.
 
 ---
 
@@ -264,81 +269,76 @@ complete.
 
 ## 8. PR instructions
 
-> **Recovery:** Spec + feasibility + TDD + ADRs already merged on
-> https://github.com/drivestream-lab/gateflow/pull/52 (`develop` @ `de39694`).
-> Commit **this plan only** on branch
-> `chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-gateflow`. Open a **Draft** PR into
-> `develop`. Label **`spec-pending`** until PE completes §10.
+> **Digest backfill:** Feasibility + TDD digests drifted after `f49aab3`
+> (ADR-004 wording). Commit **plan freshness rows only** on
+> `chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-digest-backfill`. Open a PR into
+> `develop`. No TASK/WorkManifest changes. Board already seeded — do not
+> re-run `/create-board-tickets`.
 
 ```
-Branch:   chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-gateflow
+Branch:   chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-digest-backfill
 Base:     develop
-PR title: "[INIT-GATEFLOW-005-BOUNDINPUT] Implementation plan — gateflow"
+PR title: "[INIT-GATEFLOW-005-BOUNDINPUT] Plan source-digest backfill"
 Required reviewers: @drivestream-lab/prayog-pe-team
 Review deadline: 2026-07-30
 
-PE checklist (before spec-lgtm on this plan PR):
-  [ ] Plan on current head; digests match § Source freshness
-  [ ] §0 PE sign-off on TDD already complete (historical #52)
-  [ ] Wave order / done-when / WorkManifest §9 OK
-  [ ] P1–P14 pass
+PE checklist (before merge):
+  [ ] Plan § Source freshness digests match workspace shasum
+  [ ] No TASK / §9 WorkManifest edits beyond recovery notes
+  [ ] P1–P14 still PASS (content unchanged)
 
-After spec-lgtm + Approve + merge of this plan PR — **/board-seed** from §9
-(post-merge only; do not seed from an open Draft branch)
+After merge to develop → **/pre-implement** on W2 (#57)
+(do not re-seed board)
 ```
 
 ---
 
-## 10. Gate 2 unlock (PE — after plan on head)
+## 10. Gate 2 unlock (PE — digest backfill tip)
 
 | Item | Value |
 |------|-------|
-| Verdict | **GATE OPEN REQUEST** (plan recovery) |
+| Verdict | **DIGEST BACKFILL** (Gate 2 historically open via #52 + plan #53) |
 | Spec PR (historical package) | https://github.com/drivestream-lab/gateflow/pull/52 (merged) |
-| Plan recovery PR | *(fill after `gh pr create`)* |
+| Prior plan recovery PR | https://github.com/drivestream-lab/gateflow/pull/53 (merged) |
+| Digest-backfill PR | *(fill after `gh pr create`)* |
 | Plan PR head SHA | *(PE: `gh pr view <n> --json headRefOid -q .headRefOid`)* |
-| Gate label (current) | `spec-pending` |
-| Gate label (target) | `spec-lgtm` |
-| Blocking items | none — plan complete; needs PE Approve on plan PR tip |
+| Gate label | optional `spec-pending` on Draft; Approve tip then merge |
+| Blocking items | none — refresh feasibility/TDD digests only |
 
-```bash
-launchpad apply-gates --repo gateflow --apply
-```
+PE on **exact current backfill-PR head**:
 
-PE on **exact current plan-PR head**:
-
-1. Remove `spec-pending` / `spec-blocked` / `spec-revised` / `spec-stale`; add **`spec-lgtm`**
-2. GitHub **Approve** with attestation below
-3. Mark Draft PR **Ready for review**
-4. Authorize merge to `develop`; then **`/board-seed`** from §9
+1. Confirm § Source freshness matches `shasum -a 256` of feasibility + TDD
+2. GitHub **Approve** with attestation below (optional `spec-lgtm` if using gate labels)
+3. Authorize merge to `develop`
+4. **Do not** `/create-board-tickets` — EPIC #54 / waves #55–#57 exist
+5. Re-run `/pre-implement` for W2 (#57)
 
 ### Approve attestation body
 
 ```text
-Spec package approved (plan recovery)
+Plan source-digest backfill approved
 initiative: INIT-GATEFLOW-005-BOUNDINPUT
-spec_pr_head_sha: <PE fills plan-PR tip OID at Approve>
+spec_pr_head_sha: <PE fills backfill-PR tip OID at Approve>
 meta_pr_head_sha: 0b6b11e4470517842affb894d7ea581c3819ead3
 impact_map_revision: 1
 prd_digest: sha256:40fb856dd5068290c1d14f010239e6206bee2625aaf6a6e3970d769e9bb5e970
 scope_digest: sha256:2cc5e2151451c47b973fdc86dafe19d5cb2fadd651212a5a00f9d681f274039b
+feasibility_digest: sha256:4aa8038c2e13345dcfef78c92a6ce2617a30094e18a88d7344f27e3c8a4bfc2a
+technical_review_digest: sha256:1493c3f7428c69fae937a6842f43f375d58daf7b197d78378b02a34ab4af7fa3
 plan_digest: sha256:<PE: shasum -a 256 docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-005-BOUNDINPUT.md on tip>
+drift_commit: f49aab334c25707db46b63e7d2fdb0e003622b61
 artifacts:
-  - docs/specification/product/INIT-GATEFLOW-005-BOUNDINPUT-gateflow.md
-  - docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-005-BOUNDINPUT.md
-  - docs/specification/reports/Technical-Review-INIT-GATEFLOW-005-BOUNDINPUT.md
-  - docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
-  - docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
   - docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-005-BOUNDINPUT.md
 prior_merged_spec_pr: https://github.com/drivestream-lab/gateflow/pull/52
-prior_merge_sha: de396948056f3d7fb7da1c7918adfb8ad9914f87
+prior_plan_pr: https://github.com/drivestream-lab/gateflow/pull/53
+next_after_merge: /pre-implement W2 #57
 ```
 
 | PE action | Remove | Add |
 |-----------|--------|-----|
 | Pending/new revision | `spec-lgtm`, `spec-blocked` | `spec-pending` |
 | Request changes/hold | `spec-pending`, `spec-lgtm` | `spec-blocked` |
-| Approve full package | `spec-pending`, `spec-blocked`, `spec-revised`, `spec-stale` | `spec-lgtm` |
+| Approve backfill tip | `spec-pending`, `spec-blocked`, `spec-revised`, `spec-stale` | `spec-lgtm` (optional) |
 
 ---
 
@@ -564,21 +564,26 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-005-BOUNDINPUT.md
-    digest: sha256:eb95eeaf0c84f76aa8c2d5b7c689fb75c5a2d14f01e34dbdc87e0f5a9ea3301d
+    digest: sha256:PLACEHOLDER
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-005-BOUNDINPUT
-    recovery: true
+    recovery: digest_backfill
+    drift_commit: f49aab334c25707db46b63e7d2fdb0e003622b61
     prior_spec_pr: https://github.com/drivestream-lab/gateflow/pull/52
-    prior_merge_sha: de396948056f3d7fb7da1c7918adfb8ad9914f87
-    branch: chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-gateflow
+    prior_plan_pr: https://github.com/drivestream-lab/gateflow/pull/53
+    branch: chore/INIT-GATEFLOW-005-BOUNDINPUT-plan-digest-backfill
     waves: [W0, W1, W2]
-    adr_007: docs/specification/adr/adr-007-invocation-brief-and-agent-message-contract.md
-    adr_008: docs/specification/adr/adr-008-packaged-skill-handoff-ingest-authority.md
-    board_name: drivestream-lab Board
+    board_seeded: true
+    next_after_merge: pre-implement
+    w2_issue: https://github.com/drivestream-lab/gateflow/issues/57
+    feasibility_digest: sha256:4aa8038c2e13345dcfef78c92a6ce2617a30094e18a88d7344f27e3c8a4bfc2a
+    technical_review_digest: sha256:1493c3f7428c69fae937a6842f43f375d58daf7b197d78378b02a34ab4af7fa3
     p14: pass
   next_candidates:
     - gate-2
   human_checkpoint: true
-  external_action: true
+  external_action: false
+  forge:
+    action: commit_workspace
 ```
