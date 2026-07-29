@@ -20,7 +20,7 @@ gateflow:
 # Feature sections below are optional.
 
 features:
-  # Long wave: pre-implement → loop-spec → verify → ground-spec
+  # Coding hops: pre-implement → loop-spec → STOP (verify manual; ground-spec Enter-at)
   #   .venv/bin/python -m tests.verify.verify_implement_lane
   implement_lane:
     enabled: false

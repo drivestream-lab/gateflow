@@ -1,23 +1,28 @@
-"""Live verify: implement-lane Cursor prove-it (INIT-GATEFLOW-003 REQ-27).
+"""Live verify: implement-lane Pass 1 prove-it (coding hops → human verify).
 
-Implement lane (pin ``dispatch: orchestrated``):
+Pass 1 implement lane (local pin overlay):
 
-  pre-implement → loop-spec → verify → ground-spec → wave-human-decision (STOP)
+  pre-implement → loop-spec → wave-human-decision (STOP)
+
+``verify`` is ``dispatch: manual`` (human live-proves the forge PR; no report
+templates required from the human).
+``ground-spec`` is ``orchestrated`` but not on this walk — wave closeout
+(learning-extract + ground) is INIT-GATEFLOW-007.
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
   - PROGRAMME_SERVICE_TOKEN in .env (verify client → Gateflow API)
   - Gateflow runtime has CURSOR_API_KEY in its .env (not verify config)
   - tests/config.yaml: gateflow.require_worker: true
-  - features.implement_lane.enabled: true + evidence + wave_start body
+  - features.implement_lane.enabled: true + wave_start body
+  - features.implement_lane.evidence path (optional assert — warn if missing)
 
 Asserts (when opted in, start_node=pre-implement):
   - Wave-start accepted
-  - Cursor stages for all four lane skills (success)
-  - Terminal status stopped (gate after ground-spec)
+  - Cursor stages for orchestrated hops (pre-implement, loop-spec) success
+  - Terminal status stopped at wave-human-decision
   - wave_duration_ms present
-  - stage_commit events for required forge nodes (loop-spec, ground-spec)
-  - Coding-work evidence file written by the live agent
+  - stage_commit for required forge node loop-spec
 
 Usage:
   # edit tests/config.yaml — see tests/config.yaml.example
@@ -40,7 +45,8 @@ from tests._helpers.api_paths import require_base_url
 from tests._helpers.run_timeline import evaluate_lane_poll
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
-_LANE_NODES = ("pre-implement", "loop-spec", "verify", "ground-spec")
+# Orchestrated coding hops only (pin: verify is manual; ground-spec Enter-at later).
+_LANE_NODES = ("pre-implement", "loop-spec")
 _LANE_NODE_SET = frozenset(_LANE_NODES)
 
 
@@ -242,9 +248,8 @@ def main() -> int:
                 return 1
             print(f"[OK] wave_duration_ms={detail_body.get('wave_duration_ms')}")
 
-            # ADR-009: required commit_workspace nodes must leave stage_commit events
-            # (empty publish fails closed — a green lane implies those hops published).
-            _REQUIRED_COMMIT_NODES = frozenset({"loop-spec", "ground-spec"})
+            # ADR-009: required commit_workspace on loop-spec must leave stage_commit.
+            _REQUIRED_COMMIT_NODES = frozenset({"loop-spec"})
             events = detail_body.get("events") or []
             commit_nodes = {
                 str(e.get("workflow_node"))
@@ -258,7 +263,7 @@ def main() -> int:
                 print(
                     f"[ERROR] expected stage_commit events for required forge nodes "
                     f"{missing_commits}; commit_nodes={sorted(commit_nodes)} "
-                    f"(run PR tip should be non-bootstrap after loop-spec/ground-spec)"
+                    f"(run PR tip should be non-bootstrap after loop-spec)"
                 )
                 return 1
             print(
@@ -268,11 +273,11 @@ def main() -> int:
 
             if not evidence_path.is_file():
                 print(
-                    f"[ERROR] expected coding-work evidence file at {evidence_path} "
-                    "(agent must write it; do not pre-seed)"
+                    f"[WARNING] coding-work evidence file not present at {evidence_path} "
+                    "(optional for this dogfood; human reviews forge PR tip)"
                 )
-                return 1
-            print(f"[OK] evidence file present: {evidence_path}")
+            else:
+                print(f"[OK] evidence file present: {evidence_path}")
 
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure: {exc}")
