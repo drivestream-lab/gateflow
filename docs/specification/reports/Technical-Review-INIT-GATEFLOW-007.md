@@ -4,7 +4,7 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-007 |
 | Spec | `docs/specification/product/INIT-GATEFLOW-007-gateflow.md` |
-| Spec digest | `sha256:242e249f64d46e2e31ea98d9310cb408aee79f743c714c64008c8eb62fe9b825` |
+| Spec digest | `sha256:1c613846f4b0ea5c9c2db3deab982ddf791bd93bba81dfdc2fdc175aa3051793` |
 | Feasibility report | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-007.md` |
 | Feasibility digest | `sha256:ca40b9e2a77926a75569306a272e280fad086ddaf97d3bf7a37c3fecce3f6f64` |
 | PRD digest | TBD — Gate 1 open (spec Q-1) |
