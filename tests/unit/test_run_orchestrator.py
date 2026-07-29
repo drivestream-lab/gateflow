@@ -670,8 +670,16 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     handoff_reader = MagicMock()
+    # Pass-1 pin: pre-implement → loop-spec → live-verify (human-checkpoint STOP).
     handoff_reader.read_path = MagicMock(
         side_effect=[
+            HandoffEnvelope(
+                contract="sdd-delivery/v2",
+                stage="pre-implement",
+                outcome="pass",
+                blockers=[],
+                human_checkpoint=False,
+            ),
             HandoffEnvelope(
                 contract="sdd-delivery/v2",
                 stage="loop-spec",
@@ -679,19 +687,13 @@ async def test_walker_continues_then_stops_at_gate() -> None:
                 blockers=[],
                 human_checkpoint=False,
             ),
-            HandoffEnvelope(
-                contract="sdd-delivery/v2",
-                stage="verify",
-                outcome="blocked",
-                blockers=["TEST-WALKER-STOP"],
-                human_checkpoint=True,
-            ),
         ]
     )
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
+    raw.update(_dispatch_plan(start_node="pre-implement"))
     orchestrator = _build_orchestrator(
         trigger_router=_authorized_api_trigger(),
         cursor_agent_runner=cursor_agent_runner,
@@ -732,10 +734,11 @@ async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     )
     handoff_reader = MagicMock()
+    # Need two orchestrated hops in a row: pre-implement → loop-spec (before live-verify).
     handoff_reader.read_path = MagicMock(
         return_value=HandoffEnvelope(
             contract="sdd-delivery/v2",
-            stage="loop-spec",
+            stage="pre-implement",
             outcome="pass",
             blockers=[],
             human_checkpoint=False,
@@ -743,6 +746,7 @@ async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
+    raw.update(_dispatch_plan(start_node="pre-implement"))
     orchestrator = _build_orchestrator(
         trigger_router=_authorized_api_trigger(),
         cursor_agent_runner=cursor_agent_runner,

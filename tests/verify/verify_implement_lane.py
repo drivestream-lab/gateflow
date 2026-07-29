@@ -1,13 +1,11 @@
-"""Live verify: implement-lane Pass 1 prove-it (coding hops → human verify).
+"""Live verify: implement-lane Pass 1 prove-it (coding hops → live-verify gate).
 
-Pass 1 implement lane (local pin overlay):
+Pass 1 implement lane (pin ``v0.5.0-rc.2``+ Pass-1 closeout graph):
 
-  pre-implement → loop-spec → wave-human-decision (STOP)
+  pre-implement → loop-spec → live-verify (human-checkpoint STOP)
 
-``verify`` is ``dispatch: manual`` (human live-proves the forge PR; no report
-templates required from the human).
-``ground-spec`` is ``orchestrated`` but not on this walk — wave closeout
-(learning-extract + ground) is INIT-GATEFLOW-007.
+``verify`` is ``dispatch: manual``. Closeout Enter-at ``learning-extract`` →
+``ground-spec`` is INIT-GATEFLOW-007 (not this script).
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
@@ -20,7 +18,7 @@ Requires:
 Asserts (when opted in, start_node=pre-implement):
   - Wave-start accepted
   - Cursor stages for orchestrated hops (pre-implement, loop-spec) success
-  - Terminal status stopped at wave-human-decision
+  - Terminal status stopped at live-verify
   - wave_duration_ms present
   - stage_commit for required forge node loop-spec
 
@@ -45,9 +43,10 @@ from tests._helpers.api_paths import require_base_url
 from tests._helpers.run_timeline import evaluate_lane_poll
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
-# Orchestrated coding hops only (pin: verify is manual; ground-spec Enter-at later).
+# Orchestrated coding hops only (pin: stop at live-verify; closeout separate).
 _LANE_NODES = ("pre-implement", "loop-spec")
 _LANE_NODE_SET = frozenset(_LANE_NODES)
+_PASS1_STOP_NODE = "live-verify"
 
 
 def _expected_chain(start_node: str) -> tuple[str, ...]:
@@ -235,10 +234,17 @@ def main() -> int:
             if status != "stopped":
                 print(
                     f"[ERROR] expected terminal status stopped after lane "
-                    f"(gate at wave-human-decision), got {status!r}"
+                    f"(gate at {_PASS1_STOP_NODE}), got {status!r}"
                 )
                 return 1
-            print(f"[OK] terminal status={status} workflow_node={detail_body.get('workflow_node')}")
+            stop_node = detail_body.get("workflow_node")
+            if stop_node != _PASS1_STOP_NODE:
+                print(
+                    f"[ERROR] expected workflow_node={_PASS1_STOP_NODE!r} "
+                    f"(Pass-1 live-verify gate), got {stop_node!r}"
+                )
+                return 1
+            print(f"[OK] terminal status={status} workflow_node={stop_node}")
 
             if detail_body.get("wave_duration_ms") is None:
                 print(
