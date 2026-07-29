@@ -17,19 +17,6 @@ _HANDOFF_BODY = (
 )
 
 
-def test_parse_and_find_handoff(tmp_path: Path) -> None:
-    reports = tmp_path / "docs" / "specification" / "reports"
-    reports.mkdir(parents=True)
-    (reports / "sample.md").write_text(
-        f"# Sample\n\n```yaml\n{_HANDOFF_BODY}```\n",
-        encoding="utf-8",
-    )
-    reader = HandoffReader()
-    envelope = reader.find_latest_handoff(tmp_path)
-    assert envelope.stage == "pre-implement"
-    assert envelope.outcome == "pass"
-
-
 def test_read_path_parses_stored_baton(tmp_path: Path) -> None:
     baton = tmp_path / "run-a" / "handoff.md"
     baton.parent.mkdir(parents=True)
@@ -81,7 +68,7 @@ def test_dual_run_isolation_distinct_handoff_paths(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     reports = workspace / "docs" / "specification" / "reports"
     reports.mkdir(parents=True)
-    # Ambient decoy under shared workspace — would be SSOT before W1; must not affect read_path
+    # Workspace decoy must not be used — ingest is stored-path only (ADR-008).
     (reports / "ambient-decoy.md").write_text(
         "# decoy\n\n```yaml\n"
         "handoff:\n  contract: sdd-delivery/v2\n"
@@ -104,10 +91,8 @@ def test_dual_run_isolation_distinct_handoff_paths(tmp_path: Path) -> None:
     assert env_a.stage == "pre-implement"
     assert env_b.stage == "loop-spec"
     assert env_a.stage != env_b.stage
-
-    ambient = reader.find_latest_handoff(workspace)
-    assert ambient.stage == "ambient-decoy"
-    assert ambient.stage not in {env_a.stage, env_b.stage}
+    assert "ambient-decoy" not in {env_a.stage, env_b.stage}
+    assert workspace.is_dir()  # shared tree present; unused by read_path
 
 
 def test_workflow_resolve_next_from_pin() -> None:

@@ -513,6 +513,8 @@ class RunOrchestrator(BaseBusinessService):
             ticket = self._require_ticket_from_payload(payload)
             initiative = str(initiative_id or payload.get("initiative_id") or "")
             package = self._prompt_resolver.resolve_package(workspace_path, next_node.node_id)
+            meta_workspace = payload.get("meta_workspace_path")
+            meta_pr_url = payload.get("meta_pr_url")
             rendered = self._prompt_resolver.bind_and_render(
                 package,
                 BoundPromptInputs(
@@ -521,6 +523,16 @@ class RunOrchestrator(BaseBusinessService):
                     skill_id=next_node.node_id,
                     workspace=workspace_path,
                     handoff_path=handoff_path,
+                    meta_workspace=(
+                        str(meta_workspace).strip()
+                        if meta_workspace is not None and str(meta_workspace).strip()
+                        else None
+                    ),
+                    meta_pr_url=(
+                        str(meta_pr_url).strip()
+                        if meta_pr_url is not None and str(meta_pr_url).strip()
+                        else None
+                    ),
                 ),
             )
         except (PromptResolveError, ValueError) as exc:

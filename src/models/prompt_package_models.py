@@ -25,7 +25,7 @@ class PromptPackageSchemaDocument(BaseModel):
 
 
 class BoundPromptInputs(BaseModel):
-    """Shared bind dictionary for packaged-skill automate (REQ-2)."""
+    """Shared bind dictionary for packaged-skill automate (REQ-2 / ADR-010)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -34,6 +34,8 @@ class BoundPromptInputs(BaseModel):
     skill_id: str = Field(min_length=1)
     workspace: str = Field(min_length=1)
     handoff_path: str = Field(min_length=1)
+    meta_workspace: Optional[str] = Field(default=None)
+    meta_pr_url: Optional[str] = Field(default=None)
 
 
 class ResolvedPromptPackage(BaseModel):

@@ -121,6 +121,8 @@ class PromptResolver(BaseBusinessService):
             "skill_id": bound_inputs.skill_id,
             "workspace": bound_inputs.workspace,
             "handoff_path": bound_inputs.handoff_path,
+            "meta_workspace": bound_inputs.meta_workspace,
+            "meta_pr_url": bound_inputs.meta_pr_url,
         }
         values: dict[str, str] = {}
         for name, decl in schema.variables.items():

@@ -27,7 +27,7 @@ features:
     # [VERIFY only] post-lane file assert — NOT sent on wave-start
     evidence: /absolute/path/to/run_gateflow/evidence/implement-lane-live.json
     timeout_s: 3600
-    # [API] POST /api/v1/waves/start for this feature only
+    # [API] POST /api/v1/waves/implement/start for this feature only
     wave_start:
       org: drivestream-lab
       repo: gateflow
@@ -40,7 +40,7 @@ features:
       ticket_id: ""
       branch_slug: implement-lane
 
-  # Long wave: spec-draft → … (when pin/PRD ready)
+  # Spec lane: POST /api/v1/waves/spec/start (requires pin orchestrated start_node)
   #   .venv/bin/python -m tests.verify.verify_spec_lane
   spec_lane:
     enabled: false
@@ -52,6 +52,13 @@ features:
       model_id: cursor/auto
       wave_id: W0
       branch_slug: spec-lane
+      # Required when enabled:
+      # meta_pr_url: https://github.com/drivestream-lab/prayog-meta/pull/N
+      # meta_workspace: /absolute/path/to/prayog-meta
+      # workspace: /absolute/path/to/app/checkout
+      meta_pr_url: ""
+      meta_workspace: ""
+      workspace: ""
 
 forge:
   org: drivestream-lab

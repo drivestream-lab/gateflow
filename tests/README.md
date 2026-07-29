@@ -122,7 +122,8 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 |------------|---------------|--------|
 | Env notifier (`GATEFLOW_NOTIFIER`) | — | `test_wave_start`, `test_slot_validator` |
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
-| API wave-start Enter-at (FR-15) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
+| API implement-lane start Enter-at (FR-15 / REQ-14) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
+| API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
 | Stub fail-closed (FR-18) | — | `test_slot_validator`, `test_wave_start` |

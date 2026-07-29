@@ -72,6 +72,8 @@ class RunCreate(BaseCreateModel):
     initiative_id: Optional[str] = Field(default=None)
     wave_id: Optional[str] = Field(default=None)
     handoff_path: Optional[str] = Field(default=None)
+    meta_pr_url: Optional[str] = Field(default=None)
+    meta_head_sha: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 
@@ -83,6 +85,8 @@ class RunUpdate(BaseUpdateModel):
     pr_number: Optional[int] = Field(default=None)
     wave_duration_ms: Optional[int] = Field(default=None)
     handoff_path: Optional[str] = Field(default=None)
+    meta_pr_url: Optional[str] = Field(default=None)
+    meta_head_sha: Optional[str] = Field(default=None)
     retry_counter: Optional[int] = Field(default=None)
     notify_pending: Optional[bool] = Field(default=None)
 
@@ -99,6 +103,8 @@ class RunModel(BasePostgresModel):
     wave_id: Optional[str] = Field(default=None)
     wave_duration_ms: Optional[int] = Field(default=None)
     handoff_path: Optional[str] = Field(default=None)
+    meta_pr_url: Optional[str] = Field(default=None)
+    meta_head_sha: Optional[str] = Field(default=None)
     retry_counter: int = Field(default=0)
     notify_pending: bool = Field(default=False)
 

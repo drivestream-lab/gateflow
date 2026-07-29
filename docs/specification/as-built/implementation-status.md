@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-07-28 |
-| Source | INIT-GATEFLOW-006 forge work on `feature/INIT-GATEFLOW-006-forge-commit-workspace`; prior INIT-003 W1 wave-signoff; lane naming adopted (spec / implement) |
+| Updated | 2026-07-29 |
+| Source | INIT-GATEFLOW-006 product INIT draft in progress; forge unit on `develop` (#70); prior INIT-003 W1 wave-signoff; lane naming adopted (spec / implement) |
 
 ## Engineering lane naming
 
@@ -46,7 +46,8 @@
 |------------|------|------|------|-------------|-------|
 | Env notifier + SlotValidator | FR-16/23/18 | `GATEFLOW_NOTIFIER` + `slot_validator.py` | `test_slot_validator`, `test_wave_start` | — | No YAML programme file |
 | Adapter registry + SlotValidator | FR-17/18 | `adapter_registry.py`, `slot_validator.py` | `test_slot_validator` | — | ADR-006 |
-| API wave-start Enter-at | FR-15 | `POST /api/v1/waves/start` (`start_node`+runner/model) | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005; manual node → 400 |
+| API implement-lane start | FR-15; REQ-14/15 | `POST /api/v1/waves/implement/start` | `test_wave_start` | `verify_wave_start` | Programme token; ADR-005/010; manual node → 400 |
+| API spec-lane start | REQ-14/16/17 | `POST /api/v1/waves/spec/start` | `test_wave_start`, `test_meta_pr_intake` | `verify_spec_lane` (opt-in) | Meta PR accept + dual dirs; pin must orchestrate start_node |
 | Label start disabled | FR-15 | `trigger_router.py` | `test_trigger_policy` | note in wave-start | Webhook may still 202 |
 | Run list + detail timeline | FR-20 | `runs_routes`, `metrics_emitter` | token + wave-start tests | `verify_wave_start` | Live pass |
 | `runs.wave_id` column | FR-15/20 | ORM/repo + Alembic `bc8abad9a701` | — | via wave-start | Human migration applied |
@@ -120,10 +121,11 @@
 
 ## INIT-GATEFLOW-006 — truth split
 
-| Layer | Owns for forge work |
-|-------|---------------------|
+| Layer | Owns for forge / lane work |
+|-------|----------------------------|
 | **ADR-009** (**Accepted**) | Publish/mutate **authority** (pin SSOT, ForgeClient, dual executor pattern, publish-before-ingest) |
-| **Pin** (`prayog-skills/workflow.yaml` + forge-side-effects) | Per-node `forge:` wiring and action vocabulary |
+| **ADR-010** (**Accepted**) | Lane intake **authority** (separate start contracts; meta PR accept; dual workspace bind) |
+| **Pin** (`prayog-skills/workflow.yaml` + forge-side-effects) | Per-node `forge:` wiring, action vocabulary, orchestrated edges |
 | **As-built (this section)** | What is implemented, unit-covered, live-deferred |
 | **Product INIT** | Still **missing** for 006 — PE should add INIT/TDD when accepting ADR |
 
@@ -149,23 +151,34 @@
 | Programme authorize path | TDD / as-built | `POST /api/v1/runs/{id}/forge/authorize` | `test_forge_action_service` | **deferred** | Dual executor vs human forge skills |
 | Worker board isolation | FR-24 | no BoardService in `process_job` | `test_process_job_never_calls_board_forge_mutations` | — | Authorize path may call board; walker must not |
 
-## Capability matrix (INIT-GATEFLOW-006 W3 — sparse PR comments)
+## Capability matrix (INIT-GATEFLOW-006 W2 — sparse PR comments)
 
 | Capability | Spec / authority | Code | Unit | Live verify | Notes |
 |------------|------------------|------|------|-------------|-------|
 | Milestone-only PR run-event comments | as-built UX | `Notifier.posts_run_event_to_pr` | `test_notifier` | — | `stage_*` skipped; `run_stopped` posts |
 | `stage_started` on RunStore timeline | as-built | `run_orchestrator` append | orchestrator tests | — | Compensates skipping PR hop chatter |
 
+## Capability matrix (INIT-GATEFLOW-006 W3/W4 — lane starts + meta intake)
+
+| Capability | Spec / authority | Code | Unit | Live verify | Notes |
+|------------|------------------|------|------|-------------|-------|
+| Separate implement/spec start APIs | ADR-010; REQ-14…16 | `waves_routes`, `wave_start_models` | `test_wave_start` | `verify_wave_start` | Legacy `/waves/start` **deleted** |
+| Spec meta accept-gate | ADR-010; REQ-17 | `meta_pr_intake`, ForgeClient `get_pull_request` | `test_meta_pr_intake` | `verify_spec_lane` opt-in | Initiative derive + mismatch fail closed |
+| Dual bind `workspace` + `meta_workspace` | ADR-010; REQ-18 | `BoundPromptInputs`, orchestrator | `test_prompt_resolver` (existing) | deferred until pin schemas | |
+| Persist `runs.meta_pr_url` / `meta_head_sha` | REQ-17 | ORM + models | unit create path | **needs human Alembic** | See open gaps |
+
 ## INIT-GATEFLOW-006 — open gaps
 
 | Gap | Status |
 |-----|--------|
 | PE accept ADR-009 | **Accepted** 2026-07-28 (Cursor chat); approved head on accept commit |
-| Product INIT / TDD for 006 | Missing — features documented here + pin until INIT exists |
+| PE accept ADR-010 | **Accepted** 2026-07-29 (Cursor chat — implement session) |
+| Product INIT / TDD for 006 | **Draft** — [`product/INIT-GATEFLOW-006-gateflow.md`](../product/INIT-GATEFLOW-006-gateflow.md); Gate 1 / meta PRD TBD (INIT Q-1) |
 | Live dogfood (publish + `stage_commit` on run PR) | Deferred |
 | Live authorize (`open_draft_pr` / board seed) | Deferred |
 | Authorize then **resume** walker to next orchestrated node | Not implemented (mutate only; run stays STOPPED) |
-| Spec-lane skills `dispatch: orchestrated` | Pin still `manual` — out of scope for this branch |
+| Human Alembic for `runs.meta_pr_url` + `runs.meta_head_sha` | **Required before live spec start** — ORM already declares columns |
+| Spec-lane skills `dispatch: orchestrated` | Pin still `manual` — prayog-skills dependency (REQ-20) |
 
 ## Verdict
 
@@ -190,9 +203,9 @@ via #44; wave-signoff on `feature/INIT-GATEFLOW-003-w1-ground-report`.
 D-W0-I1 closed. Live implement-lane deferred (D-W1-V1 / D-W0-B1 — pin must write
 envelope to stored path). See `Ground-Report-INIT-GATEFLOW-005-BOUNDINPUT-W1.md`.
 
-**INIT-GATEFLOW-006 (2026-07-28):** Code complete (unit) on
-`feature/INIT-GATEFLOW-006-forge-commit-workspace`. **ADR-009 Accepted** —
-[`adr-009-pin-forge-publish-mutate-authority.md`](../adr/adr-009-pin-forge-publish-mutate-authority.md)
-— architecture only. Feature verification matrices and open gaps are in the
-INIT-006 sections above (not in the ADR). Live dogfood pending. No product INIT
-file yet for 006.
+**INIT-GATEFLOW-006 (2026-07-29):** Product INIT **draft** at
+[`product/INIT-GATEFLOW-006-gateflow.md`](../product/INIT-GATEFLOW-006-gateflow.md).
+**ADR-009** + **ADR-010 Accepted**. Forge unit-complete (#70); lane start APIs
+cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
+unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
+pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
