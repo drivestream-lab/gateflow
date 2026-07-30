@@ -109,6 +109,8 @@
 | INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
 | INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred |
 | INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
+| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) **Draft** | **not started** — blocks INIT-007 dogfood; supersedes 006 REQ-7 for `automated` nodes |
+| INIT-007 | Closeout start + learning ingest | product INIT-007 **Draft** | **parked for dogfood** until INIT-008 W0/W1 on `develop` |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
 
