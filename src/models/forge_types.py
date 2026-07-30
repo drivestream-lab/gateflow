@@ -17,3 +17,10 @@ class ForgeActionType(str, Enum):
     COMMIT_WORKSPACE = "commit_workspace"
     OPEN_DRAFT_PR = "open_draft_pr"
     CREATE_BOARD_TICKETS = "create_board_tickets"
+
+
+class AuthorizationModeType(str, Enum):
+    """Pin ``authorization`` on external-action nodes (required; no default)."""
+
+    EXPLICIT = "explicit"
+    AUTOMATED = "automated"

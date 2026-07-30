@@ -670,7 +670,9 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     handoff_reader = MagicMock()
-    # Pass-1 pin: pre-implement → loop-spec → live-verify (human-checkpoint STOP).
+    # Pass-1 pin (remount): pre-implement → loop-spec → wave-pr-action (external-action).
+    # W0: EA still authorize-STOP path; incomplete forge.requires → fail closed
+    # (head_ref/base_ref + automated apply are W1). Walker still completes two skill hops.
     handoff_reader.read_path = MagicMock(
         side_effect=[
             HandoffEnvelope(
@@ -709,7 +711,9 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     assert summary.dispatched is True
-    assert summary.terminal_status == RunStatusType.STOPPED.value
+    assert summary.terminal_status == RunStatusType.FAILED.value
+    assert summary.stop_reason is not None
+    assert "Incomplete handoff.forge" in summary.stop_reason
     assert stage_repo.create_stage.await_count == 2
     assert cursor_agent_runner.run_skill.await_count == 2
     assert handoff_reader.read_path.call_count == 2

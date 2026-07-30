@@ -4,7 +4,11 @@ import pytest
 
 from src.business_services.workflow_engine import WorkflowEngine
 from src.models.forge_models import HandoffForgeDocument, parse_node_forge
-from src.models.forge_types import CommitWorkspaceModeType, ForgeActionType
+from src.models.forge_types import (
+    AuthorizationModeType,
+    CommitWorkspaceModeType,
+    ForgeActionType,
+)
 from src.models.handoff_models import HandoffEnvelope
 
 
@@ -72,11 +76,44 @@ def test_pin_matrix_implement_lane_commit_workspace() -> None:
     engine = WorkflowEngine()
     engine.load_pin()
     assert (
-        engine.get_node("pre-implement").forge.commit_workspace == CommitWorkspaceModeType.OPTIONAL
+        engine.get_node("pre-implement").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
     )
     assert engine.get_node("loop-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
     assert engine.get_node("verify").forge.commit_workspace == CommitWorkspaceModeType.OPTIONAL
     assert engine.get_node("ground-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
+
+
+def test_pin_external_action_authorization_day_one_matrix() -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    assert engine.get_node("wave-pr-action").authorization == AuthorizationModeType.AUTOMATED
+    assert engine.get_node("spec-pr-action").authorization == AuthorizationModeType.AUTOMATED
+    assert engine.get_node("prd-pr-action").authorization == AuthorizationModeType.EXPLICIT
+    assert engine.get_node("board-tickets-action").authorization == AuthorizationModeType.EXPLICIT
+    assert engine.get_node("pre-implement").authorization is None
+
+
+def test_external_action_missing_authorization_fails_closed() -> None:
+    with pytest.raises(ValueError, match="missing required authorization"):
+        WorkflowEngine._to_resolved(
+            "bad-ea",
+            {
+                "type": "external-action",
+                "forge": {"action": "open_draft_pr", "draft": True, "requires": ["title"]},
+            },
+        )
+
+
+def test_external_action_unknown_authorization_fails_closed() -> None:
+    with pytest.raises(ValueError, match="unknown authorization"):
+        WorkflowEngine._to_resolved(
+            "bad-ea",
+            {
+                "type": "external-action",
+                "authorization": "maybe",
+                "forge": {"action": "open_draft_pr", "draft": True, "requires": ["title"]},
+            },
+        )
 
 
 def test_pin_external_action_open_draft_pr() -> None:

@@ -6,6 +6,7 @@ import pytest
 
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.workflow_engine import WorkflowEngine
+from src.models.forge_types import AuthorizationModeType
 from src.models.handoff_models import HandoffEnvelope
 
 
@@ -124,8 +125,8 @@ def test_require_orchestrated_skill_rejects_manual() -> None:
         engine.require_orchestrated_skill("validate-requirements")
 
 
-def test_loop_spec_pass_stops_at_live_verify_gate() -> None:
-    """Pass-1 pin: loop-spec pass → live-verify (human-checkpoint)."""
+def test_loop_spec_pass_resolves_to_wave_pr_action() -> None:
+    """Pass-1 pin: loop-spec pass → wave-pr-action (external-action, automated)."""
     engine = WorkflowEngine()
     engine.load_pin()
     handoff = HandoffEnvelope(
@@ -134,8 +135,9 @@ def test_loop_spec_pass_stops_at_live_verify_gate() -> None:
         outcome="pass",
     )
     resolved = engine.resolve_next(handoff)
-    assert resolved.node_id == "live-verify"
-    assert resolved.node_type == "human-checkpoint"
+    assert resolved.node_id == "wave-pr-action"
+    assert resolved.node_type == "external-action"
+    assert resolved.authorization == AuthorizationModeType.AUTOMATED
 
 
 def test_verify_is_manual_learning_extract_and_ground_are_orchestrated() -> None:
