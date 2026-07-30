@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-30 |
-| Source | INIT-GATEFLOW-008 (006A) W2 in progress on wave head; W0+W1 human_approved on `develop`; INIT-007 dogfood unblocked after W2 merge; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
+| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved (W2 closeout pending merge #99); INIT-007 dogfood next; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
 
 ## Engineering lane naming
 
@@ -109,7 +109,7 @@
 | INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
 | INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred; **REQ-7 superseded for `automated` nodes** by INIT-008 |
 | INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
-| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0+W1 human_approved**; **W2 in progress** — pin WorkManifest `prayog/v1` before board create; board remains explicit; after W2 on `develop`, **prove INIT-007 first** (REQ-17) |
+| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0+W1+W2 human_approved** (2026-07-31) — Ground-Report W2 + live verify pass; reviewed [#99](https://github.com/drivestream-lab/gateflow/pull/99) @ `e274a53`; **prove INIT-007 first** after W2 on `develop` (REQ-17) |
 | INIT-007 | Closeout start + learning ingest | product INIT-007 **Draft** | **dogfood next** after INIT-008 W2 on `develop` (REQ-17) |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
