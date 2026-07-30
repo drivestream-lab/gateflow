@@ -6,6 +6,12 @@ status/link run when outbound forge auth is configured for the active mode
 validation edges are asserted and forge I/O is skipped (unit owns ForgeClient
 board methods).
 
+INIT-GATEFLOW-008 W2: also asserts the pinned WorkManifest contract script
+rejects ``apiVersion: launchpad/v1`` (prayog/v1-only before create_board_tickets).
+Authorize + board-seed projection remains unit-owned
+(``test_forge_action_service``); create_board_tickets stays
+``authorization: explicit``.
+
 Usage:
   cp tests/config.yaml.example tests/config.yaml
   set -a && source .env && set +a
@@ -13,16 +19,52 @@ Usage:
 """
 
 import os
+import subprocess
 import sys
+import tempfile
 import uuid
+from pathlib import Path
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import load_tests_config
+from tests._helpers.workmanifest_fixtures import LAUNCHPAD_V1_BOARD_FIXTURE
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_CONTRACT_SCRIPT = _REPO_ROOT / "prayog-skills" / "scripts" / "workmanifest_contract.py"
+
+
+def _assert_pin_rejects_launchpad_v1() -> int:
+    """Fail closed when pin validator is missing or accepts launchpad/v1."""
+    if not _CONTRACT_SCRIPT.is_file():
+        print(f"[ERROR] pin WorkManifest contract script missing: {_CONTRACT_SCRIPT}")
+        return 1
+    with tempfile.TemporaryDirectory(prefix="gateflow-wm-") as tmp:
+        plan = Path(tmp) / "plan.md"
+        plan.write_text(LAUNCHPAD_V1_BOARD_FIXTURE, encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, str(_CONTRACT_SCRIPT), str(plan)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    if proc.returncode == 0:
+        print("[ERROR] expected nonzero exit for launchpad/v1 WorkManifest; got 0")
+        return 1
+    out = (proc.stderr or proc.stdout or "").strip()
+    if "prayog/v1" not in out and "launchpad/v1" not in out and "apiVersion" not in out:
+        print(f"[ERROR] unexpected validator output for launchpad reject: {out}")
+        return 1
+    print("[OK] pin workmanifest_contract rejects apiVersion=launchpad/v1")
+    return 0
 
 
 def main() -> int:
+    wm_rc = _assert_pin_rejects_launchpad_v1()
+    if wm_rc != 0:
+        return wm_rc
+
     cfg = load_tests_config()
     base_url = require_base_url()
     token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
@@ -70,7 +112,8 @@ def main() -> int:
             if not forge_ready:
                 print(
                     "[OK] board auth + validation edges passed "
-                    "(skip forge mutations — set GITHUB_AUTH_MODE=pat|app with matching creds)"
+                    "(skip forge mutations — set GITHUB_AUTH_MODE=pat|app with matching creds); "
+                    "create_board_tickets authorize path: unit + prayog/v1 pin contract"
                 )
                 return 0
 

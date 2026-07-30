@@ -1,5 +1,6 @@
 """Unit tests for pin ⋉ handoff forge merge and WorkManifest parse."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,10 @@ from src.models.forge_models import (
     parse_node_forge,
 )
 from src.models.forge_types import ForgeActionType
-from src.models.work_manifest_models import parse_work_manifest_from_plan
+from src.models.work_manifest_models import (
+    parse_work_manifest_from_plan,
+    run_workmanifest_contract,
+)
 
 
 def test_merge_open_draft_pr_fills_slots() -> None:
@@ -103,7 +107,7 @@ def test_parse_work_manifest_from_plan_markdown() -> None:
 ## 9. WorkManifest seed
 
 ```yaml
-apiVersion: launchpad/v1
+apiVersion: prayog/v1
 kind: WorkManifest
 initiative: INIT-TEST-001
 epic:
@@ -120,6 +124,7 @@ work:
 """
     manifest = parse_work_manifest_from_plan(plan)
     assert manifest.initiative == "INIT-TEST-001"
+    assert manifest.api_version == "prayog/v1"
     assert manifest.epic.title.startswith("[feature]")
     assert [w.id for w in manifest.work] == ["W0", "W1"]
 
@@ -127,3 +132,34 @@ work:
 def test_parse_work_manifest_missing_fails(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="WorkManifest"):
         parse_work_manifest_from_plan("# no yaml\n")
+
+
+def test_run_workmanifest_contract_rejects_launchpad(tmp_path: Path) -> None:
+    repo_script = (
+        Path(__file__).resolve().parents[2]
+        / "prayog-skills"
+        / "scripts"
+        / "workmanifest_contract.py"
+    )
+    dest = tmp_path / "prayog-skills" / "scripts" / "workmanifest_contract.py"
+    dest.parent.mkdir(parents=True)
+    shutil.copy(repo_script, dest)
+    plan = tmp_path / "plan.md"
+    plan.write_text(
+        """
+```yaml
+apiVersion: launchpad/v1
+kind: WorkManifest
+initiative: INIT-X
+epic:
+  id: EPIC
+  title: t
+work:
+  - id: W0
+    title: w
+```
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="WorkManifest contract failed"):
+        run_workmanifest_contract(workspace=tmp_path, plan_file=plan)

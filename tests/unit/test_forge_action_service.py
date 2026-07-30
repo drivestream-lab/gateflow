@@ -1,5 +1,6 @@
 """Unit tests for ForgeActionService authorize + open_draft_pr / board seed."""
 
+import shutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,14 +10,29 @@ from uuid import uuid4
 import pytest
 
 from src.business_services.forge_action_service import ForgeActionService
+from src.business_services.policy_engine import PolicyEngine
 from src.business_services.workflow_engine import WorkflowEngine
 from src.exceptions.app_exceptions import ValidationError
 from src.models.board_models import BoardTicketCreateResponse, BoardTicketResource
 from src.models.forge_models import ForgeAuthorizeRequest, HandoffForgeDocument
-from src.models.forge_types import ForgeActionType
+from src.models.forge_types import AuthorizationModeType, ForgeActionType
 from src.models.handoff_models import HandoffEnvelope
+from src.models.policy_types import PolicyDecisionType
 from src.models.run_store_models import RunModel
 from src.models.run_store_types import RunStatusType
+from tests._helpers.workmanifest_fixtures import (
+    LAUNCHPAD_V1_BOARD_FIXTURE,
+    PRAYOG_V1_BOARD_FIXTURE,
+)
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_PIN_CONTRACT_SCRIPT = _REPO_ROOT / "prayog-skills" / "scripts" / "workmanifest_contract.py"
+
+
+def _install_pin_contract_script(workspace: Path) -> None:
+    dest = workspace / "prayog-skills" / "scripts" / "workmanifest_contract.py"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(_PIN_CONTRACT_SCRIPT, dest)
 
 
 def _run(**kwargs: object) -> RunModel:
@@ -121,25 +137,10 @@ async def test_authorize_open_draft_pr(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_authorize_create_board_tickets(tmp_path: Path) -> None:
+async def test_authorize_create_board_tickets_prayog_v1(tmp_path: Path) -> None:
+    _install_pin_contract_script(tmp_path)
     plan = tmp_path / "plan.md"
-    plan.write_text(
-        """
-## 9. WorkManifest
-
-```yaml
-kind: WorkManifest
-initiative: INIT-TEST-001
-epic:
-  title: EPIC title
-  body: epic
-work:
-  - id: W0
-    title: Wave 0
-```
-""",
-        encoding="utf-8",
-    )
+    plan.write_text(PRAYOG_V1_BOARD_FIXTURE, encoding="utf-8")
     board = MagicMock()
 
     async def _create(
@@ -179,3 +180,51 @@ work:
     assert resp.board.epic_ticket_id == "1"
     assert resp.board.wave_ticket_ids == ["2"]
     assert board.create_ticket.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Path) -> None:
+    _install_pin_contract_script(tmp_path)
+    plan = tmp_path / "plan.md"
+    plan.write_text(LAUNCHPAD_V1_BOARD_FIXTURE, encoding="utf-8")
+    board = MagicMock()
+    board.create_ticket = AsyncMock()
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="spec-implementation-plan",
+        outcome="pass",
+        forge=HandoffForgeDocument(initiative="INIT-TEST-001", plan_path="plan.md"),
+    )
+    run = _run(workflow_node="board-tickets-action")
+    assert run.id is not None
+    svc = _service(run=run, handoff=handoff, board_service=board)
+    with pytest.raises(ValidationError, match="WorkManifest contract failed"):
+        await svc.authorize_and_execute(
+            run.id,
+            ForgeAuthorizeRequest(authorized=True, workspace_path=str(tmp_path)),
+        )
+    board.create_ticket.assert_not_awaited()
+
+
+def test_board_tickets_action_remains_explicit_authorize_stop() -> None:
+    """REQ-15: board-tickets-action stays explicit STOP (not APPLY_FORGE)."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("board-tickets-action")
+    assert node.node_type == "external-action"
+    assert node.authorization == AuthorizationModeType.EXPLICIT
+
+    mock_engine = MagicMock()
+    mock_engine.resolve_next.return_value = node
+    policy = PolicyEngine(workflow_engine=mock_engine)
+    decision = policy.evaluate_dispatch(
+        HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="spec-merge",
+            outcome="pass",
+        ),
+        MagicMock(),
+    )
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "authorization=explicit" in (decision.block_reason or "")
+    assert decision.decision != PolicyDecisionType.APPLY_FORGE

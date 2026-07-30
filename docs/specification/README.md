@@ -17,13 +17,13 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Active initiative draft (next implement):** [`product/INIT-GATEFLOW-008-gateflow.md`](product/INIT-GATEFLOW-008-gateflow.md)
-(**006A** — pin `authorization` explicit\|automated, wave-pr after loop-spec, retire
-PR-at-start, WorkManifest `prayog/v1`). Wire id `INIT-GATEFLOW-008` (digits-only
-initiative validator). **Blocks INIT-007 dogfood** until implemented; after merge,
-**prove INIT-007 first**.
+**Active initiative (008 W2 closing):** [`product/INIT-GATEFLOW-008-gateflow.md`](product/INIT-GATEFLOW-008-gateflow.md)
+(**006A** — pin `authorization` explicit\|automated; Pass-1:
+`pre-implement` → `loop-spec` → automated `wave-pr-action` → `live-verify`;
+retire PR-at-start; WorkManifest `prayog/v1` before board create). Wire id
+`INIT-GATEFLOW-008`. After **008 on `develop`**, **prove INIT-007 first** (REQ-17).
 
-Parked (spec exists; dogfood after 008): [`product/INIT-GATEFLOW-007-gateflow.md`](product/INIT-GATEFLOW-007-gateflow.md)
+**Next dogfood:** [`product/INIT-GATEFLOW-007-gateflow.md`](product/INIT-GATEFLOW-007-gateflow.md)
 (wave closeout start + learning DB ingest). Prior track:
 [`product/INIT-GATEFLOW-006-gateflow.md`](product/INIT-GATEFLOW-006-gateflow.md)
 (forge publish/mutate + lane start APIs + dual-workspace; REQ-7 superseded for
@@ -33,7 +33,7 @@ Interactive execution (006):
 [`reports/Execution-Plan-INIT-GATEFLOW-006.md`](reports/Execution-Plan-INIT-GATEFLOW-006.md).
 Architecture:
 [`adr/adr-009-pin-forge-publish-mutate-authority.md`](adr/adr-009-pin-forge-publish-mutate-authority.md)
-(**Accepted** — **amend under 008** for dual authorization);
+(**Accepted** — dual authorization amendment under 008);
 [`adr/adr-010-lane-intake-and-dual-workspace-authority.md`](adr/adr-010-lane-intake-and-dual-workspace-authority.md)
 (**Accepted**).
 Gate 1 / retrospective meta PRD still open for 006/007/008 (see INIT Spec questions).
