@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-30 |
-| Source | INIT-GATEFLOW-008 (006A) W0 on wave branch; INIT-007 parked for dogfood; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
+| Source | INIT-GATEFLOW-008 (006A) W0+W1 human_approved; INIT-007 parked for dogfood until W1 on `develop`; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
 
 ## Engineering lane naming
 
@@ -109,7 +109,7 @@
 | INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
 | INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred; **REQ-7 superseded for `automated` nodes** by INIT-008 |
 | INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
-| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0 human_approved**; **W1 in progress** — automated forge apply + retire PR-at-start; W2 not started; still blocks INIT-007 dogfood until W1 on `develop` |
+| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0 human_approved**; **W1 human_approved** (2026-07-30) — Ground-Report W1 + live verify pass; reviewed [#98](https://github.com/drivestream-lab/gateflow/pull/98) @ `bc19008`; W2 not started; dogfood unblocked for INIT-007 once W1 lands on `develop` |
 | INIT-007 | Closeout start + learning ingest | product INIT-007 **Draft** | **parked for dogfood** until INIT-008 W0/W1 on `develop` |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
@@ -183,6 +183,16 @@
 | Authorize then **resume** walker to next orchestrated node | Not implemented (mutate only; run stays STOPPED) |
 | Human Alembic for `runs.meta_pr_url` + `runs.meta_head_sha` | **Required before live spec start** — ORM already declares columns |
 | Spec-lane skills `dispatch: orchestrated` | Pin still `manual` — prayog-skills dependency (REQ-20) |
+
+## Capability matrix (INIT-GATEFLOW-008 W1 — automated forge)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| EA policy: explicit STOP / automated APPLY_FORGE | REQ-6, REQ-7 | `policy_engine.py` | `test_trigger_policy` | — | Missing auth → BLOCK |
+| Shared `apply_external_action` + head/base | REQ-7…9, REQ-12 | `forge_action_service.py`, `forge_models.py` | forge / orchestrator tests | — | Authorize reuses apply |
+| Walker automated apply → live-verify STOP | REQ-5, REQ-8, REQ-11 | `run_orchestrator._apply_automated_forge` | `test_walker_*` / Pass-1 hop test | **pass** 2026-07-30 | No authorize for automated |
+| Job start ensure_branch only | REQ-9, REQ-10 | `_ensure_run_branch` | `test_ensure_branch_before_stage_*` | **pass** (verify_implement_lane) | No PR-at-start create |
+| Feature map Pass-1 PR timing | REQ-16 | `tests/README.md`, `verify_implement_lane.py` | — | **pass** | PR-at-start superseded note |
 
 ## INIT-GATEFLOW-007 — wave closeout + learning DB (draft)
 
