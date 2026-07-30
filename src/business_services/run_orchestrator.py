@@ -10,6 +10,7 @@ from injector import inject
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.node_model_resolver import resolve_node_dispatch
@@ -25,6 +26,7 @@ from src.database.postgres.repository.run_store_repository import (
     RunRepository,
     StageRepository,
 )
+from src.exceptions.app_exceptions import ValidationError
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.launchpad_client import LaunchpadClient
@@ -49,7 +51,7 @@ from src.models.run_store_types import RunOutcomeType, RunStatusType
 
 
 class RunOrchestrator(BaseBusinessService):
-    """Process jobs: trigger → PR-at-start → Enter-at → walk pin until gate."""
+    """Process jobs: trigger → ensure branch → Enter-at → walk pin until gate."""
 
     @inject
     def __init__(
@@ -64,6 +66,7 @@ class RunOrchestrator(BaseBusinessService):
         launchpad_client: LaunchpadClient,
         cursor_agent_runner: CursorAgentRunner,
         forge_client: ForgeClient,
+        forge_action_service: ForgeActionService,
         run_repository: RunRepository,
         run_event_repository: RunEventRepository,
         stage_repository: StageRepository,
@@ -80,6 +83,7 @@ class RunOrchestrator(BaseBusinessService):
         self._launchpad_client = launchpad_client
         self._cursor_agent_runner = cursor_agent_runner
         self._forge_client = forge_client
+        self._forge_action_service = forge_action_service
         self._run_repository = run_repository
         self._run_event_repository = run_event_repository
         self._stage_repository = stage_repository
@@ -87,7 +91,7 @@ class RunOrchestrator(BaseBusinessService):
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def process_job(self, job: JobModel) -> RunProcessSummary:
-        """Authorize, ensure PR, Enter-at, then hop until STOP/BLOCK/fail."""
+        """Authorize, ensure branch, Enter-at, then hop until STOP/BLOCK/fail."""
         payload = job.payload.model_dump()
         event_type = job.payload.event_type
         delivery_id = job.payload.delivery_id
@@ -151,7 +155,7 @@ class RunOrchestrator(BaseBusinessService):
 
             notify_pending = False
             try:
-                run, notify_pending = await self._ensure_run_pr(
+                run, notify_pending = await self._ensure_run_branch(
                     session,
                     run,
                     payload=payload,
@@ -375,6 +379,87 @@ class RunOrchestrator(BaseBusinessService):
                         hop_count=hop_count,
                     )
                     continue
+
+                if decision.decision == PolicyDecisionType.APPLY_FORGE and decision.next_node:
+                    apply_result = await self._apply_automated_forge(
+                        session,
+                        run=run,
+                        next_node=decision.next_node,
+                        handoff=handoff,
+                        workspace_path=workspace_path,
+                        payload=payload,
+                    )
+                    if apply_result.get("error"):
+                        return await self._finalize_run(
+                            session,
+                            run,
+                            status_type=RunStatusType.FAILED,
+                            outcome_type=RunOutcomeType.FAILED,
+                            stop_reason=str(apply_result["error"]),
+                            workflow_node=decision.next_node.node_id,
+                            dispatched=True,
+                            notify_pending=notify_pending,
+                            issue_ref=issue_ref,
+                            org=context.org,
+                            repo=context.repo,
+                        )
+                    if apply_result.get("pr_number") is not None:
+                        refreshed = await self._run_repository.update_run(
+                            session,
+                            run_id,
+                            RunUpdate(pr_number=int(apply_result["pr_number"])),
+                        )
+                        if refreshed is not None:
+                            run = refreshed
+                        issue_ref = run.pr_number or issue_ref
+                    # Treat automated EA as passed; re-resolve without another skill hop.
+                    handoff = HandoffEnvelope(
+                        contract=handoff.contract,
+                        stage=decision.next_node.node_id,
+                        outcome="pass",
+                        blockers=[],
+                        human_checkpoint=False,
+                        external_action=False,
+                        forge=handoff.forge,
+                    )
+                    last_node_id = decision.next_node.node_id
+                    self.logger.info(
+                        "Automated forge applied; continuing walker",
+                        run_id=str(run_id),
+                        workflow_node=decision.next_node.node_id,
+                        pr_number=apply_result.get("pr_number"),
+                    )
+                    decision = self._policy_engine.evaluate_dispatch(
+                        handoff,
+                        context,
+                        retry_counter=retry_counter,
+                    )
+                    if decision.decision == PolicyDecisionType.DISPATCH and decision.next_node:
+                        next_node = decision.next_node
+                        self.logger.info(
+                            "Walker continuing to next orchestrated node",
+                            run_id=str(run_id),
+                            next_node=next_node.node_id,
+                            hop_count=hop_count,
+                        )
+                        continue
+                    if decision.decision == PolicyDecisionType.BLOCK:
+                        return await self._finalize_run(
+                            session,
+                            run,
+                            status_type=RunStatusType.FAILED,
+                            outcome_type=RunOutcomeType.BLOCKED,
+                            stop_reason=decision.block_reason or "Policy BLOCK",
+                            workflow_node=(
+                                decision.next_node.node_id if decision.next_node else last_node_id
+                            ),
+                            dispatched=True,
+                            notify_pending=notify_pending,
+                            issue_ref=issue_ref,
+                            org=context.org,
+                            repo=context.repo,
+                        )
+                    # Fall through to STOP handling (e.g. live-verify)
 
                 if decision.decision == PolicyDecisionType.BLOCK:
                     return await self._finalize_run(
@@ -826,7 +911,7 @@ class RunOrchestrator(BaseBusinessService):
             str(branch_slug),
         )
 
-    async def _ensure_run_pr(
+    async def _ensure_run_branch(
         self,
         session: AsyncSession,
         run: RunModel,
@@ -834,20 +919,17 @@ class RunOrchestrator(BaseBusinessService):
         payload: dict[str, Any],
         notify_pending: bool,
     ) -> tuple[RunModel, bool]:
-        """Open or update the run PR before orchestrated stages (FR-19)."""
+        """Ensure wave head branch exists; do not open a Draft PR at job start."""
         if run.id is None:
-            raise RuntimeError("Run missing id before PR-at-start")
-        if run.pr_number is not None:
-            return run, notify_pending
+            raise RuntimeError("Run missing id before ensure_branch")
 
-        run_id_str = str(run.id)
         initiative_id = run.initiative_id or payload.get("initiative_id")
         wave_id = run.wave_id or payload.get("wave_id")
         branch_slug = payload.get("branch_slug")
         base_branch = payload.get("base_branch")
         if not initiative_id or not wave_id or not branch_slug or not base_branch:
             raise ValueError(
-                "PR-at-start requires initiative_id, wave_id, branch_slug, and "
+                "ensure_branch requires initiative_id, wave_id, branch_slug, and "
                 "base_branch on the wave-start job payload (caller-owned targeting)"
             )
 
@@ -859,12 +941,8 @@ class RunOrchestrator(BaseBusinessService):
             )
             base = validate_base_branch(str(base_branch))
         except ValueError as exc:
-            raise ValueError(f"Invalid PR targeting for run start: {exc}") from exc
+            raise ValueError(f"Invalid branch targeting for run start: {exc}") from exc
 
-        title = f"[gateflow] {initiative_id} {wave_id} {branch_slug}"
-        body = (
-            f"Run `{run_id_str}` — status API supplementary.\n\n" f"Head `{head}` → base `{base}`."
-        )
         try:
             await self._forge_client.ensure_branch_from_base(
                 run.org,
@@ -872,18 +950,10 @@ class RunOrchestrator(BaseBusinessService):
                 branch=head,
                 base=base,
             )
-            pr_number = await self._forge_client.create_or_update_pull_request(
-                run.org,
-                run.repo,
-                title=title,
-                body=body,
-                head=head,
-                base=base,
-            )
         except Exception as exc:
             self.logger.error(
-                "PR open/update failed at run start",
-                run_id=run_id_str,
+                "ensure_branch_from_base failed at run start",
+                run_id=str(run.id),
                 head=head,
                 base=base,
                 error=str(exc),
@@ -896,21 +966,78 @@ class RunOrchestrator(BaseBusinessService):
             )
             return (updated or run), True
 
-        updated = await self._run_repository.update_run(
-            session,
-            run.id,
-            RunUpdate(pr_number=pr_number),
-        )
-        if updated is None:
-            raise RuntimeError(f"Run {run.id} missing after PR assign")
         self.logger.info(
-            "Run PR ensured at start",
-            run_id=run_id_str,
-            pr_number=pr_number,
+            "Run head branch ensured at start (no PR create)",
+            run_id=str(run.id),
             head=head,
             base=base,
+            pr_number=run.pr_number,
         )
-        return updated, notify_pending
+        return run, notify_pending
+
+    async def _apply_automated_forge(
+        self,
+        session: AsyncSession,
+        *,
+        run: RunModel,
+        next_node: ResolvedWorkflowNode,
+        handoff: HandoffEnvelope,
+        workspace_path: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Apply automated external-action forge; return pr_number or error."""
+        if run.id is None:
+            return {"error": "Run missing id for automated forge apply"}
+        workspace = Path(workspace_path).resolve()
+        if not workspace.is_dir():
+            return {"error": f"workspace_path is not a directory: {workspace}"}
+
+        try:
+            head = self._require_run_head_branch(run=run, payload=payload)
+            base_raw = payload.get("base_branch")
+            if not base_raw:
+                return {"error": "base_branch required on job payload for automated open_draft_pr"}
+            base = validate_base_branch(str(base_raw))
+        except ValueError as exc:
+            return {"error": str(exc)}
+
+        try:
+            applied = await self._forge_action_service.apply_external_action(
+                org=run.org,
+                repo=run.repo,
+                node=next_node,
+                handoff=handoff,
+                workspace=workspace,
+                head_ref=head,
+                base_ref=base,
+            )
+        except ValidationError as exc:
+            return {"error": exc.message}
+        except Exception as exc:
+            self.logger.error(
+                "Automated forge apply failed",
+                run_id=str(run.id),
+                workflow_node=next_node.node_id,
+                error=str(exc),
+                exc_info=True,
+            )
+            return {"error": str(exc)}
+
+        await self._run_event_repository.append_event(
+            session,
+            RunEventCreate(
+                run_id=run.id,
+                event_type="forge_executed",
+                workflow_node=next_node.node_id,
+                payload={
+                    "event_type": "forge_executed",
+                    "action": applied.action.value,
+                    "pr_number": applied.pr_number,
+                    "authorization": "automated",
+                },
+            ),
+        )
+        return {"pr_number": applied.pr_number}
 
     async def _post_run_event(
         self,

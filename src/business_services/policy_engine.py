@@ -6,13 +6,13 @@ from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
 from src.models.control_plane_models import PolicyDecision, TriggerContext
+from src.models.forge_types import AuthorizationModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType
 
 _STOP_NODE_TYPES = frozenset(
     {
         "human-checkpoint",
-        "external-action",
         "decision",
         "terminal",
     }
@@ -78,6 +78,9 @@ class PolicyEngine(BaseBusinessService):
 
         self._warn_human_checkpoint_mismatch(handoff, next_node)
 
+        if next_node.node_type == "external-action":
+            return self._decision_for_external_action(next_node, retry_counter)
+
         if next_node.node_type in _STOP_NODE_TYPES:
             return PolicyDecision(
                 decision=PolicyDecisionType.STOP,
@@ -93,7 +96,7 @@ class PolicyEngine(BaseBusinessService):
                 retry_counter=retry_counter,
             )
 
-        # Missing/manual dispatch ⇒ non-dispatch (manual observe / stop for W1)
+        # Missing/manual dispatch ⇒ non-dispatch (manual observe / stop)
         dispatch_label = next_node.dispatch or "manual"
         return PolicyDecision(
             decision=PolicyDecisionType.STOP,
@@ -101,6 +104,48 @@ class PolicyEngine(BaseBusinessService):
             block_reason=(
                 f"No AgentRunner dispatch for node {next_node.node_id} "
                 f"type={next_node.node_type} dispatch={dispatch_label}"
+            ),
+            retry_counter=retry_counter,
+        )
+
+    @staticmethod
+    def _decision_for_external_action(
+        next_node: ResolvedWorkflowNode,
+        retry_counter: int,
+    ) -> PolicyDecision:
+        """explicit → STOP+authorize; automated → APPLY_FORGE (orchestrator applies)."""
+        auth = next_node.authorization
+        if auth is None:
+            return PolicyDecision(
+                decision=PolicyDecisionType.BLOCK,
+                next_node=next_node,
+                block_reason=(
+                    f"external-action {next_node.node_id!r} missing authorization on resolved node"
+                ),
+                retry_counter=retry_counter,
+            )
+        if auth == AuthorizationModeType.EXPLICIT:
+            return PolicyDecision(
+                decision=PolicyDecisionType.STOP,
+                next_node=next_node,
+                block_reason=(
+                    f"Stop at node {next_node.node_id} type=external-action "
+                    f"authorization=explicit"
+                ),
+                retry_counter=retry_counter,
+            )
+        if auth == AuthorizationModeType.AUTOMATED:
+            return PolicyDecision(
+                decision=PolicyDecisionType.APPLY_FORGE,
+                next_node=next_node,
+                retry_counter=retry_counter,
+            )
+        return PolicyDecision(
+            decision=PolicyDecisionType.BLOCK,
+            next_node=next_node,
+            block_reason=(
+                f"external-action {next_node.node_id!r} has unsupported authorization "
+                f"{auth.value!r}"
             ),
             retry_counter=retry_counter,
         )

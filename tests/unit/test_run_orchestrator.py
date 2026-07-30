@@ -60,7 +60,7 @@ def _job_payload(**extra: object) -> JobPayloadDocument:
         "label": {"name": "gateflow:run-wave"},
         "workspace_path": str(Path.cwd()),
         "ticket_id": "55",
-        "initiative_id": "INIT-GATEFLOW-005-BOUNDINPUT",
+        "initiative_id": "INIT-GATEFLOW-008",
         "wave_id": "w1",
         "branch_slug": "implement-lane",
         "base_branch": "develop",
@@ -142,6 +142,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     forge_client = MagicMock()
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
+    forge_client.open_draft_pr = AsyncMock(return_value=42)
     forge_client.commit_paths_to_branch = AsyncMock(
         return_value=MagicMock(
             commit_sha="abc123",
@@ -149,6 +150,10 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             path_count=0,
             paths=[],
         )
+    )
+    forge_action_service = MagicMock()
+    forge_action_service.apply_external_action = AsyncMock(
+        return_value=MagicMock(pr_number=99, action=MagicMock(value="open_draft_pr"))
     )
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
@@ -168,6 +173,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "launchpad_client": launchpad_client,
         "cursor_agent_runner": cursor_agent_runner,
         "forge_client": forge_client,
+        "forge_action_service": forge_action_service,
         "run_repository": run_repo,
         "run_event_repository": run_event_repo,
         "stage_repository": stage_repo,
@@ -432,7 +438,7 @@ async def test_dispatch_persists_resolved_runner_and_model_fields() -> None:
 
 
 @pytest.mark.asyncio
-async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
+async def test_ensure_branch_before_stage_when_run_has_no_pr() -> None:
     from src.models.control_plane_models import (
         TriggerAuthorizationResult,
         TriggerContext,
@@ -461,7 +467,7 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
             status_type=update.status_type or RunStatusType.ACTIVE,
             outcome_type=update.outcome_type,
             workflow_node=update.workflow_node,
-            pr_number=update.pr_number if update.pr_number is not None else 55,
+            pr_number=update.pr_number,
             initiative_id="INIT-ACME-001",
             wave_id="W1",
             retry_counter=0,
@@ -502,14 +508,14 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
 
     call_order: list[str] = []
 
-    async def _pr(*_a: object, **_k: object) -> int:
-        call_order.append("pr")
-        return 55
+    async def _branch(*_a: object, **_k: object) -> bool:
+        call_order.append("ensure_branch")
+        return True
 
     async def _stage(*_a: object, **_k: object) -> None:
         call_order.append("stage")
 
-    forge_client.create_or_update_pull_request = AsyncMock(side_effect=_pr)
+    forge_client.ensure_branch_from_base = AsyncMock(side_effect=_branch)
     stage_repo.create_stage = AsyncMock(side_effect=_stage)
 
     from src.models.handoff_models import HandoffEnvelope
@@ -550,12 +556,12 @@ async def test_pr_opened_before_stage_when_run_has_no_pr() -> None:
         )
     )
     assert summary.dispatched is True
-    assert call_order == ["pr", "stage"]
+    assert call_order == ["ensure_branch", "stage"]
     forge_client.ensure_branch_from_base.assert_awaited()
-    forge_client.create_or_update_pull_request.assert_awaited()
-    pr_kwargs = forge_client.create_or_update_pull_request.await_args.kwargs
-    assert pr_kwargs["head"] == "feature/INIT-ACME-001-w1-pr-order"
-    assert pr_kwargs["base"] == "develop"
+    forge_client.create_or_update_pull_request.assert_not_awaited()
+    branch_kwargs = forge_client.ensure_branch_from_base.await_args.kwargs
+    assert branch_kwargs["branch"] == "feature/INIT-ACME-001-w1-pr-order"
+    assert branch_kwargs["base"] == "develop"
 
 
 @pytest.mark.asyncio
@@ -657,6 +663,7 @@ def _authorized_api_trigger() -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_walker_continues_then_stops_at_gate() -> None:
+    from src.models.forge_models import HandoffForgeDocument
     from src.models.handoff_models import HandoffEnvelope
 
     cursor_agent_runner = MagicMock()
@@ -670,9 +677,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     handoff_reader = MagicMock()
-    # Pass-1 pin (remount): pre-implement → loop-spec → wave-pr-action (external-action).
-    # W0: EA still authorize-STOP path; incomplete forge.requires → fail closed
-    # (head_ref/base_ref + automated apply are W1). Walker still completes two skill hops.
+    # Pass-1: pre-implement → loop-spec → automated wave-pr apply → live-verify STOP.
     handoff_reader.read_path = MagicMock(
         side_effect=[
             HandoffEnvelope(
@@ -688,11 +693,19 @@ async def test_walker_continues_then_stops_at_gate() -> None:
                 outcome="pass",
                 blockers=[],
                 human_checkpoint=False,
+                forge=HandoffForgeDocument(
+                    title="W1 draft",
+                    body_path="docs/body.md",
+                ),
             ),
         ]
     )
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
+    forge_action = MagicMock()
+    forge_action.apply_external_action = AsyncMock(
+        return_value=MagicMock(pr_number=88, action=MagicMock(value="open_draft_pr"))
+    )
     raw = _job_payload(event_type="api_trigger").model_dump()
     raw.pop("handoff", None)
     raw.update(_dispatch_plan(start_node="pre-implement"))
@@ -701,6 +714,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         cursor_agent_runner=cursor_agent_runner,
         handoff_reader=handoff_reader,
         stage_repository=stage_repo,
+        forge_action_service=forge_action,
     )
     summary = await orchestrator.process_job(
         JobModel(
@@ -711,12 +725,13 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     assert summary.dispatched is True
-    assert summary.terminal_status == RunStatusType.FAILED.value
+    assert summary.terminal_status == RunStatusType.STOPPED.value
     assert summary.stop_reason is not None
-    assert "Incomplete handoff.forge" in summary.stop_reason
+    assert "live-verify" in summary.stop_reason
     assert stage_repo.create_stage.await_count == 2
     assert cursor_agent_runner.run_skill.await_count == 2
     assert handoff_reader.read_path.call_count == 2
+    forge_action.apply_external_action.assert_awaited_once()
 
 
 @pytest.mark.asyncio

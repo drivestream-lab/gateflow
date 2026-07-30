@@ -165,6 +165,51 @@ def test_policy_stop_on_pin_human_checkpoint_node() -> None:
     assert "human-checkpoint" in (decision.block_reason or "")
 
 
+def test_policy_explicit_external_action_stops() -> None:
+    from src.models.forge_types import AuthorizationModeType
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    engine = MagicMock()
+    engine.resolve_next.return_value = ResolvedWorkflowNode(
+        node_id="board-tickets-action",
+        node_type="external-action",
+        authorization=AuthorizationModeType.EXPLICIT,
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="spec-merge",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.STOP
+    assert decision.next_node is not None
+    assert decision.next_node.node_id == "board-tickets-action"
+    assert "authorization=explicit" in (decision.block_reason or "")
+
+
+def test_policy_automated_external_action_apply_forge() -> None:
+    from src.models.forge_types import AuthorizationModeType
+    from src.models.handoff_models import ResolvedWorkflowNode
+
+    engine = MagicMock()
+    engine.resolve_next.return_value = ResolvedWorkflowNode(
+        node_id="wave-pr-action",
+        node_type="external-action",
+        authorization=AuthorizationModeType.AUTOMATED,
+    )
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="loop-spec",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.APPLY_FORGE
+    assert decision.next_node is not None
+    assert decision.next_node.node_id == "wave-pr-action"
+
+
 def test_policy_block_on_contract_mismatch() -> None:
     engine = MagicMock()
     engine.resolve_next.side_effect = ValueError(

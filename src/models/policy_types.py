@@ -14,11 +14,12 @@ class WavePreconditionIdType(str, Enum):
 
 
 class PolicyDecisionType(str, Enum):
-    """PolicyEngine evaluate_dispatch outcomes (TDD §3.3)."""
+    """PolicyEngine evaluate_dispatch outcomes (TDD §3.3 / INIT-008)."""
 
     DISPATCH = "dispatch"
     STOP = "stop"
     BLOCK = "block"
+    APPLY_FORGE = "apply_forge"
 
 
 class RunEventNameType(str, Enum):

@@ -5,7 +5,7 @@
 | Name | Legacy name | Pin skills (today) | Verify |
 |------|-------------|--------------------|--------|
 | **spec lane** | Scenario A | `spec-draft` … `spec-implementation-plan` | `verify_spec_lane` (scaffold; W2) |
-| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → `live-verify` STOP | `verify_implement_lane` |
+| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → automated `wave-pr-action` → `live-verify` STOP | `verify_implement_lane` |
 
 Both are wave-shaped Gateflow features.
 
@@ -134,7 +134,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 |------------|---------------|--------|
 | Dispatch plan resolve + persist (FR-16) | — | `test_node_model_resolver`, `test_run_orchestrator` |
 | Pin walker until gate + hop cap | — | `test_run_orchestrator` (multi-hop / hop-cap) |
-| PR-at-start + ForgeClient (FR-19) | `verify_pr_thread` (PR assert with `gateflow.require_worker: true`) | `test_pr_branch_naming`, `test_forge_client`, `test_run_orchestrator` |
+| PR-at-start + ForgeClient (FR-19) | **superseded for implement jobs by INIT-008 W1** — ensure_branch-only at start; Draft PR via automated `wave-pr-action` | `test_pr_branch_naming`, `test_forge_client`, `test_run_orchestrator` (`test_ensure_branch_before_stage_*`) |
 | Metrics dims + api_trigger (FR-21/22) | `verify_pr_thread` + `verify_status_metrics` | `test_metrics_emitter` |
 | Cursor stub happy path (V-3) | — | `test_cursor_agent_runner` |
 
