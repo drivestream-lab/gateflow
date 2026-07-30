@@ -607,6 +607,19 @@ class ForgeClient(BaseInfraService):
         )
         return data
 
+    async def get_branch_tip_sha(self, owner: str, repo: str, *, branch: str) -> str:
+        """Return the commit SHA at ``refs/heads/{branch}`` (fail closed on missing)."""
+        self.assert_no_gh_cli_transport()
+        if not str(branch).strip():
+            raise ValueError("branch is required")
+        client = self._require_client()
+        ref = await client.get(self._git_ref_get_path(owner, repo, branch))
+        ref.raise_for_status()
+        sha = str(ref.json()["object"]["sha"])
+        if not sha.strip():
+            raise ValueError(f"Empty tip SHA for branch {branch!r}")
+        return sha
+
     async def commit_paths_to_branch(
         self,
         owner: str,

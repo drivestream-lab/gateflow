@@ -866,6 +866,9 @@ async def test_publish_stage_workspace_required_empty_fails(
         orch, RO
     )
 
+    forge = MagicMock()
+    forge.get_branch_tip_sha = AsyncMock(return_value="abc123def456")
+    orch._forge_client = forge
     monkeypatch.setattr(
         "src.business_services.run_orchestrator.collect_commit_paths",
         lambda *_a, **_k: [],
@@ -891,6 +894,7 @@ async def test_publish_stage_workspace_required_empty_fails(
                 "branch_slug": "forge-commit",
             },
         )
+    forge.get_branch_tip_sha.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -906,6 +910,7 @@ async def test_publish_stage_workspace_optional_commits(
         orch, RO
     )
     forge = MagicMock()
+    forge.get_branch_tip_sha = AsyncMock(return_value="abc123def456")
     forge.commit_paths_to_branch = AsyncMock(
         return_value=CommitPathsResult(
             commit_sha="deadbeef",
@@ -918,9 +923,14 @@ async def test_publish_stage_workspace_optional_commits(
     events = MagicMock()
     events.append_event = AsyncMock()
     orch._run_event_repository = events
+
+    def _collect(_ws: str, *, handoff_root=None, base_ref=None):
+        assert base_ref == "abc123def456"
+        return ["docs/a.md"]
+
     monkeypatch.setattr(
         "src.business_services.run_orchestrator.collect_commit_paths",
-        lambda *_a, **_k: ["docs/a.md"],
+        _collect,
     )
     run = RunModel(
         id=uuid4(),

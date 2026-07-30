@@ -723,22 +723,45 @@ class RunOrchestrator(BaseBusinessService):
         if self._orchestration.has_handoff_root():
             handoff_root = self._orchestration.require_handoff_root()
 
-        paths = collect_commit_paths(workspace_path, handoff_root=handoff_root)
+        head = self._require_run_head_branch(run=run, payload=payload)
+        try:
+            remote_tip = await self._forge_client.get_branch_tip_sha(run.org, run.repo, branch=head)
+        except Exception as tip_exc:
+            self.logger.error(
+                "Failed to resolve run head tip for stage publish",
+                run_id=str(run.id),
+                workflow_node=node_id,
+                head=head,
+                error=str(tip_exc),
+                exc_info=True,
+            )
+            raise ValueError(
+                f"forge.commit_workspace could not resolve tip for branch {head!r}: " f"{tip_exc}"
+            ) from tip_exc
+
+        # Skills leave dirty trees; Forge publishes. base_ref covers mistaken
+        # local commits ahead of the remote run head (safety net).
+        paths = collect_commit_paths(
+            workspace_path,
+            handoff_root=handoff_root,
+            base_ref=remote_tip,
+        )
         if not paths:
             if mode == CommitWorkspaceModeType.REQUIRED:
                 raise ValueError(
                     f"forge.commit_workspace=required for node {node_id!r} but "
-                    "no includable workspace paths to publish"
+                    "no includable workspace paths to publish "
+                    f"(dirty empty and no files ahead of remote tip {remote_tip[:12]})"
                 )
             self.logger.info(
                 "Stage commit skipped — no includable paths",
                 run_id=str(run.id),
                 workflow_node=node_id,
                 commit_workspace=mode.value,
+                remote_tip=remote_tip,
             )
             return
 
-        head = self._require_run_head_branch(run=run, payload=payload)
         message = f"chore(gateflow): stage {node_id} workspace publish"
         try:
             result = await self._forge_client.commit_paths_to_branch(

@@ -72,3 +72,29 @@ def test_collect_excludes_handoff_root(tmp_path: Path) -> None:
     paths = collect_commit_paths(tmp_path, handoff_root=handoff_root)
     assert "ok.md" in paths
     assert not any(p.endswith("handoff.md") for p in paths)
+
+
+def test_collect_includes_ahead_of_base_ref_when_clean(tmp_path: Path) -> None:
+    """Safety net: local commit ahead of remote tip still surfaces for publish."""
+    _git_init(tmp_path)
+    base = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "shipped.md").write_text("committed locally\n", encoding="utf-8")
+    subprocess.run(["git", "add", "docs/shipped.md"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "local ahead"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Working tree clean — dirty-only collect would miss the tip content.
+    assert collect_commit_paths(tmp_path) == []
+    paths = collect_commit_paths(tmp_path, base_ref=base)
+    assert "docs/shipped.md" in paths

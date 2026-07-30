@@ -27,12 +27,20 @@ def collect_commit_paths(
     workspace_path: str | Path,
     *,
     handoff_root: str | Path | None = None,
+    base_ref: str | None = None,
 ) -> list[str]:
     """Return relative POSIX paths to include in a forge commit.
 
-    Uses ``git status --porcelain`` so **gitignore** (and global excludes) apply
-    to untracked files. Additionally applies a hard secret denylist and
-    excludes anything under ``handoff_root`` (run batons are not product tree).
+    Happy path (packaged skills): leave the tree **dirty**; Forge publishes
+    ``git status`` paths. Skills must not ``git commit`` / ``git push`` /
+    ``gh`` — remote tip publish is ForgeClient only (ADR-009).
+
+    Safety net: when ``base_ref`` is set (remote tip SHA/ref), also include
+    files changed on ``base_ref..HEAD`` so a mistaken local commit still
+    publishes content ahead of the run head.
+
+    Uses ``git status --porcelain`` so **gitignore** applies to untracked
+    files. Applies a hard secret denylist and excludes ``handoff_root``.
     """
     root = Path(workspace_path).resolve()
     if not root.is_dir():
@@ -42,22 +50,50 @@ def collect_commit_paths(
     if handoff_root is not None and str(handoff_root).strip():
         handoff_resolved = Path(str(handoff_root).strip()).resolve()
 
-    status = _git_porcelain(root)
     candidates: list[str] = []
     seen: set[str] = set()
-    for rel in status:
-        if rel in seen:
-            continue
-        if _is_denied(rel, root=root, handoff_root=handoff_resolved):
-            continue
-        abs_path = root / rel
-        if not abs_path.is_file():
-            # Deletions / dirs skipped in v1 — blobs need on-disk content.
-            continue
-        seen.add(rel)
-        candidates.append(rel)
+
+    for rel in _git_porcelain(root):
+        _maybe_add(
+            rel,
+            root=root,
+            handoff_root=handoff_resolved,
+            seen=seen,
+            candidates=candidates,
+        )
+
+    if base_ref is not None and str(base_ref).strip():
+        for rel in _git_diff_name_only(root, str(base_ref).strip()):
+            _maybe_add(
+                rel,
+                root=root,
+                handoff_root=handoff_resolved,
+                seen=seen,
+                candidates=candidates,
+            )
+
     candidates.sort()
     return candidates
+
+
+def _maybe_add(
+    rel: str,
+    *,
+    root: Path,
+    handoff_root: Path | None,
+    seen: set[str],
+    candidates: list[str],
+) -> None:
+    if rel in seen:
+        return
+    if _is_denied(rel, root=root, handoff_root=handoff_root):
+        return
+    abs_path = root / rel
+    if not abs_path.is_file():
+        # Deletions / dirs skipped in v1 — blobs need on-disk content.
+        return
+    seen.add(rel)
+    candidates.append(rel)
 
 
 def _git_porcelain(root: Path) -> list[str]:
@@ -83,7 +119,38 @@ def _git_porcelain(root: Path) -> list[str]:
         entry = entry.strip().strip('"')
         if not entry:
             continue
-        # Normalize to POSIX relative path (no leading ./)
+        rel = PurePosixPath(entry.replace("\\", "/"))
+        if rel.is_absolute() or ".." in rel.parts:
+            continue
+        paths.append(str(rel))
+    return paths
+
+
+def _git_diff_name_only(root: Path, base_ref: str) -> list[str]:
+    """Files changed between ``base_ref`` and ``HEAD`` (Added/Copied/Modified/Renamed)."""
+    proc = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMR",
+            f"{base_ref}..HEAD",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "").strip()
+        raise ValueError(f"git diff {base_ref}..HEAD failed in {root}: {err or proc.returncode}")
+
+    paths: list[str] = []
+    for line in proc.stdout.splitlines():
+        entry = line.strip().strip('"')
+        if not entry:
+            continue
         rel = PurePosixPath(entry.replace("\\", "/"))
         if rel.is_absolute() or ".." in rel.parts:
             continue
@@ -104,7 +171,6 @@ def _is_denied(rel: str, *, root: Path, handoff_root: Path | None) -> bool:
         return True
     if any(part in _SECRET_PATH_PARTS for part in posix.parts):
         return True
-    # Common credential filename patterns
     if re.search(r"(^|/)(secret|credentials?|passwd|password)s?(\.|$)", rel, re.IGNORECASE):
         if lower_name.endswith((".json", ".yaml", ".yml", ".toml", ".env")):
             return True
@@ -116,7 +182,6 @@ def _is_denied(rel: str, *, root: Path, handoff_root: Path | None) -> bool:
             return True
         except ValueError:
             pass
-        # Also exclude if relative path looks like a baton under a known root name
         if name == _HANDOFF_BASENAME and "GATEFLOW_HANDOFF" in rel.upper():
             return True
 

@@ -11,6 +11,8 @@ import re
 _INITIATIVE_ID_RE = re.compile(r"^INIT-[A-Z]{2,16}-[0-9]{1,7}$")
 _WAVE_ID_RE = re.compile(r"^[Ww][0-9]+$")
 _BRANCH_SLUG_RE = re.compile(r"^[a-z][a-z0-9._-]*$")
+# wave_id is already embedded by build_wave_head_branch — slug must not repeat it.
+_BRANCH_SLUG_WAVE_PREFIX_RE = re.compile(r"^w[0-9]+(-|$)")
 _BASE_BRANCH_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._/-]*$")
 
 
@@ -37,6 +39,12 @@ def validate_branch_slug(branch_slug: str) -> str:
     if value != branch_slug or not _BRANCH_SLUG_RE.fullmatch(value):
         raise ValueError(
             "branch_slug must be lowercase kebab " f"(^[a-z][a-z0-9._-]*$), got {branch_slug!r}"
+        )
+    if _BRANCH_SLUG_WAVE_PREFIX_RE.match(value):
+        raise ValueError(
+            "branch_slug must not start with a wave token (w{n}); "
+            "wave_id is already inserted into the head branch "
+            f"(got {branch_slug!r}; use e.g. 'closeout-start' not 'w0-closeout-start')"
         )
     return value
 
