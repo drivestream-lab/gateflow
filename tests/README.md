@@ -143,6 +143,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Board APIs create/list/status/link (FR-24) | `verify_board` (in `verify_all`) | `test_board_service`, `test_forge_client_board` |
+| WorkManifest pin contract before board seed (INIT-008 W2) | `verify_board` asserts launchpad/v1 reject; authorize path unit | `test_forge_action_service` (`prayog_v1` / `rejects_launchpad_v1`), `test_forge_merge` |
 | Forge auth modes `pat` \| `app` (ADR-003) | `verify_board` when mode+creds set | `test_github_token_provider`, `test_forge_client` |
 | Worker isolation — zero board mutations | — | `test_process_job_never_calls_board_forge_mutations` |
 | Production gh-free path (FR-25/26a) | inspection checklist | `test_forge_client_source_has_no_gh_subprocess` |

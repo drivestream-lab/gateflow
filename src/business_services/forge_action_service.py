@@ -37,7 +37,10 @@ from src.models.forge_types import ForgeActionType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.run_store_models import RunEventCreate, RunModel
 from src.models.run_store_types import RunStatusType
-from src.models.work_manifest_models import parse_work_manifest_from_plan
+from src.models.work_manifest_models import (
+    parse_work_manifest_from_plan,
+    run_workmanifest_contract,
+)
 
 
 class ForgeApplyResult(BaseModel):
@@ -336,6 +339,27 @@ class ForgeActionService(BaseBusinessService):
                 message=f"plan_path not found: {effective.plan_path}",
                 field_errors={"plan_path": "missing"},
             )
+
+        try:
+            run_workmanifest_contract(workspace=workspace, plan_file=plan_file)
+        except ValueError as exc:
+            self.logger.error(
+                "WorkManifest contract failed before board create",
+                initiative=effective.initiative,
+                plan_path=effective.plan_path,
+                error=str(exc),
+            )
+            raise ValidationError(
+                message=str(exc),
+                field_errors={"plan_path": "workmanifest_contract"},
+            ) from exc
+
+        self.logger.info(
+            "WorkManifest contract passed before board create",
+            initiative=effective.initiative,
+            plan_path=effective.plan_path,
+            api_version="prayog/v1",
+        )
 
         manifest = parse_work_manifest_from_plan(plan_file.read_text(encoding="utf-8"))
         if manifest.initiative != effective.initiative:
