@@ -5,6 +5,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.models.forge_models import HandoffForgeDocument, NodeForgePolicy
+from src.models.forge_types import AuthorizationModeType
 
 
 class HandoffEnvelope(BaseModel):
@@ -42,4 +43,10 @@ class ResolvedWorkflowNode(BaseModel):
     forge: NodeForgePolicy = Field(
         default_factory=NodeForgePolicy,
         description="Parsed pin forge block; missing forge ⇒ commit_workspace disabled",
+    )
+    authorization: Optional[AuthorizationModeType] = Field(
+        default=None,
+        description=(
+            "Required on type=external-action (explicit|automated); " "absent on other node types"
+        ),
     )

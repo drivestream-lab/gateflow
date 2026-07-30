@@ -8,6 +8,7 @@ from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.models.forge_models import NodeForgePolicy, parse_node_forge
+from src.models.forge_types import AuthorizationModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 
 DEFAULT_WORKFLOW_PATH = Path("prayog-skills/workflow.yaml")
@@ -88,6 +89,9 @@ class WorkflowEngine(BaseBusinessService):
             node_type=resolved.node_type,
             dispatch=resolved.dispatch,
             commit_workspace=resolved.forge.commit_workspace.value,
+            authorization=(
+                resolved.authorization.value if resolved.authorization is not None else None
+            ),
         )
         return resolved
 
@@ -136,13 +140,38 @@ class WorkflowEngine(BaseBusinessService):
             else {}
         )
         forge: NodeForgePolicy = parse_node_forge(raw.get("forge"))
+        authorization = WorkflowEngine._parse_authorization(node_id, node_type, raw)
         return ResolvedWorkflowNode(
             node_id=node_id,
             node_type=node_type,
             dispatch=dispatch,
             outcomes=outcomes_map,
             forge=forge,
+            authorization=authorization,
         )
+
+    @staticmethod
+    def _parse_authorization(
+        node_id: str,
+        node_type: str,
+        raw: dict[str, Any],
+    ) -> AuthorizationModeType | None:
+        """Require authorization on external-action; ignore elsewhere."""
+        if node_type != "external-action":
+            return None
+        raw_auth = raw.get("authorization")
+        if raw_auth is None:
+            raise ValueError(
+                f"external-action node {node_id!r} missing required authorization "
+                f"(expected 'explicit' or 'automated')"
+            )
+        try:
+            return AuthorizationModeType(str(raw_auth))
+        except ValueError as exc:
+            raise ValueError(
+                f"external-action node {node_id!r} has unknown authorization "
+                f"{raw_auth!r} (expected 'explicit' or 'automated')"
+            ) from exc
 
 
 def get_workflow_engine() -> WorkflowEngine:
