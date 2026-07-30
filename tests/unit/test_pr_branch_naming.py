@@ -44,6 +44,20 @@ def test_invalid_branch_slug(slug: str) -> None:
         validate_branch_slug(slug)
 
 
+@pytest.mark.parametrize("slug", ["w0-closeout-start", "w1", "w12-extra"])
+def test_branch_slug_rejects_wave_token_prefix(slug: str) -> None:
+    with pytest.raises(ValueError, match="wave token"):
+        validate_branch_slug(slug)
+
+
+def test_branch_slug_allows_closeout_without_wave_prefix() -> None:
+    assert validate_branch_slug("closeout-start") == "closeout-start"
+    assert (
+        build_wave_head_branch("INIT-GATEFLOW-007", "W0", "closeout-start")
+        == "feature/INIT-GATEFLOW-007-w0-closeout-start"
+    )
+
+
 @pytest.mark.parametrize("base", ["", " bad", "../x"])
 def test_invalid_base_branch(base: str) -> None:
     with pytest.raises(ValueError, match="base_branch"):

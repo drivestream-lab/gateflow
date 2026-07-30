@@ -38,7 +38,9 @@ features:
       initiative_id: ""
       wave_id: W0
       ticket_id: ""
+      # slug only — do NOT prefix w0-/w1- (wave_id already inserts the wave token)
       branch_slug: implement-lane
+      # Skills leave the tree dirty; ForgeClient publishes after the hop (no skill git commit).
 
   # Spec lane: POST /api/v1/waves/spec/start (requires pin orchestrated start_node)
   #   .venv/bin/python -m tests.verify.verify_spec_lane

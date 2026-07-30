@@ -148,6 +148,21 @@ async def test_ensure_branch_from_base_noop_when_present() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_branch_tip_sha() -> None:
+    client = _forge_client()
+    http = MagicMock()
+    ref = MagicMock()
+    ref.raise_for_status = MagicMock()
+    ref.json.return_value = {"object": {"sha": "tipsha0"}}
+    http.get = AsyncMock(return_value=ref)
+    client._client = http
+
+    sha = await client.get_branch_tip_sha("acme", "widget", branch="feature/x")
+    assert sha == "tipsha0"
+    http.get.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_commit_paths_to_branch_creates_blobs_tree_commit(tmp_path) -> None:
     from pathlib import Path
 

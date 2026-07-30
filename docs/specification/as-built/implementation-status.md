@@ -135,9 +135,11 @@
 |------------|------------------|------|------|-------------|-------|
 | Parse pin `forge` on nodes | ADR-009; pin | `forge_models.py`, `WorkflowEngine.get_node` | `test_forge_policy` | — | Absent skill forge ⇒ publish disabled |
 | `handoff.forge` instance slots | pin forge-side-effects | `HandoffEnvelope.forge` | `test_forge_policy` | — | Instance only; pin wins policy |
-| Path collect (ignore + denylist) | ADR-009 path class | `workspace_commit_paths.py` | `test_workspace_commit_paths` | — | Excludes handoff batons + secrets |
+| Path collect (ignore + denylist) | ADR-009 path class | `workspace_commit_paths.py` | `test_workspace_commit_paths` | — | Dirty tree (skills must not commit) + optional `base_ref..HEAD` safety net; excludes handoff batons + secrets |
+| Resolve run-head tip SHA | ADR-009 | `ForgeClient.get_branch_tip_sha` | `test_forge_client` | — | Fed as `base_ref` into path collect |
 | Commit paths to run head | ADR-009 | `ForgeClient.commit_paths_to_branch` | `test_forge_client` | — | blobs → tree → commit → ref |
-| Post-hop publish before ingest | ADR-009 ordering | `run_orchestrator._publish_stage_workspace_if_needed` | `test_publish_stage_workspace_*` | **deferred** | optional empty OK; required empty fail closed |
+| Post-hop publish before ingest | ADR-009 ordering | `run_orchestrator._publish_stage_workspace_if_needed` | `test_publish_stage_workspace_*` | **deferred** | optional empty OK; required empty fail closed; tip+ahead publish |
+| `branch_slug` rejects `w{n}-` prefix | FR-19 | `pr_branch_naming.validate_branch_slug` | `test_pr_branch_naming` | — | Avoids `…-w0-w0-…` when `wave_id` already embeds |
 | Implement-lane assert `stage_commit` | as-built verify | `verify_implement_lane` | — | **deferred** | Required nodes must leave timeline commits when opted in |
 
 ## Capability matrix (INIT-GATEFLOW-006 W2 — external-action forge)
