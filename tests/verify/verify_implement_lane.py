@@ -1,8 +1,11 @@
-"""Live verify: implement-lane Pass 1 prove-it (coding hops → live-verify gate).
+"""Live verify: implement-lane Pass 1 prove-it (coding hops → wave-pr → live-verify).
 
-Pass 1 implement lane (pin ``v0.5.0-rc.2``+ Pass-1 closeout graph):
+Pass 1 implement lane (pin ``v0.5.0-rc.2``+ authorization / wave-pr placement):
 
-  pre-implement → loop-spec → live-verify (human-checkpoint STOP)
+  pre-implement → loop-spec → automated ``wave-pr-action`` → live-verify STOP
+
+Job start **must not** create a Draft PR (ensure_branch-only). ``pr_number`` is
+expected unset/null at start and set after automated ``open_draft_pr``.
 
 ``verify`` is ``dispatch: manual``. Closeout Enter-at ``learning-extract`` →
 ``ground-spec`` is INIT-GATEFLOW-007 (not this script).
@@ -16,9 +19,10 @@ Requires:
   - features.implement_lane.evidence path (optional assert — warn if missing)
 
 Asserts (when opted in, start_node=pre-implement):
-  - Wave-start accepted
+  - Wave-start accepted; run detail ``pr_number`` null/absent right after start
   - Cursor stages for orchestrated hops (pre-implement, loop-spec) success
   - Terminal status stopped at live-verify
+  - ``pr_number`` present after automated wave-pr (when worker completed Pass-1)
   - wave_duration_ms present
   - stage_commit for required forge node loop-spec
 
@@ -149,6 +153,23 @@ def main() -> int:
                 f"expected_chain={list(expected)} workspace={workspace}"
             )
 
+            # REQ-10: no Draft PR at implement start (pr_number remains null until wave-pr).
+            start_detail = client.get(f"{base_url}/api/v1/runs/{run_id}", headers=headers)
+            if start_detail.status_code != 200:
+                print(
+                    f"[ERROR] run detail after start {start_detail.status_code}: {start_detail.text}"
+                )
+                return 1
+            start_body = start_detail.json()
+            start_pr = start_body.get("pr_number")
+            if start_pr is not None:
+                print(
+                    f"[ERROR] expected pr_number null at implement start "
+                    f"(ensure_branch-only; no PR-at-start), got {start_pr!r}"
+                )
+                return 1
+            print("[OK] pr_number unset at implement start (no PR-at-start)")
+
             deadline = time.time() + timeout_s
             detail_body: dict[str, Any] = {}
             while time.time() < deadline:
@@ -245,6 +266,15 @@ def main() -> int:
                 )
                 return 1
             print(f"[OK] terminal status={status} workflow_node={stop_node}")
+
+            end_pr = detail_body.get("pr_number")
+            if end_pr is None:
+                print(
+                    "[ERROR] expected pr_number after automated wave-pr-action "
+                    f"(open_draft_pr); got null (status={status} node={stop_node})"
+                )
+                return 1
+            print(f"[OK] pr_number={end_pr} after Pass-1 automated wave-pr")
 
             if detail_body.get("wave_duration_ms") is None:
                 print(

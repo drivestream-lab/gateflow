@@ -1,7 +1,8 @@
-"""ForgeActionService — authorized external-action forge (open_draft_pr / board tickets).
+"""ForgeActionService — external-action forge apply (open_draft_pr / board tickets).
 
-Dual executor with human forge skills: this service is the orchestrator path.
-Wave ``process_job`` must not call it; only the explicit authorize API may.
+Dual executor with human forge skills. Shared ``apply_external_action`` is used by:
+1. Explicit authorize API (``authorize_and_execute`` when authorized=true)
+2. Orchestrator automated path (no authorize flag)
 """
 
 from pathlib import Path
@@ -9,6 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from injector import inject
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
@@ -27,18 +29,30 @@ from src.models.forge_models import (
     EffectiveForgePolicy,
     ForgeAuthorizeRequest,
     ForgeAuthorizeResponse,
+    HandoffForgeDocument,
     OpenDraftPrResult,
     merge_pin_and_handoff_forge,
 )
 from src.models.forge_types import ForgeActionType
-from src.models.handoff_models import HandoffEnvelope
+from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.run_store_models import RunEventCreate, RunModel
 from src.models.run_store_types import RunStatusType
 from src.models.work_manifest_models import parse_work_manifest_from_plan
 
 
+class ForgeApplyResult(BaseModel):
+    """Result of shared apply_external_action."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: ForgeActionType
+    pr_number: Optional[int] = Field(default=None)
+    board: Optional[BoardTicketsSeedResult] = Field(default=None)
+    effective: EffectiveForgePolicy
+
+
 class ForgeActionService(BaseBusinessService):
-    """Execute pin ⋉ handoff forge actions after explicit authorization."""
+    """Execute pin ⋉ handoff forge actions (explicit authorize or automated apply)."""
 
     @inject
     def __init__(
@@ -65,7 +79,7 @@ class ForgeActionService(BaseBusinessService):
         run_id: UUID,
         request: ForgeAuthorizeRequest,
     ) -> ForgeAuthorizeResponse:
-        """Validate stopped run at external-action; execute forge only when authorized."""
+        """Validate stopped run at explicit external-action; execute when authorized."""
         if not request.authorized:
             raise ValidationError(
                 message="authorized must be true to execute forge side-effects",
@@ -106,74 +120,110 @@ class ForgeActionService(BaseBusinessService):
                 )
 
             handoff = self._require_run_handoff(run)
-            effective = merge_pin_and_handoff_forge(node.forge, handoff.forge)
-
-            if effective.action == ForgeActionType.OPEN_DRAFT_PR:
-                result = await self.execute_open_draft_pr(
-                    org=run.org,
-                    repo=run.repo,
-                    effective=effective,
-                    workspace=workspace,
-                    head=request.head,
-                    base=request.base,
-                )
-                await self._run_event_repository.append_event(
-                    session,
-                    RunEventCreate(
-                        run_id=run_id,
-                        event_type="forge_executed",
-                        workflow_node=node_id,
-                        payload={
-                            "event_type": "forge_executed",
-                            "action": effective.action.value,
-                            "pr_number": result.pr_number,
-                            "draft": result.draft,
-                            "applied_labels": result.applied_labels,
-                        },
-                    ),
-                )
-                return ForgeAuthorizeResponse(
-                    run_id=str(run_id),
-                    workflow_node=node_id,
-                    action=effective.action,
-                    pr_number=result.pr_number,
-                )
-
-            if effective.action == ForgeActionType.CREATE_BOARD_TICKETS:
-                board = await self.execute_create_board_tickets(
-                    org=run.org,
-                    repo=run.repo,
-                    effective=effective,
-                    workspace=workspace,
-                )
-                await self._run_event_repository.append_event(
-                    session,
-                    RunEventCreate(
-                        run_id=run_id,
-                        event_type="forge_executed",
-                        workflow_node=node_id,
-                        payload={
-                            "event_type": "forge_executed",
-                            "action": effective.action.value,
-                            "initiative": board.initiative,
-                            "epic_ticket_id": board.epic_ticket_id,
-                            "wave_ticket_ids": board.wave_ticket_ids,
-                            "created_count": board.created_count,
-                            "replayed_count": board.replayed_count,
-                        },
-                    ),
-                )
-                return ForgeAuthorizeResponse(
-                    run_id=str(run_id),
-                    workflow_node=node_id,
-                    action=effective.action,
-                    board=board,
-                )
-
-            raise ValidationError(
-                message=f"Unsupported forge.action {effective.action.value!r}",
-                field_errors={"action": "unsupported"},
+            applied = await self.apply_external_action(
+                org=run.org,
+                repo=run.repo,
+                node=node,
+                handoff=handoff,
+                workspace=workspace,
+                head_ref=request.head,
+                base_ref=request.base,
             )
+            payload: dict[str, object] = {
+                "event_type": "forge_executed",
+                "action": applied.action.value,
+            }
+            if applied.pr_number is not None:
+                payload["pr_number"] = applied.pr_number
+                payload["draft"] = applied.effective.draft
+                payload["applied_labels"] = applied.effective.apply_labels
+            if applied.board is not None:
+                payload["initiative"] = applied.board.initiative
+                payload["epic_ticket_id"] = applied.board.epic_ticket_id
+                payload["wave_ticket_ids"] = applied.board.wave_ticket_ids
+                payload["created_count"] = applied.board.created_count
+                payload["replayed_count"] = applied.board.replayed_count
+            await self._run_event_repository.append_event(
+                session,
+                RunEventCreate(
+                    run_id=run_id,
+                    event_type="forge_executed",
+                    workflow_node=node_id,
+                    payload=payload,
+                ),
+            )
+            return ForgeAuthorizeResponse(
+                run_id=str(run_id),
+                workflow_node=node_id,
+                action=applied.action,
+                pr_number=applied.pr_number,
+                board=applied.board,
+            )
+
+    async def apply_external_action(
+        self,
+        *,
+        org: str,
+        repo: str,
+        node: ResolvedWorkflowNode,
+        handoff: HandoffEnvelope,
+        workspace: Path,
+        head_ref: Optional[str] = None,
+        base_ref: Optional[str] = None,
+    ) -> ForgeApplyResult:
+        """Merge pin ⋉ handoff (with run-context head/base) and execute forge.action."""
+        if node.forge.action is None:
+            raise ValidationError(
+                message=f"node {node.node_id!r} missing forge.action",
+                field_errors={"action": "required"},
+            )
+        hf = handoff.forge or HandoffForgeDocument()
+        merged_hf = hf.model_copy(
+            update={
+                "head_ref": (head_ref or hf.head_ref),
+                "base_ref": (base_ref or hf.base_ref),
+            }
+        )
+        try:
+            effective = merge_pin_and_handoff_forge(node.forge, merged_hf)
+        except ValueError as exc:
+            raise ValidationError(
+                message=str(exc),
+                field_errors={"forge": "incomplete_requires"},
+            ) from exc
+
+        if effective.action == ForgeActionType.OPEN_DRAFT_PR:
+            result = await self.execute_open_draft_pr(
+                org=org,
+                repo=repo,
+                effective=effective,
+                workspace=workspace,
+                head=effective.head_ref or head_ref,
+                base=effective.base_ref or base_ref,
+            )
+            return ForgeApplyResult(
+                action=effective.action,
+                pr_number=result.pr_number,
+                effective=effective,
+            )
+
+        if effective.action == ForgeActionType.CREATE_BOARD_TICKETS:
+            board = await self.execute_create_board_tickets(
+                org=org,
+                repo=repo,
+                effective=effective,
+                workspace=workspace,
+            )
+            return ForgeApplyResult(
+                action=effective.action,
+                board=board,
+                effective=effective,
+            )
+
+        raise ValidationError(
+            message=f"Unsupported forge.action {effective.action.value!r}",
+            field_errors={"action": "unsupported"},
+        )
 
     def _require_run_handoff(self, run: RunModel) -> HandoffEnvelope:
         if not run.handoff_path or not str(run.handoff_path).strip():
@@ -205,12 +255,12 @@ class ForgeActionService(BaseBusinessService):
             )
         if not head or not str(head).strip():
             raise ValidationError(
-                message="open_draft_pr requires head branch on authorize request",
+                message="open_draft_pr requires head branch (run context or authorize request)",
                 field_errors={"head": "required"},
             )
         if not base or not str(base).strip():
             raise ValidationError(
-                message="open_draft_pr requires base branch on authorize request",
+                message="open_draft_pr requires base branch (run context or authorize request)",
                 field_errors={"base": "required"},
             )
 

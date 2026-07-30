@@ -39,6 +39,14 @@ class HandoffForgeDocument(BaseModel):
     body_path: Optional[str] = Field(default=None)
     initiative: Optional[str] = Field(default=None)
     plan_path: Optional[str] = Field(default=None)
+    head_ref: Optional[str] = Field(
+        default=None,
+        description="PR head branch when listed in pin forge.requires",
+    )
+    base_ref: Optional[str] = Field(
+        default=None,
+        description="PR base branch when listed in pin forge.requires",
+    )
 
 
 class CommitPathsResult(BaseModel):
@@ -65,6 +73,8 @@ class EffectiveForgePolicy(BaseModel):
     body_path: Optional[str] = Field(default=None)
     initiative: Optional[str] = Field(default=None)
     plan_path: Optional[str] = Field(default=None)
+    head_ref: Optional[str] = Field(default=None)
+    base_ref: Optional[str] = Field(default=None)
 
 
 class OpenDraftPrResult(BaseModel):
@@ -156,6 +166,8 @@ def merge_pin_and_handoff_forge(
         "body_path": hf.body_path,
         "initiative": hf.initiative,
         "plan_path": hf.plan_path,
+        "head_ref": hf.head_ref,
+        "base_ref": hf.base_ref,
     }
     missing = [
         name
@@ -175,6 +187,8 @@ def merge_pin_and_handoff_forge(
         body_path=hf.body_path.strip() if hf.body_path else None,
         initiative=hf.initiative.strip() if hf.initiative else None,
         plan_path=hf.plan_path.strip() if hf.plan_path else None,
+        head_ref=hf.head_ref.strip() if hf.head_ref else None,
+        base_ref=hf.base_ref.strip() if hf.base_ref else None,
     )
 
 
