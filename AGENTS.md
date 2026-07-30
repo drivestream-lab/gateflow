@@ -21,6 +21,14 @@ When asked “what next?”, read the latest persistent handoff and the pinned
 workflow, then explain the current stage, blockers, and next candidate. Do not
 perform file or GitHub mutations unless the user explicitly authorizes them.
 
+Development content skills only change the local workspace and record Forge
+readiness. Branch/commit/push/PR/issue/label/merge happen only via forge skills
+(`/commit-workspace`, `/open-draft-pr`, `/create-board-tickets`). Wave Draft PR
+opens at `wave-pr-action` **after** `/loop-spec` (no mid-coding Draft PR). Do
+not require a human `/open-draft-pr` when the pin sets `authorization: automated`
+on that node — walkers may still run `/open-draft-pr`. Wave merge is human-only
+at `wave-signoff`.
+
 **PRs:** use `.github/pull_request_template.md` — Initiative, Spec path, Verify command.
 
 ### Programme board
@@ -29,7 +37,9 @@ Engineering work is tracked on **[drivestream-lab Board](https://github.com/orgs
 
 - SSOT: `prayog-meta/config/governance-*.yaml` → `project_board` (read-only meta clone)
 - Resolve binding: `launchpad board-bind --client <id>`
-- After spec merge: `/create-board-tickets INIT-<id>` — creates EPIC + wave sub-issues on this board (forge skill; all app stacks)
+- After spec merge: `/create-board-tickets INIT-<id>` (forge; validates plan §9)
+- Pass-1: `/pre-implement` → `/loop-spec` → `wave-pr-action` → `live-verify`
+- Pass-2: `/learning-extract` → `/ground-spec` → `wave-signoff` (human merge)
 <!-- launchpad:harness-end -->
 
 ## Product (what to build)
