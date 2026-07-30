@@ -109,7 +109,7 @@
 | INIT-006 W0/W1 | Pin workspace publish via ForgeClient | ADR-009 **Accepted** | **code complete (unit)** — live dogfood deferred |
 | INIT-006 W2 | External-action forge + explicit authorize | ADR-009 **Accepted**; pin forge-side-effects | **code complete (unit)** — live authorize deferred; **REQ-7 superseded for `automated` nodes** by INIT-008 |
 | INIT-006 W3 | Sparse PR run-event comments | as-built (not ADR catalogue) | **code complete (unit)** |
-| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0 unit-complete** — `AuthorizationModeType` parse on EA nodes; Pass-1 unit edges (`loop-spec`→`wave-pr-action`; pre-implement commit **required**); harness pin `v0.5.0-rc.2` ≡ tip `355f403`; W1/W2 not started; still blocks INIT-007 dogfood until W0/W1 on `develop` |
+| INIT-008 (006A) | Pin `authorization` dual mode + wave-pr after loop-spec | [`product/INIT-GATEFLOW-008-gateflow.md`](../product/INIT-GATEFLOW-008-gateflow.md) | **W0 grounded — pending human_approved** @ `12a0364` / PR [#96](https://github.com/drivestream-lab/gateflow/pull/96); parse + Pass-1 unit hygiene; W1/W2 not started; still blocks INIT-007 dogfood until W0/W1 on `develop` |
 | INIT-007 | Closeout start + learning ingest | product INIT-007 **Draft** | **parked for dogfood** until INIT-008 W0/W1 on `develop` |
 
 ## Capability matrix (INIT-GATEFLOW-005 W1)
