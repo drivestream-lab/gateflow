@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from typing import Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 from injector import inject
@@ -28,6 +28,8 @@ from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import (
+    CLOSEOUT_START_NODE,
+    CloseoutWaveStartRequest,
     ImplementWaveStartRequest,
     SpecWaveStartRequest,
     WaveStartJobPayload,
@@ -62,7 +64,12 @@ class WaveStartService(BaseBusinessService):
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
         """Implement-lane start: ticket identity + Enter-at; no meta fields."""
-        initiative_id, wave_id, issue_number, ticket = self._resolve_implement_identity(request)
+        initiative_id, wave_id, issue_number, ticket = self._resolve_ticket_identity(
+            ticket_id=request.ticket_id,
+            initiative_id=request.initiative_id,
+            wave_id=request.wave_id,
+            issue_number=request.issue_number,
+        )
         return await self._enqueue_wave(
             request,
             initiative_id=initiative_id,
@@ -72,6 +79,8 @@ class WaveStartService(BaseBusinessService):
             workspace_path=request.workspace_path,
             meta_accept=None,
             meta_workspace_path=None,
+            prior_run_id=None,
+            lane="implement",
         )
 
     async def start_spec_wave(self, request: SpecWaveStartRequest) -> WaveStartResponse:
@@ -125,6 +134,31 @@ class WaveStartService(BaseBusinessService):
             workspace_path=request.workspace_path,
             meta_accept=meta_accept,
             meta_workspace_path=request.meta_workspace_path,
+            prior_run_id=None,
+            lane="spec",
+        )
+
+    async def start_closeout_wave(self, request: CloseoutWaveStartRequest) -> WaveStartResponse:
+        """Pass-2 closeout start: fixed Enter-at learning-extract; required PR bind."""
+        self._require_existing_directory(request.workspace_path, field="workspace_path")
+        initiative_id, wave_id, issue_number, ticket = self._resolve_ticket_identity(
+            ticket_id=request.ticket_id,
+            initiative_id=request.initiative_id,
+            wave_id=request.wave_id,
+            issue_number=request.issue_number,
+        )
+        targeting = request.as_targeting_fields()
+        return await self._enqueue_wave(
+            targeting,
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+            issue_number=issue_number,
+            ticket=ticket,
+            workspace_path=request.workspace_path,
+            meta_accept=None,
+            meta_workspace_path=None,
+            prior_run_id=request.prior_run_id,
+            lane="closeout",
         )
 
     async def _enqueue_wave(
@@ -138,6 +172,8 @@ class WaveStartService(BaseBusinessService):
         workspace_path: Optional[str],
         meta_accept: Optional[MetaPrAcceptResult],
         meta_workspace_path: Optional[str],
+        prior_run_id: Optional[UUID],
+        lane: str,
     ) -> WaveStartResponse:
         _ = request.head_branch()
 
@@ -186,6 +222,14 @@ class WaveStartService(BaseBusinessService):
         delivery_id = f"api-wave-start-{uuid4()}"
         try:
             async with self._postgres_service.transaction() as session:
+                if prior_run_id is not None:
+                    prior = await self._run_repository.get_run(session, prior_run_id)
+                    if prior is None:
+                        raise ValidationError(
+                            message="prior_run_id does not exist",
+                            field_errors={"prior_run_id": "unknown run"},
+                        )
+
                 active = await self._run_repository.find_active_run(
                     session,
                     org=request.org,
@@ -255,6 +299,7 @@ class WaveStartService(BaseBusinessService):
                     meta_pr_url=meta_accept.meta_pr_url if meta_accept else None,
                     meta_head_sha=meta_accept.meta_head_sha if meta_accept else None,
                     meta_workspace_path=meta_workspace_path if meta_accept else None,
+                    prior_run_id=str(prior_run_id) if prior_run_id is not None else None,
                 )
                 job = await self._job_repository.enqueue(
                     session,
@@ -282,8 +327,10 @@ class WaveStartService(BaseBusinessService):
             start_node=request.start_node,
             runner=request.runner,
             model_id=request.model_id,
-            lane="spec" if meta_accept is not None else "implement",
+            lane=lane,
+            closeout_enter_at=CLOSEOUT_START_NODE if lane == "closeout" else None,
             meta_pr_url=meta_accept.meta_pr_url if meta_accept else None,
+            prior_run_id=str(prior_run_id) if prior_run_id is not None else None,
         )
         return WaveStartResponse(
             run_id=str(run.id),
@@ -308,14 +355,17 @@ class WaveStartService(BaseBusinessService):
                 field_errors={field: "not an existing directory"},
             )
 
-    def _resolve_implement_identity(
-        self, request: ImplementWaveStartRequest
+    def _resolve_ticket_identity(
+        self,
+        *,
+        ticket_id: str,
+        initiative_id: str,
+        wave_id: str,
+        issue_number: Optional[int],
     ) -> tuple[str, str, Optional[int], str]:
-        """Resolve initiative/wave; require non-empty ticket_id for implement lane."""
-        initiative_id = request.initiative_id
-        wave_id = request.wave_id
-        issue_number = request.issue_number
-        ticket = request.ticket_id
+        """Resolve initiative/wave; require non-empty ticket_id for dual-identity rules."""
+        ticket = ticket_id
+        resolved_issue = issue_number
 
         if ":" in ticket:
             parsed_initiative, parsed_wave = ticket.split(":", 1)
@@ -332,14 +382,14 @@ class WaveStartService(BaseBusinessService):
                     },
                 )
         elif ticket.isdigit():
-            issue_number = issue_number if issue_number is not None else int(ticket)
+            resolved_issue = resolved_issue if resolved_issue is not None else int(ticket)
         else:
             raise ValidationError(
                 message="Unresolvable ticket_id for dual identity agreement check",
                 details={"ticket_id": ticket},
             )
 
-        return initiative_id, wave_id, issue_number, ticket
+        return initiative_id, wave_id, resolved_issue, ticket
 
 
 def get_wave_start_service() -> WaveStartService:

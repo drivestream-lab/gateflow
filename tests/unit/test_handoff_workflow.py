@@ -156,6 +156,13 @@ def test_verify_is_manual_learning_extract_and_ground_are_orchestrated() -> None
         outcome="pass",
     )
     assert engine.resolve_next(handoff).node_id == "ground-spec"
+    ground_pass = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="ground-spec",
+        outcome="pass",
+    )
+    assert engine.resolve_next(ground_pass).node_id == "wave-signoff"
+    assert engine.get_node("wave-signoff").node_type == "human-checkpoint"
 
 
 def test_workflow_missing_pin_fails(tmp_path: Path) -> None:

@@ -62,6 +62,22 @@ features:
       meta_workspace: ""
       workspace: ""
 
+  # Closeout start smoke (INIT-GATEFLOW-007 W0):
+  #   .venv/bin/python -m tests.verify.verify_wave_closeout
+  # Auth/validation always run; set enabled + pr_number for happy enqueue.
+  wave_closeout:
+    enabled: false
+    pr_number: 0
+    prior_run_id: ""
+    wave_start:
+      initiative_id: INIT-GATEFLOW-007
+      wave_id: W0
+      ticket_id: "85"
+      branch_slug: closeout-start
+      runner: cursor
+      model_id: cursor/auto
+      workspace: ""
+
 forge:
   org: drivestream-lab
   repo: gateflow

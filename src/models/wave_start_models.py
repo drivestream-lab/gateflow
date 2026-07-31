@@ -1,6 +1,7 @@
-"""Lane-specific wave-start request/response models (ADR-010 / INIT-006 W3)."""
+"""Lane-specific wave-start request/response models (ADR-010 / INIT-006 W3 + INIT-007)."""
 
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -13,6 +14,9 @@ from src.models.pr_branch_naming import (
     validate_initiative_id,
 )
 from src.models.run_store_models import JobPayloadDocument
+
+# Fixed Pass-2 Enter-at (ADR-010 §6 / INIT-GATEFLOW-007). Client must not choose.
+CLOSEOUT_START_NODE = "learning-extract"
 
 
 class WaveStartTargetingFields(BaseModel):
@@ -143,6 +147,113 @@ class SpecWaveStartRequest(WaveStartTargetingFields):
         return self
 
 
+class CloseoutWaveStartRequest(BaseModel):
+    """POST /api/v1/waves/closeout/start body (ADR-010 §6 Pass-2 intake).
+
+    Enter-at is server-fixed to ``learning-extract`` — no client ``start_node``.
+    Meta intake fields are forbidden. ``pr_number`` and absolute workspace required.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    initiative_id: str = Field(description="Initiative id, e.g. INIT-GATEFLOW-007")
+    wave_id: str = Field(description="Wave id such as W0 / W1")
+    ticket_id: str = Field(
+        description="Forge ticket/issue id (required; must agree with initiative+wave)",
+    )
+    branch_slug: str = Field(
+        description="Lowercase kebab slug for the existing wave head branch",
+    )
+    base_branch: str = Field(description="PR base branch (merge target)")
+    runner: str = Field(description="AgentRunner adapter id for learning-extract")
+    model_id: str = Field(description="Model id for learning-extract")
+    node_dispatch: dict[str, NodeDispatchSpec] = Field(
+        default_factory=dict,
+        description="Optional per-node runner/model overrides; else inherit start defaults",
+    )
+    org: str
+    repo: str
+    pr_number: int = Field(description="Existing wave PR number (required for Pass-2 bind)")
+    workspace_path: str = Field(
+        description="Absolute app workspace path checked out on the wave PR tip",
+    )
+    issue_number: Optional[int] = Field(default=None)
+    prior_run_id: Optional[UUID] = Field(
+        default=None,
+        description="Optional audit link to Pass-1 run; does not resume walker state",
+    )
+
+    @field_validator("initiative_id")
+    @classmethod
+    def _initiative_id(cls, value: str) -> str:
+        return validate_initiative_id(value)
+
+    @field_validator("wave_id")
+    @classmethod
+    def _wave_id(cls, value: str) -> str:
+        normalize_wave_token(value)
+        return value.strip()
+
+    @field_validator("branch_slug")
+    @classmethod
+    def _branch_slug(cls, value: str) -> str:
+        return validate_branch_slug(value)
+
+    @field_validator("base_branch")
+    @classmethod
+    def _base_branch(cls, value: str) -> str:
+        return validate_base_branch(value)
+
+    @field_validator("ticket_id", "runner", "model_id", "org", "repo", "workspace_path")
+    @classmethod
+    def _non_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("must be non-empty")
+        return cleaned
+
+    @field_validator("pr_number")
+    @classmethod
+    def _pr_number(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("pr_number must be a positive integer")
+        return value
+
+    @model_validator(mode="after")
+    def _require_absolute_workspace(self) -> "CloseoutWaveStartRequest":
+        if not self.workspace_path.startswith("/"):
+            raise ValueError("workspace_path must be an absolute path")
+        return self
+
+    def head_branch(self) -> str:
+        """Deterministic PR head from validated identity fields."""
+        return build_wave_head_branch(self.initiative_id, self.wave_id, self.branch_slug)
+
+    def build_dispatch_plan(self) -> DispatchPlan:
+        """Build inherit-capable dispatch plan from start fields + node_dispatch."""
+        return DispatchPlan(
+            default=NodeDispatchSpec(runner=self.runner, model_id=self.model_id),
+            nodes=dict(self.node_dispatch),
+        )
+
+    def as_targeting_fields(self) -> WaveStartTargetingFields:
+        """Project into shared targeting with fixed closeout Enter-at."""
+        return WaveStartTargetingFields(
+            initiative_id=self.initiative_id,
+            wave_id=self.wave_id,
+            branch_slug=self.branch_slug,
+            base_branch=self.base_branch,
+            start_node=CLOSEOUT_START_NODE,
+            runner=self.runner,
+            model_id=self.model_id,
+            node_dispatch=dict(self.node_dispatch),
+            org=self.org,
+            repo=self.repo,
+            pr_number=self.pr_number,
+            issue_number=self.issue_number,
+        )
+
+
 class WaveStartResponse(BaseModel):
     """Successful wave-start accept response (shared)."""
 
@@ -178,6 +289,10 @@ class WaveStartJobPayload(BaseModel):
     meta_pr_url: Optional[str] = Field(default=None)
     meta_head_sha: Optional[str] = Field(default=None)
     meta_workspace_path: Optional[str] = Field(default=None)
+    prior_run_id: Optional[str] = Field(
+        default=None,
+        description="Optional Pass-1 run id audit link (closeout only)",
+    )
 
     def to_job_payload_document(self) -> JobPayloadDocument:
         """Map into RunStore JobPayloadDocument (extra keys allowed at store)."""
