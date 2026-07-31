@@ -7,7 +7,7 @@
 | Initiative | INIT-GATEFLOW-007 |
 | Date | 2026-07-31 |
 | Wave head (exact) | `feature/INIT-GATEFLOW-007-w0-closeout-start` @ `f8767bf2aff182ce8179a76f2146930502eafc5e` — reviewed head for sign-off |
-| PR URL | n/a — open Draft PR (`/open-draft-pr`); board [#85](https://github.com/drivestream-lab/gateflow/issues/85) |
+| PR URL | https://github.com/drivestream-lab/gateflow/pull/101 — Draft |
 | Board | https://github.com/drivestream-lab/gateflow/issues/85 |
 | Status | Draft |
 | Review deadline | 2026-08-04 |
