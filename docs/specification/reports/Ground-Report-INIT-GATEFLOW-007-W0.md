@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-007-gateflow.md` |
 | Initiative | INIT-GATEFLOW-007 |
 | Date | 2026-07-31 |
-| Wave head (exact) | `feature/INIT-GATEFLOW-007-w0-closeout-start` @ `75dec40c0b65deb8403bb81d23a347aa45ecfec4` — reviewed head for sign-off |
+| Wave head (exact) | `feature/INIT-GATEFLOW-007-w0-closeout-start` @ `f8767bf2aff182ce8179a76f2146930502eafc5e` — reviewed head for sign-off |
 | PR URL | n/a — open Draft PR (`/open-draft-pr`); board [#85](https://github.com/drivestream-lab/gateflow/issues/85) |
 | Board | https://github.com/drivestream-lab/gateflow/issues/85 |
 | Status | Draft |
@@ -102,7 +102,7 @@ Manual re-proof at ground time:
 
 > Ground Report and as-built updates written **locally**. Emit Forge readiness for publication. Do **not** commit, push, merge, or apply labels from this skill. Human reviews the **exact wave head**, records approval, and merges manually at `wave-signoff`.
 
-- PR URL / wave head: `feature/INIT-GATEFLOW-007-w0-closeout-start` @ `75dec40c0b65deb8403bb81d23a347aa45ecfec4` — **expected reviewed head SHA** (open Draft PR next)
+- PR URL / wave head: `feature/INIT-GATEFLOW-007-w0-closeout-start` @ `f8767bf2aff182ce8179a76f2146930502eafc5e` — **expected reviewed head SHA** (open Draft PR next)
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-007-W0.md`
 - Live evidence path: `docs/specification/reports/Live-Verify-INIT-GATEFLOW-007-W0.md`
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-007-W0.md`

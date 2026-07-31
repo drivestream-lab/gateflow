@@ -5,7 +5,7 @@
 | Prior content stage | `ground-spec` |
 | Pin policy | `forge.commit_workspace: required` |
 | Bound head | `feature/INIT-GATEFLOW-007-w0-closeout-start` |
-| Published SHA | `75dec40c0b65deb8403bb81d23a347aa45ecfec4` |
+| Published SHA | `f8767bf2aff182ce8179a76f2146930502eafc5e` (tip; implementation `75dec40`) |
 | Remote | `origin/feature/INIT-GATEFLOW-007-w0-closeout-start` |
 | Outcome | **pass** |
 | Date | 2026-07-31 |
@@ -32,7 +32,8 @@ handoff:
     commit_workspace: required
     head_ref: feature/INIT-GATEFLOW-007-w0-closeout-start
     base_ref: develop
-    published_sha: "75dec40c0b65deb8403bb81d23a347aa45ecfec4"
+    published_sha: "f8767bf2aff182ce8179a76f2146930502eafc5e"
+    implementation_sha: "75dec40c0b65deb8403bb81d23a347aa45ecfec4"
     board_issue: "85"
   human_checkpoint: false
   external_action: false
