@@ -71,7 +71,7 @@ async def test_run_stopped_posts_forge_comment() -> None:
         7,
         RunEventComment(
             run_id=uuid4(),
-            workflow_node="wave-human-decision",
+            workflow_node="wave-signoff",
             event=RunEventNameType.RUN_STOPPED,
             outcome="stopped",
             duration_ms=1000,

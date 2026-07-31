@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-30 |
-| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved (W2 closeout pending merge #99); INIT-007 dogfood next; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
+| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0 closeout start in flight; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
 
 ## Engineering lane naming
 
@@ -206,13 +206,15 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Closeout start API | REQ-1…8 | — | — | — | `POST /api/v1/waves/closeout/start`; Enter-at `learning-extract`; new run + PR bind |
-| Learning Postgres SSOT | REQ-9…13 | — | — | — | Ingest Learning-Extract YAML; no skill→HTTP (H6) |
-| Pass-2 prove-it | REQ-14…17 | — | — | — | Both lanes; after Pass-1 `live-verify` stop (#76) |
+| Closeout start API | REQ-1…8, REQ-13 | `POST /api/v1/waves/closeout/start` | `test_wave_closeout` | `verify_wave_closeout` smoke — **human_approved** | Fixed Enter-at `learning-extract`; required PR bind; no meta / no client `start_node` |
+| Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood | `learning-extract` → `ground-spec` → `wave-signoff` |
+| Learning Postgres SSOT | REQ-9…12 | — | — | — | W1 — ingest Learning-Extract YAML; no skill→HTTP (H6) |
+| Pass-2 full prove-it | REQ-14…17 | — | — | — | W2 — deepen `verify_wave_closeout` |
 
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
+| W0 closeout start | **Ground pass** — [`Ground-Report-INIT-GATEFLOW-007-W0.md`](../reports/Ground-Report-INIT-GATEFLOW-007-W0.md); as-built **pending human_approved** at wave-signoff (not set by ground-spec) |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -245,7 +247,8 @@ cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
-**INIT-GATEFLOW-007 (2026-07-29):** Product INIT **draft** at
-[`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md)
-— wave closeout start + learning DB ingest. Pass-1 pin remounted (#76). Closeout
-HTTP / learning tables / Pass-2 live prove-it **not** implemented.
+**INIT-GATEFLOW-007 (2026-07-31):** Product INIT **draft**. **W0** closeout start
+grounded — Ground-Report W0 **pass**; live smoke **human_approved**; as-built W0
+**pending human_approved** at wave-signoff. Learning tables / Pass-2 full dogfood
+remain W1/W2. Board [#84](https://github.com/drivestream-lab/gateflow/issues/84) /
+[#85](https://github.com/drivestream-lab/gateflow/issues/85).

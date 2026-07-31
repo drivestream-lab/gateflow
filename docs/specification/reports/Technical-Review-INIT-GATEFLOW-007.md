@@ -39,21 +39,21 @@ folds into **ADR-010** (with ADR-005 token zone unchanged).
 
 | Module | Current state | Change | Owns |
 |--------|---------------|--------|------|
-| `src/api/v1/waves_routes.py` | implement + spec start | Add `POST /waves/closeout/start` | HTTP edge |
-| `src/models/wave_start_models.py` (or `wave_closeout_models.py`) | lane bodies only | Add `CloseoutWaveStartRequest` (`extra=forbid`) | API DTO |
-| `src/business_services/wave_start_service.py` | `_enqueue_wave` shared | Add `start_closeout_wave`; fixed Enter-at; require PR | Accept + enqueue |
-| `src/business_services/run_orchestrator.py` | Pass-1 walker + forge + baton ingest | Unchanged walker; after `learning-extract` hop invoke learning ingest | Run lifecycle |
-| `src/business_services/learning_ingest_service.py` | **new** | Parse Learning-Extract fence → upsert rows | Learning ingest (business) |
-| `src/models/learning_models.py` | **new** | Pydantic for fence + row DTOs + class enum | Data contracts |
-| `src/database/postgres/schema/learning_schema.py` | **new** | ORM for learning extract + items | ORM |
-| `src/database/postgres/repository/learning_repository.py` | **new** | Persist/query learning | Persistence |
-| `postgres_migrations/versions/` | human-owned | Human Alembic for learning tables | DDL (ADR-001) |
-| `src/di/modules/*` | exists | Bind learning service + repo | DI |
+| `src/api/v1/waves_routes.py` | implement + spec start | Add `POST /waves/closeout/start` (**W0**) | HTTP edge |
+| `src/models/wave_start_models.py` (or `wave_closeout_models.py`) | lane bodies only | Add `CloseoutWaveStartRequest` (`extra=forbid`) (**W0**) | API DTO |
+| `src/business_services/wave_start_service.py` | `_enqueue_wave` shared | Add `start_closeout_wave`; fixed Enter-at; require PR (**W0**) | Accept + enqueue |
+| `src/business_services/run_orchestrator.py` | Pass-1 walker + forge + baton ingest | Unchanged walker; after `learning-extract` hop invoke learning ingest (**W1**) | Run lifecycle |
+| `src/business_services/learning_ingest_service.py` | **new** | Parse Learning-Extract fence → upsert rows (**W1**) | Learning ingest (business) |
+| `src/models/learning_models.py` | **new** | Pydantic for fence + row DTOs + class enum (**W1**) | Data contracts |
+| `src/database/postgres/schema/learning_schema.py` | **new** | ORM for learning extract + items (**W1**) | ORM |
+| `src/database/postgres/repository/learning_repository.py` | **new** | Persist/query learning (**W1**) | Persistence |
+| `postgres_migrations/versions/` | human-owned | Human Alembic for learning tables (**W1**) | DDL (ADR-001) |
+| `src/di/modules/*` | exists | Bind learning service + repo (**W1**) | DI |
 | `prayog-skills` pin | Pass-2 graph ready | **unchanged** (consume) | Dispatch/forge SSOT |
-| `tests/unit/test_wave_closeout.py` | **new** | Accept/bind/concurrency/Enter-at | Unit |
-| `tests/unit/test_learning_ingest.py` | **new** | Parse/taxonomy/fail-closed | Unit |
-| `tests/verify/verify_wave_closeout.py` | **new** | Pass-2 live prove-it | Live verify |
-| `tests/README.md` / as-built | Pass-1 rows | Feature map + matrix | Docs |
+| `tests/unit/test_wave_closeout.py` | **new** | Accept/bind/concurrency/Enter-at (**W0**) | Unit |
+| `tests/unit/test_learning_ingest.py` | **new** | Parse/taxonomy/fail-closed (**W1**) | Unit |
+| `tests/verify/verify_wave_closeout.py` | **new** | W0 smoke; W2 dogfood depth | Live verify |
+| `tests/README.md` / as-built | Pass-1 rows | Feature map + matrix (**W0**) | Docs |
 | `docs/specification/adr/adr-010-…md` | Accepted | **Amendment** §6 closeout intake (no ADR-011) | Intake authority |
 
 **Accepted ADR constraint set:**
@@ -97,8 +97,10 @@ POST /api/v1/waves/closeout/start  (programme token)
 **Body (`CloseoutWaveStartRequest`, `extra=forbid`):**
 - `initiative_id`, `wave_id`, `ticket_id` — non-empty; dual-identity rules as implement
 - `org`, `repo` — non-empty
-- `pr_number` — **required** positive int (or TDD-equivalent `pr_url` that resolves to org/repo/number — prefer `pr_number` in v1)
-- `workspace_path` — **required** absolute path (app checkout on PR tip)
+- `pr_number` — **required** positive int
+- `workspace_path` — **required** absolute path (app checkout on PR tip); must exist as directory
+- `branch_slug`, `base_branch` — **required** (same targeting as implement/spec; head =
+  `feature/{initiative}-{wave}-{slug}` for forge commits on the existing tip)
 - `runner`, `model_id` — required; optional `node_dispatch` inherit map
 - `prior_run_id` — optional UUID; audit link only; must exist if present; **must not** resume stages
 - **Forbidden:** client `start_node`, `meta_pr_url`, `meta_workspace_path` (reject if present)

@@ -51,7 +51,7 @@ class GateflowTargetConfig(BaseModel):
 
 
 class WaveStartApiConfig(BaseModel):
-    """Fields sent on POST /api/v1/waves/implement/start (feature-owned)."""
+    """Fields sent on lane wave-start bodies (feature-owned)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -94,6 +94,23 @@ class LaneFeatureConfig(BaseModel):
     wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
 
 
+class WaveCloseoutFeatureConfig(BaseModel):
+    """Opt-in closeout start smoke / dogfood (INIT-GATEFLOW-007)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=False)
+    pr_number: int = Field(
+        default=0,
+        description="Existing wave PR to bind on closeout start (required when enabled)",
+    )
+    prior_run_id: str = Field(
+        default="",
+        description="Optional Pass-1 run id audit link",
+    )
+    wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
+
+
 class FeaturesConfig(BaseModel):
     """Gateflow capabilities that need verify knobs. Omit unused sections in yaml."""
 
@@ -101,6 +118,7 @@ class FeaturesConfig(BaseModel):
 
     implement_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     spec_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
+    wave_closeout: WaveCloseoutFeatureConfig = Field(default_factory=WaveCloseoutFeatureConfig)
 
 
 class TestsConfig(BaseModel):

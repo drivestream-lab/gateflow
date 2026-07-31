@@ -147,7 +147,7 @@ def test_policy_stop_on_pin_human_checkpoint_node() -> None:
 
     engine = MagicMock()
     engine.resolve_next.return_value = ResolvedWorkflowNode(
-        node_id="wave-human-decision",
+        node_id="wave-signoff",
         node_type="human-checkpoint",
         dispatch=None,
     )
@@ -161,7 +161,7 @@ def test_policy_stop_on_pin_human_checkpoint_node() -> None:
     decision = policy.evaluate_dispatch(handoff, MagicMock())
     assert decision.decision == PolicyDecisionType.STOP
     assert decision.next_node is not None
-    assert decision.next_node.node_id == "wave-human-decision"
+    assert decision.next_node.node_id == "wave-signoff"
     assert "human-checkpoint" in (decision.block_reason or "")
 
 

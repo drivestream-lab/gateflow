@@ -123,6 +123,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Env notifier (`GATEFLOW_NOTIFIER`) | — | `test_wave_start`, `test_slot_validator` |
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
 | API implement-lane start Enter-at (FR-15 / REQ-14) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
+| API closeout start Enter-at `learning-extract` (INIT-007 W0) | `python -m tests.verify.verify_wave_closeout` | `test_wave_closeout` |
 | API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
@@ -221,5 +222,21 @@ set -a && source .env && set +a
 
 Keep `features.implement_lane.enabled: false` for routine smoke.
 
+### Closeout start smoke (INIT-GATEFLOW-007 W0)
+
+```bash
+# edit tests/config.yaml:
+#   features.wave_closeout.enabled: true
+#   features.wave_closeout.pr_number: <existing wave PR>
+#   features.wave_closeout.wave_start.workspace: /absolute/path/on/tip  # optional
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_wave_closeout
+```
+
+Without `enabled: true`, the script still asserts 401 + body validation (smoke).
+Full Pass-2 dogfood to `wave-signoff` is W2 (same module, deeper asserts).
+
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.
+See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.

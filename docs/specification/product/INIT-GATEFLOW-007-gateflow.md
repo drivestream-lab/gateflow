@@ -47,10 +47,11 @@ regardless of which Pass-1 start created the PR tip.
 laptop pin overlay; skill-authored Ground Report / learning DB writes;
 gateflow-ops UI; second AgentRunner; inventing PE gate labels.
 
-**As-built baseline (2026-07-29):** Pass-1 pin remounted (#76); implement-lane
+**As-built baseline (2026-07-31):** Pass-1 pin remounted (#76); implement-lane
 live verify expects `stopped` at `live-verify`; `learning-extract` on harness
-skill list. Closeout HTTP, learning tables, and Pass-2 live prove-it **not**
-implemented.
+skill list. **W0 closeout start** (`POST /api/v1/waves/closeout/start`) + smoke
+`verify_wave_closeout` on wave branch. Learning tables and Pass-2 full dogfood
+**not** implemented (W1/W2).
 
 **Delivery waves (product-normative; plan may refine):**
 
@@ -67,7 +68,7 @@ implemented.
 | REQ-1 | Expose authenticated **`POST /api/v1/waves/closeout/start`** (exact path fixed unless TDD renames under same semantics). Programme token required (ADR-005). Distinct from `/waves/implement/start` and `/waves/spec/start`. | PE alignment 2026-07-29; pin CTR-G1 | OpenAPI documents the route; unauthorized → 401; wrong token → no enqueue | unit |
 | REQ-2 | Closeout **always** Enter-ats pin node **`learning-extract`**. Client must **not** choose arbitrary `start_node` on this route (field absent or rejected if present). Node must be `type: skill` and `dispatch: orchestrated` on the active pin — else fail closed. | Pin CTR-P2; for-gateflow.md | Unit: Enter-at fixed; non-orchestrated / missing node → 4xx, 0 enqueue | unit |
 | REQ-3 | Closeout creates a **new** `run_id` (does not resume a stopped Pass-1 run). Bind the **existing wave PR** via `org` + `repo` + `pr_number` (and/or `pr_url` if TDD adds alias). Concurrent active run for same org/repo/wave (or same PR) fails closed per existing concurrency policy. | PE alignment; pin “no authorize-resume” | Unit: new run row; prior Pass-1 run untouched; duplicate active → 409 | unit |
-| REQ-4 | Closeout body supplies **wave identity** + **workspace** + **dispatch** needed to bind `learning-extract` after Gateflow fills orchestrator-owned fields. Minimum product fields: `initiative_id`, `wave_id`, `ticket_id`, `org`, `repo`, `pr_number` (or equivalent PR bind), absolute `workspace_path`, `runner`, `model_id`. Optional future fields only when a REQ lands — v1 body uses `extra="forbid"`. | Pin `learning-extract/prompts/schema.yaml`; ADR-007/010 | Missing required → 4xx; OpenAPI lists required set; undeclared keys rejected | unit |
+| REQ-4 | Closeout body supplies **wave identity** + **workspace** + **branch targeting** (`branch_slug`, `base_branch` — same as implement/spec) + **dispatch** needed to bind `learning-extract` after Gateflow fills orchestrator-owned fields. Minimum product fields: `initiative_id`, `wave_id`, `ticket_id`, `org`, `repo`, `pr_number` (or equivalent PR bind), absolute `workspace_path`, `branch_slug`, `base_branch`, `runner`, `model_id`. Optional future fields only when a REQ lands — v1 body uses `extra="forbid"`. | Pin `learning-extract/prompts/schema.yaml`; ADR-007/010 | Missing required → 4xx; OpenAPI lists required set; undeclared keys rejected | unit |
 | REQ-5 | **Bind contract:** after accept, packaged `learning-extract` hop must satisfy pin `schema.yaml` required variables. Gateflow owns `handoff_path` (baton create) and `skill_id=learning-extract`. Client/API supply `ticket`, `workspace`, and `initiative` (send even if schema marks initiative optional). Product REQs **cite** the pin schema path — they do not invent a parallel bind vocabulary. | ADR-007; pin schema; PE alignment | Bind miss → fail closed before AgentRunner; rendered brief contains required vars | unit |
 | REQ-6 | Closeout applies to **both lanes**. Same route finishes an implement-lane or spec-lane wave PR tip. Spec-lane Pass-1 meta intake fields (`meta_pr_url`, `meta_workspace_path`) are **not** required on closeout unless a later REQ adds a documented need. | PE alignment | Unit: implement-shaped and spec-shaped prior context both accepted when PR+workspace+identity present | unit |
 | REQ-7 | After enqueue, walker runs orchestrated Pass-2: `learning-extract` → (handoff `pass`) → `ground-spec` → stop at **`wave-signoff`** (`human-checkpoint`). Do **not** auto-dispatch manual `verify`. Pin `forge:` rules apply (`learning-extract` optional commit; `ground-spec` required) via existing ForgeClient path (ADR-009). | Pin CTR-P1/P2; forge-side-effects | Unit multi-hop + hop-cap; live: stages for both skills; terminal `stopped` at `wave-signoff` | unit + live verify |
@@ -127,7 +128,7 @@ merge-webhook continuation; Mission Control learning UI; skill→API learning pu
 |-------------|------------------|------------------|-------------|-------------|--------------|------------|--------|---------------|------------------------|
 | CTR-01 | prayog-skills / PE | gateflow | Pin Pass-1/Pass-2 graph | `workflow.yaml` | Stop at `live-verify`; closeout Enter-at `learning-extract` → `ground-spec` → `wave-signoff` | No laptop overlay; `verify` manual | Invalid pin ⇒ fail closed | Active pin line | `test_handoff_workflow` |
 | CTR-02 | prayog-skills / PE | gateflow | `learning-extract` package | `schema.yaml` + artifact template | MD + `learning_extract:` YAML + handoff | Taxonomy L-\*; no Gateflow HTTP success | Bind miss / bad artifact ⇒ fail closed | Pin bump | `test_prompt_resolver` + ingest unit |
-| CTR-03 | gateflow / PE | programme callers | `POST /api/v1/waves/closeout/start` | identity + PR + workspace + runner/model | `run_id` / job accept | New run; fixed Enter-at; both lanes | 4xx/409; 0 enqueue | Additive body fields only | `test_wave_closeout` (planned) |
+| CTR-03 | gateflow / PE | programme callers | `POST /api/v1/waves/closeout/start` | identity + PR + workspace + runner/model + branch targeting | `run_id` / job accept | New run; fixed Enter-at; both lanes | 4xx/409; 0 enqueue | Additive body fields only | `test_wave_closeout` + `verify_wave_closeout` |
 | CTR-04 | gateflow / PE | next waves / PE | Postgres learning rows | ingested YAML items | queryable L-\* SSOT | DB SSOT; reports emit-only | Ingest fail closed | TDD data contract | planned unit |
 | CTR-05 | pin `ground-spec` | gateflow / humans | Ground Report on tip | cites Learning-Extract when present | Ground Report + §Contracts | Learning not re-authored in Ground | ground findings per pin | Pin skill | live verify / inspection |
 
