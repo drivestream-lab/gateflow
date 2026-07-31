@@ -1,38 +1,44 @@
 ---
-goal: INIT-GATEFLOW-007 — implementation plan (P15 co-ship regenerate)
+goal: INIT-GATEFLOW-007 — implementation plan (prayog/v1 WorkManifest backfill)
 initiative: INIT-GATEFLOW-007
 status: Planned
 date_created: 2026-07-30
+date_updated: 2026-07-31
 source_spec: docs/specification/product/INIT-GATEFLOW-007-gateflow.md
-source_spec_digest: sha256:1c613846f4b0ea5c9c2db3deab982ddf791bd93bba81dfdc2fdc175aa3051793
+source_spec_digest: sha256:4cfec83c18e6e1653baf0876383c8bab6fdc5b511c19254d45adb4156b0cf017
 feasibility_report: docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-007.md
-feasibility_digest: sha256:ca40b9e2a77926a75569306a272e280fad086ddaf97d3bf7a37c3fecce3f6f64
+feasibility_digest: sha256:651cc16583fcc56fa76009b0f5ec628f3a26e022356de59224f33c653fdfd0ce
 technical_review: docs/specification/reports/Technical-Review-INIT-GATEFLOW-007.md
-technical_review_digest: sha256:4e68159795897382d1d500369a2f60b0a2bc5cb695582796ab892d4efaa4145b
+technical_review_digest: sha256:b490d9cdfbffbafe459d79320e43106151d8fdd3ea6cca835714dfa0e7e161d0
 prd_digest: TBD — Gate 1 open (Q-1 waived for engineering package)
 impact_map: TBD
 impact_map_revision: TBD
 repo_scope_digest: TBD — gateflow-only
 approved_meta_pr_head: TBD
-branch: chore/INIT-GATEFLOW-007-plan-p15-regenerate
+branch: chore/INIT-GATEFLOW-007-plan-prayog-v1-backfill
 review_deadline: 2026-08-05
 deciders: PE @nikd10x / prayog-pe-team — spec-lgtm + Approve on exact head after plan package
 ---
 
 # Implementation plan — INIT-GATEFLOW-007
 
-> **Regeneration (2026-07-30):** Replaces the merged 2026-07-29 plan that deferred
-> live verify to W2 (fails pin **P15**). Same product REQs / TDD; W0 now **co-ships**
-> smoke `tests/verify/verify_wave_closeout.py`. Full Pass-2 dogfood remains W2.
-> Prior board tickets from old §9 are obsolete — purge and re-seed after merge.
+> **Backfill (2026-07-31):** §9 regenerated to pin **`prayog/v1`** WorkManifest
+> (`files` / `exit` / wave `verification`; no mutable `status`). Same product REQs /
+> TDD / P15 co-ship smoke as the 2026-07-30 plan. Board EPIC [#84](https://github.com/drivestream-lab/gateflow/issues/84)
+> + waves [#85](https://github.com/drivestream-lab/gateflow/issues/85)–[#87](https://github.com/drivestream-lab/gateflow/issues/87)
+> already seeded — **do not** purge or re-seed; TASK ids unchanged.
+>
+> **Prior regen (2026-07-30):** Replaced the 2026-07-29 plan that deferred live verify
+> to W2 (fails pin **P15**). W0 co-ships smoke `tests/verify/verify_wave_closeout.py`;
+> full Pass-2 dogfood remains W2.
 
 ## Source freshness and command contract
 
 | Item | Value | Status |
 |------|-------|--------|
-| Spec / digest | `docs/specification/product/INIT-GATEFLOW-007-gateflow.md` / `sha256:1c613846f4b0ea5c9c2db3deab982ddf791bd93bba81dfdc2fdc175aa3051793` | CURRENT on branch (Gate 1 digests **WAIVED**) |
-| Feasibility / digest | `…/Initiative-Feasibility-Report-INIT-GATEFLOW-007.md` / `sha256:ca40b9e2a77926a75569306a272e280fad086ddaf97d3bf7a37c3fecce3f6f64` | CURRENT |
-| Technical review / digest | `…/Technical-Review-INIT-GATEFLOW-007.md` / `sha256:4e68159795897382d1d500369a2f60b0a2bc5cb695582796ab892d4efaa4145b` | CURRENT — Status **Accepted** |
+| Spec / digest | `docs/specification/product/INIT-GATEFLOW-007-gateflow.md` / `sha256:4cfec83c18e6e1653baf0876383c8bab6fdc5b511c19254d45adb4156b0cf017` | CURRENT on branch (Gate 1 digests **WAIVED**) |
+| Feasibility / digest | `…/Initiative-Feasibility-Report-INIT-GATEFLOW-007.md` / `sha256:651cc16583fcc56fa76009b0f5ec628f3a26e022356de59224f33c653fdfd0ce` | CURRENT |
+| Technical review / digest | `…/Technical-Review-INIT-GATEFLOW-007.md` / `sha256:b490d9cdfbffbafe459d79320e43106151d8fdd3ea6cca835714dfa0e7e161d0` | CURRENT — Status **Accepted** |
 | Impact map / revision | TBD | **WAIVED** — Q-1 |
 | Repo scope digest | TBD | **WAIVED** — Q-1 |
 | Approved meta PR head | TBD | **WAIVED** — Q-1 |
@@ -49,7 +55,7 @@ deciders: PE @nikd10x / prayog-pe-team — spec-lgtm + Approve on exact head aft
 | Item | Value |
 |------|-------|
 | Technical review | [`Technical-Review-INIT-GATEFLOW-007.md`](Technical-Review-INIT-GATEFLOW-007.md) |
-| PE sign-off | [x] complete — 2026-07-29 (fold into ADR-010; prior plan on #77). This regen keeps Accepted TDD/ADR; PE re-`spec-lgtm` on new plan head. |
+| PE sign-off | [x] complete — 2026-07-29 (fold into ADR-010; prior plan on #77). P15 regen #83 + this `prayog/v1` §9 backfill keep Accepted TDD/ADR; PE re-`spec-lgtm` on new plan head. |
 | Resolved ADRs | [`adr-010-lane-intake-and-dual-workspace-authority.md`](../adr/adr-010-lane-intake-and-dual-workspace-authority.md) (**Accepted**, closeout §6); ADR-001/005/007/008/009 **Accepted** — **no ADR-011** (TDD §4 ADR_REQUIRED=0) |
 | Outstanding PM questions | Q-1 Gate 1 meta PRD / waive — blocks formal CURRENT only |
 | Outstanding domain questions | none |
@@ -209,7 +215,7 @@ dogfood; spec-lane parity or PE-waived deferral; final checkpoint hygiene.
 | DEP-3 | W1 human Alembic applied | W1/W2 live ingest |
 | DEP-4 | Pass-1 implement PR tip available | W2 dogfood |
 | DEP-5 | Q-1 Gate 1 | Formal CURRENT claim only |
-| DEP-6 | Prior board issues from 2026-07-29 §9 purged | Clean `/create-board-tickets` re-seed |
+| DEP-6 | Board EPIC #84 + W0–W2 #85–#87 already seeded (stable TASK ids) | Pre-implement / loop-spec — no re-seed |
 
 ---
 
@@ -268,27 +274,28 @@ dogfood; spec-lane parity or PE-waived deferral; final checkpoint hygiene.
 | P11 MDC notes | PASS — in TASK table |
 | P12 ADR Accepted | PASS — ADR-010 Accepted; ADR_REQUIRED=0 |
 | P13 TDD Accepted | PASS — PE sign-off 2026-07-29 |
-| P14 WorkManifest | PASS — §9 |
+| P14 WorkManifest | PASS — §9 `apiVersion: prayog/v1` with per-task `files`/`exit` + wave `verification` |
 | P15 Co-ship live verify | PASS — W0 FILE-W0-08 + TEST-W0-L + live `verify_command`; W1 N/A (no new surface); W2 edits same script for dogfood |
+| P16 Contract | PASS — `prayog-skills/scripts/workmanifest_contract.py` → ok on this plan |
 
 ---
 
 ## 8. PR instructions
 
 ```
-Branch:   chore/INIT-GATEFLOW-007-plan-p15-regenerate
-PR title: "[INIT-GATEFLOW-007] Plan — P15 co-ship smoke verify (regenerate)"
+Branch:   chore/INIT-GATEFLOW-007-plan-prayog-v1-backfill
+PR title: "[INIT-GATEFLOW-007] Plan — prayog/v1 WorkManifest backfill"
 Label:    spec-pending until PE §10 unlock
 
 PE checklist (before spec-lgtm):
   [ ] This plan on current head with Accepted TDD/ADR-010
   [ ] P15: W0 co-ships verify_wave_closeout smoke
-  [ ] §9 WorkManifest TASK lists match §2
-  [ ] Prior EPIC/wave tickets purged before re-seed
+  [ ] §9 WorkManifest passes pin workmanifest_contract.py (prayog/v1)
+  [ ] §9 TASK ids match board #85–#87 (no purge/re-seed)
 
-After spec-lgtm + Approve + merge — /create-board-tickets from §9:
-  Then Pass-1: /pre-implement → /loop-spec → live-verify (human runs co-shipped script)
-  Then Pass-2 closeout: POST /waves/closeout/start → learning-extract → ground-spec → wave-signoff
+After spec-lgtm + Approve + merge — do NOT re-run /create-board-tickets:
+  Pass-1: /pre-implement → /loop-spec → live-verify (human runs co-shipped script)
+  Pass-2 closeout: POST /waves/closeout/start → learning-extract → ground-spec → wave-signoff
 ```
 
 ---
@@ -328,9 +335,9 @@ artifacts:
 ## 9. WorkManifest seed
 
 ```yaml
-# Generated by /spec-implementation-plan — 2026-07-30 (P15 regenerate)
+# Backfill 2026-07-31 — pin prayog/v1 (post INIT-008 W2 contract)
 # LOCAL — do not commit to prayog-skills upstream
-apiVersion: launchpad/v1
+apiVersion: prayog/v1
 kind: WorkManifest
 
 initiative: INIT-GATEFLOW-007
@@ -352,7 +359,6 @@ target:
 defaults:
   initiative: INIT-GATEFLOW-007
   parent: EPIC
-  status: Backlog
   labels:
     - INIT-GATEFLOW-007
 
@@ -383,6 +389,10 @@ epic:
     - TDD: docs/specification/reports/Technical-Review-INIT-GATEFLOW-007.md
     - ADR-010 (closeout §6)
 
+    ## Board
+
+    EPIC #84; W0 #85; W1 #86; W2 #87 — already seeded; do not re-create.
+
 work:
   - id: W0
     kind: issue
@@ -392,49 +402,160 @@ work:
     codebase: drivestream-lab/gateflow
     spec_path: docs/specification/product/INIT-GATEFLOW-007-gateflow.md
     verify_command: .venv/bin/python -m tests.verify.verify_wave_closeout
-    status: Backlog
     tasks:
       - id: TASK-W0-01
         implements: [REQ-4, REQ-6, REQ-13]
-        done_when: "CloseoutWaveStartRequest validates; forbid start_node/meta"
+        depends_on: []
+        files:
+          - path: src/models/wave_start_models.py
+            action: modify
+        exit:
+          criteria:
+            - "CloseoutWaveStartRequest validates; forbid start_node/meta; absolute workspace_path + pr_number"
+          proof:
+            kind: command
+            command: "make check && make test"
+            expected: "exit 0; closeout model unit green"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-01"
       - id: TASK-W0-02
         implements: [REQ-1]
-        done_when: "POST /waves/closeout/start mounted; programme token"
+        depends_on: [TASK-W0-01]
+        files:
+          - path: src/api/v1/waves_routes.py
+            action: modify
+          - path: src/app.py
+            action: modify
+        exit:
+          criteria:
+            - "POST /api/v1/waves/closeout/start mounted; 401 without programme token"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; route/auth unit green"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-02"
       - id: TASK-W0-03
         implements: [REQ-2, REQ-3, REQ-5, REQ-8, REQ-13]
-        done_when: "start_closeout_wave enqueue; 409 ACTIVE; fixed Enter-at"
+        depends_on: [TASK-W0-02]
+        files:
+          - path: src/business_services/wave_start_service.py
+            action: modify
+          - path: tests/unit/test_wave_closeout.py
+            action: create
+        exit:
+          criteria:
+            - "start_closeout_wave enqueues; fixed Enter-at learning-extract; ACTIVE 409; baton set"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; happy + 400/409 unit green"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-03"
       - id: TASK-W0-04
         implements: [REQ-7, REQ-8]
-        done_when: "Unit walker learning-extract → ground-spec → wave-signoff"
+        depends_on: [TASK-W0-03]
+        files:
+          - path: tests/unit/test_run_orchestrator.py
+            action: modify
+          - path: tests/unit/test_handoff_workflow.py
+            action: modify
+        exit:
+          criteria:
+            - "Unit walker Pass-2: learning-extract → ground-spec → stop at wave-signoff; no verify dispatch"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; Pass-2 walker unit green"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-04"
       - id: TASK-W0-05
         implements: [REQ-16]
-        done_when: "Unit mocks retargeted off wave-human-decision"
+        depends_on: [TASK-W0-04]
+        files:
+          - path: tests/unit/test_trigger_policy.py
+            action: modify
+          - path: tests/unit/test_notifier.py
+            action: modify
+        exit:
+          criteria:
+            - "Unit mocks retargeted off wave-human-decision toward wave-signoff/live-verify"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; no retired checkpoint ids in tests/unit mocks"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-05"
       - id: TASK-W0-06
         implements: [REQ-1, REQ-7, REQ-17]
-        done_when: "verify_wave_closeout smoke script + feature-map row"
+        depends_on: [TASK-W0-03]
+        files:
+          - path: tests/verify/verify_wave_closeout.py
+            action: create
+          - path: tests/config.yaml.example
+            action: modify
+          - path: tests/README.md
+            action: modify
+        exit:
+          criteria:
+            - "verify_wave_closeout smoke script exists with feature-map row"
+          proof:
+            kind: command
+            command: ".venv/bin/python -m tests.verify.verify_wave_closeout"
+            expected: "exit 0 under documented smoke prereqs (or soft-skip deeper stages)"
+            evidence_expected: "Live-Verify-INIT-GATEFLOW-007-W0.md"
       - id: TASK-W0-07
         implements: [REQ-17]
-        done_when: "as-built W0 + README smoke vs W2 dogfood note"
+        depends_on: [TASK-W0-06]
+        files:
+          - path: docs/specification/as-built/implementation-status.md
+            action: modify
+          - path: tests/README.md
+            action: modify
+        exit:
+          criteria:
+            - "As-built W0 + README distinguish smoke vs W2 dogfood"
+          proof:
+            kind: review
+            review: "Inspect as-built INIT-007 W0 row and tests/README feature map"
+            expected: "docs match tip smoke surface"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W0.md § TASK-W0-07"
+    verification:
+      check: "make check"
+      unit: "make test"
+      live:
+        applicable: true
+        mode: smoke
+        command: .venv/bin/python -m tests.verify.verify_wave_closeout
+        covers: [REQ-1, REQ-7]
+        prerequisites:
+          - "Gateflow API up; programme token; tests/config.yaml closeout knobs"
+        safe_test_data:
+          - "Ephemeral PR/run per tests config — no production mutation"
+        steps:
+          - "Run verify_wave_closeout smoke against local stack"
+        expected_observations:
+          - "401 without token; body validation; happy enqueue returns run_id"
+        evidence_expected: "Live-Verify-INIT-GATEFLOW-007-W0.md"
+        cleanup:
+          - "Close ephemeral closeout run per script notes"
+        stop_conditions:
+          - "Non-zero exit or unexpected 5xx → stop; do not start Pass-2 dogfood"
     body: |
       ## Wave goal
 
       Closeout start API + Pass-2 walker (unit) + co-shipped smoke verify (P15).
 
-      ## Tasks (from plan §2)
+      ## Tasks (from plan §2) — stable ids for loop-spec / board
 
-      | Task | Implements | Done when |
-      |------|------------|-----------|
-      | TASK-W0-01 | REQ-4, REQ-6, REQ-13 | Closeout body model |
-      | TASK-W0-02 | REQ-1 | Route + token |
-      | TASK-W0-03 | REQ-2, REQ-3, REQ-5, REQ-8, REQ-13 | Service enqueue |
-      | TASK-W0-04 | REQ-7, REQ-8 | Walker unit |
-      | TASK-W0-05 | REQ-16 | Mock hygiene |
-      | TASK-W0-06 | REQ-1, REQ-7, REQ-17 | Smoke verify script |
-      | TASK-W0-07 | REQ-17 | Docs |
+      | Task | Implements | Depends on | Exit criteria | Proof |
+      |------|------------|------------|---------------|-------|
+      | TASK-W0-01 | REQ-4, REQ-6, REQ-13 | — | closeout model | command/make test |
+      | TASK-W0-02 | REQ-1 | TASK-W0-01 | route + token | command/make test |
+      | TASK-W0-03 | REQ-2, REQ-3, REQ-5, REQ-8, REQ-13 | TASK-W0-02 | enqueue Enter-at | command/make test |
+      | TASK-W0-04 | REQ-7, REQ-8 | TASK-W0-03 | Pass-2 walker unit | command/make test |
+      | TASK-W0-05 | REQ-16 | TASK-W0-04 | mock hygiene | command/make test |
+      | TASK-W0-06 | REQ-1, REQ-7, REQ-17 | TASK-W0-03 | smoke verify script | command/verify_wave_closeout |
+      | TASK-W0-07 | REQ-17 | TASK-W0-06 | as-built W0 | review |
 
       ## Done when
 
-      - [ ] All W0 tasks complete per plan
+      - [ ] All W0 tasks complete per plan exit proof
       - [ ] Human ran `.venv/bin/python -m tests.verify.verify_wave_closeout` (smoke)
 
       ## Spec reference
@@ -450,41 +571,115 @@ work:
     codebase: drivestream-lab/gateflow
     spec_path: docs/specification/product/INIT-GATEFLOW-007-gateflow.md
     verify_command: "N/A — P15 N/A (no new HTTP surface); unit + W2 dogfood"
-    status: Backlog
     tasks:
       - id: TASK-W1-01
         implements: [REQ-9, REQ-10]
-        done_when: "ORM + Pydantic learning models registered"
+        depends_on: []
+        files:
+          - path: src/models/learning_models.py
+            action: create
+          - path: src/database/postgres/schema/learning_schema.py
+            action: create
+          - path: postgres_migrations/env.py
+            action: modify
+        exit:
+          criteria:
+            - "ORM + Pydantic learning models registered; pyright clean"
+          proof:
+            kind: command
+            command: "make check"
+            expected: "exit 0; schema modules imported in env.py"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W1.md § TASK-W1-01"
       - id: TASK-W1-02
         implements: [REQ-9]
-        done_when: "Human Alembic applied"
+        depends_on: [TASK-W1-01]
+        files:
+          - path: postgres_migrations/env.py
+            action: inspect
+        exit:
+          criteria:
+            - "Human Alembic revision for learning tables applied; upgrade/downgrade symmetric"
+          proof:
+            kind: review
+            review: "Human owns postgres_migrations/versions revision; run_postgres_migration.sh applied locally"
+            expected: "migration applied; agent did not commit versions/"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W1.md § TASK-W1-02"
       - id: TASK-W1-03
         implements: [REQ-9, REQ-10, REQ-11]
-        done_when: "LearningRepository + IngestService unit green"
+        depends_on: [TASK-W1-02]
+        files:
+          - path: src/database/postgres/repository/learning_repository.py
+            action: create
+          - path: src/business_services/learning_ingest_service.py
+            action: create
+          - path: src/di/dependency_container.py
+            action: modify
+          - path: tests/unit/test_learning_ingest.py
+            action: create
+        exit:
+          criteria:
+            - "LearningRepository + LearningIngestService unit green; unknown class fails closed"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; parse/upsert/idempotent unit green"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W1.md § TASK-W1-03"
       - id: TASK-W1-04
         implements: [REQ-9, REQ-11, REQ-12]
-        done_when: "Orchestrator ingest hook after learning-extract hop"
+        depends_on: [TASK-W1-03]
+        files:
+          - path: src/business_services/run_orchestrator.py
+            action: modify
+          - path: tests/unit/test_run_orchestrator.py
+            action: modify
+        exit:
+          criteria:
+            - "After learning-extract hop: publish-before-ingest then ingest before ground-spec"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; order asserted; missing artifact fails closed"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W1.md § TASK-W1-04"
       - id: TASK-W1-05
         implements: [REQ-17]
-        done_when: "as-built W1 + README learning note"
+        depends_on: [TASK-W1-04]
+        files:
+          - path: docs/specification/as-built/implementation-status.md
+            action: modify
+          - path: tests/README.md
+            action: modify
+        exit:
+          criteria:
+            - "As-built W1 + README learning ingest note"
+          proof:
+            kind: review
+            review: "Inspect as-built INIT-007 W1 row and tests/README"
+            expected: "docs match tip ingest path"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W1.md § TASK-W1-05"
+    verification:
+      check: "make check"
+      unit: "make test"
+      live:
+        applicable: false
+        reason: "W1 adds Postgres ingest only — no new HTTP/lane-start surface (P15 N/A); live ingest proven in W2 dogfood"
     body: |
       ## Wave goal
 
       Learning Postgres ingest after learning-extract hop (no skill HTTP).
 
-      ## Tasks (from plan §2)
+      ## Tasks (from plan §2) — stable ids for loop-spec / board
 
-      | Task | Implements | Done when |
-      |------|------------|-----------|
-      | TASK-W1-01 | REQ-9, REQ-10 | Schema + models |
-      | TASK-W1-02 | REQ-9 | Human Alembic |
-      | TASK-W1-03 | REQ-9, REQ-10, REQ-11 | Repo + service |
-      | TASK-W1-04 | REQ-9, REQ-11, REQ-12 | Orchestrator hook |
-      | TASK-W1-05 | REQ-17 | Docs |
+      | Task | Implements | Depends on | Exit criteria | Proof |
+      |------|------------|------------|---------------|-------|
+      | TASK-W1-01 | REQ-9, REQ-10 | — | schema + models | command/make check |
+      | TASK-W1-02 | REQ-9 | TASK-W1-01 | human Alembic | review |
+      | TASK-W1-03 | REQ-9, REQ-10, REQ-11 | TASK-W1-02 | repo + service | command/make test |
+      | TASK-W1-04 | REQ-9, REQ-11, REQ-12 | TASK-W1-03 | orchestrator hook | command/make test |
+      | TASK-W1-05 | REQ-17 | TASK-W1-04 | as-built W1 | review |
 
       ## Done when
 
-      - [ ] All W1 tasks complete per plan
+      - [ ] All W1 tasks complete per plan exit proof
 
       ## Spec reference
 
@@ -499,37 +694,107 @@ work:
     codebase: drivestream-lab/gateflow
     spec_path: docs/specification/product/INIT-GATEFLOW-007-gateflow.md
     verify_command: .venv/bin/python -m tests.verify.verify_wave_closeout
-    status: Backlog
     tasks:
       - id: TASK-W2-01
         implements: [REQ-7, REQ-9, REQ-14]
-        done_when: "verify_wave_closeout full dogfood exit 0 (implement)"
+        depends_on: []
+        files:
+          - path: tests/verify/verify_wave_closeout.py
+            action: modify
+          - path: tests/config.yaml.example
+            action: modify
+        exit:
+          criteria:
+            - "verify_wave_closeout full Pass-2 dogfood exits 0 (implement path to wave-signoff)"
+          proof:
+            kind: command
+            command: ".venv/bin/python -m tests.verify.verify_wave_closeout"
+            expected: "exit 0 against live stack (implement closeout path)"
+            evidence_expected: "Live-Verify-INIT-GATEFLOW-007-W2.md"
       - id: TASK-W2-02
         implements: [REQ-12, REQ-14, REQ-17]
-        done_when: "Feature map + as-built live row"
+        depends_on: [TASK-W2-01]
+        files:
+          - path: docs/specification/as-built/implementation-status.md
+            action: modify
+          - path: tests/README.md
+            action: modify
+        exit:
+          criteria:
+            - "Feature map + as-built live row cite run id / tip / L-* evidence"
+          proof:
+            kind: review
+            review: "Inspect as-built live row and tests/README after dogfood"
+            expected: "docs match live Pass-2 evidence"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W2.md § TASK-W2-02"
       - id: TASK-W2-03
         implements: [REQ-15]
-        done_when: "Spec live or PE-waived deferral documented"
+        depends_on: [TASK-W2-02]
+        files:
+          - path: docs/specification/as-built/implementation-status.md
+            action: modify
+        exit:
+          criteria:
+            - "Spec-lane closeout live pass or PE-waived deferral documented in as-built"
+          proof:
+            kind: review
+            review: "Inspect as-built REQ-15 row for live pass or explicit deferral"
+            expected: "parity or PE waive recorded"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W2.md § TASK-W2-03"
       - id: TASK-W2-04
         implements: [REQ-16]
-        done_when: "src/ grep clean of retired checkpoint ids"
+        depends_on: [TASK-W2-01]
+        files:
+          - path: src/business_services/run_orchestrator.py
+            action: inspect
+          - path: tests/unit/test_run_orchestrator.py
+            action: modify
+        exit:
+          criteria:
+            - "src/ grep clean of live gate-1/gate-2/wave-human-decision transition constants"
+          proof:
+            kind: command
+            command: "make test"
+            expected: "exit 0; rg clean in src/ for retired checkpoint ids"
+            evidence_expected: "Wave-Execution-INIT-GATEFLOW-007-W2.md § TASK-W2-04"
+    verification:
+      check: "make check"
+      unit: "make test"
+      live:
+        applicable: true
+        mode: sandbox
+        command: .venv/bin/python -m tests.verify.verify_wave_closeout
+        covers: [REQ-7, REQ-9, REQ-14]
+        prerequisites:
+          - "Pass-1 tip available; API + worker; learning migration applied; tests/config.yaml dogfood knobs"
+        safe_test_data:
+          - "Ephemeral implement PR + closeout run per tests config"
+        steps:
+          - "Run verify_wave_closeout full dogfood (implement path)"
+        expected_observations:
+          - "Stop at wave-signoff; learning artifact/rows when configured"
+        evidence_expected: "Live-Verify-INIT-GATEFLOW-007-W2.md"
+        cleanup:
+          - "Close ephemeral runs/PRs per script notes"
+        stop_conditions:
+          - "Non-zero exit or unexpected mutate → stop"
     body: |
       ## Wave goal
 
       Full Pass-2 live prove-it to wave-signoff + docs closeout.
 
-      ## Tasks (from plan §2)
+      ## Tasks (from plan §2) — stable ids for loop-spec / board
 
-      | Task | Implements | Done when |
-      |------|------------|-----------|
-      | TASK-W2-01 | REQ-7, REQ-9, REQ-14 | Dogfood verify depth |
-      | TASK-W2-02 | REQ-12, REQ-14, REQ-17 | Docs evidence |
-      | TASK-W2-03 | REQ-15 | Spec parity / deferral |
-      | TASK-W2-04 | REQ-16 | Checkpoint hygiene |
+      | Task | Implements | Depends on | Exit criteria | Proof |
+      |------|------------|------------|---------------|-------|
+      | TASK-W2-01 | REQ-7, REQ-9, REQ-14 | — | dogfood verify | command/verify_wave_closeout |
+      | TASK-W2-02 | REQ-12, REQ-14, REQ-17 | TASK-W2-01 | as-built live | review |
+      | TASK-W2-03 | REQ-15 | TASK-W2-02 | spec parity/deferral | review |
+      | TASK-W2-04 | REQ-16 | TASK-W2-01 | checkpoint hygiene | command/make test |
 
       ## Done when
 
-      - [ ] All W2 tasks complete per plan
+      - [ ] All W2 tasks complete per plan exit proof
       - [ ] Human/sandbox ran full verify_wave_closeout
 
       ## Spec reference
@@ -548,14 +813,15 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-007.md
-    digest: sha256:d8b35b7f3642ee873e43e75f9d6911f2716ad6a157c199bc81bcaedba3c945ba
+    digest: sha256:0a9f8da82cc71c21dbefee7c963dea9be9066f58052d5dd60bb9f9cdf41eb4b7
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-007
     p15: co-ship_smoke_w0
+    p16: workmanifest_prayog_v1
     gate1: WAIVED
-    prior_plan: purged_regenerated
-    board: purge_then_reseed_after_merge
+    prior_plan: prayog_v1_backfill
+    board: keep_seeded_84_through_87
   next_candidates:
     - coding-readiness
   human_checkpoint: true
@@ -565,6 +831,6 @@ handoff:
     draft: true
     apply_labels:
       - spec-pending
-    title: "[INIT-GATEFLOW-007] Plan — P15 co-ship smoke verify (regenerate)"
+    title: "[INIT-GATEFLOW-007] Plan — prayog/v1 WorkManifest backfill"
     body_path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-007.md
 ```

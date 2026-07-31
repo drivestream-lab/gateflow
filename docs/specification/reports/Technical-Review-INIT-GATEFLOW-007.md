@@ -335,6 +335,7 @@ JSONB validated on read/write at repository boundary.
 | Domain questions outstanding | 0 |
 | Ready for PE review | **YES** (accepted) |
 | **Ready for /spec-implementation-plan** | **YES — PE acceptance recorded 2026-07-29; plan may run** |
+| Delivery note (2026-07-31) | Plan §9 must remain **`prayog/v1`** and pass pin `workmanifest_contract.py` (INIT-008 W2). Board #84–#87 keep; do not re-seed on contract backfill. |
 
 ---
 

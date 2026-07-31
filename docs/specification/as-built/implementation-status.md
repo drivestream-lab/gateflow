@@ -213,6 +213,7 @@
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
+| Plan §9 WorkManifest | **Backfill in flight** — `prayog/v1` on `chore/INIT-GATEFLOW-007-plan-prayog-v1-backfill` (pin contract after INIT-008 W2); board #84–#87 keep |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -245,7 +246,11 @@ cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
-**INIT-GATEFLOW-007 (2026-07-29):** Product INIT **draft** at
+**INIT-GATEFLOW-007 (2026-07-31):** Product INIT **draft** at
 [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md)
-— wave closeout start + learning DB ingest. Pass-1 pin remounted (#76). Closeout
-HTTP / learning tables / Pass-2 live prove-it **not** implemented.
+— wave closeout start + learning DB ingest. Pass-1 pin remounted (#76). Plan P15
+merged (#83); board EPIC [#84](https://github.com/drivestream-lab/gateflow/issues/84)
++ waves [#85](https://github.com/drivestream-lab/gateflow/issues/85)–[#87](https://github.com/drivestream-lab/gateflow/issues/87)
+seeded. **Blocked on pre-implement** until §9 `prayog/v1` backfill merges (pin
+validator after INIT-008 W2). Closeout HTTP / learning tables / Pass-2 live
+prove-it **not** implemented.

@@ -161,6 +161,7 @@ prayog-skills; Gateflow **CTR-G1/G2** = this INIT’s closeout trigger + learnin
 | A-6 | No new ADR required unless TDD finds a store/topology conflict | PE discussion | PE | confirmed | Learning store leaves Postgres or intake authority changes |
 | A-7 | `wave-awaiting-closeout` needs no separate Gateflow mutate API in v1 — `stopped@live-verify` is sufficient precursor to closeout start | Pin park = status/UI; PE default | PE | open | Product requires explicit park-ack API |
 | A-8 | Meta Gate 1 / PRD may follow engineering INIT (catch-up) | No meta PRD today | PE | open | Gate 1 lands with digests |
+| A-9 | Plan §9 WorkManifest must satisfy pin `prayog/v1` (`workmanifest_contract.py`); `launchpad/v1` rejected fail-closed (INIT-008 W2) | Pin + Gateflow `run_workmanifest_contract`; pre-implement gate | PE | confirmed | Pin supersedes WorkManifest contract |
 
 ## Spec questions (ambiguities — need PE confirmation)
 

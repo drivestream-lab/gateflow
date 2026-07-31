@@ -267,14 +267,15 @@ Critical ADR contradiction. Gate 1 freshness is waived, not CURRENT — formal
 **Auto-fixable** → at implement/W2, not blocking TDD.
 
 ```
-Draft spec PR: chore/INIT-GATEFLOW-007-spec-gateflow  (#77, spec-pending)
-When ready:
+Draft spec PR: chore/INIT-GATEFLOW-007-spec-gateflow  (#77, merged)
+Plan P15 regen: #83 (merged). Board seeded: EPIC #84, W0–W2 #85–#87.
+When ready (prayog/v1 §9 backfill):
   [ ] Source freshness is CURRENT (or PE-recorded Gate 1 waive)
   [ ] Blocking PM Q-1 answered or waived in writing
-  [ ] Proceed: /spec-technical-review  ← next (PE questions exist)
-  [ ] Then /spec-implementation-plan
-  [ ] PE sets spec-lgtm + Approve on exact head → Ready for review → merge
-  [ ] After merge: /create-board-tickets from plan §9
+  [ ] Plan §9 passes pin workmanifest_contract.py (prayog/v1)
+  [ ] PE sets spec-lgtm + Approve on exact plan-backfill head → merge
+  [ ] Do NOT re-run /create-board-tickets — keep #84–#87
+  [ ] Pass-1: /pre-implement → /loop-spec on W0
 ```
 
 ## Handoff envelope
