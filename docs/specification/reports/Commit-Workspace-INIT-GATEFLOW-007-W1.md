@@ -2,19 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| Prior content stage | `loop-spec` (manual implement lane; `forge.commit_workspace: required`) |
+| Prior content stage | `ground-spec` (`forge.commit_workspace: required`) |
 | Pin policy | `forge.commit_workspace: required` |
-| Bound head | `feature/INIT-GATEFLOW-007-w1-learning-ingest` |
-| Published SHA | `db4f34b571bc15d18e8a0f282983d65778df21a2` |
+| Bound head | `feature/INIT-GATEFLOW-007-w1-learning-ingest` (Draft PR [#102](https://github.com/drivestream-lab/gateflow/pull/102)) |
+| Published SHA | `fdaa0f9e67e4e97efb609dde21ccfee1e33a6f3c` |
 | Remote | `origin/feature/INIT-GATEFLOW-007-w1-learning-ingest` |
 | Outcome | **pass** |
 | Date | 2026-08-01 |
 
 ## Notes
 
-- Included learning models/ORM/repo/service, orchestrator hook, DI, unit tests, human Alembic `cc5feda8fe3d`, as-built + README, PR body.
-- Did **not** commit gitignored `tests/config.yaml`.
+- Included Learning-Extract, Ground-Report, Live-Verify, Wave-Execution, Pre-Implement W1, as-built W1 Ground-pass / pending human_approved.
+- Did **not** commit gitignored secrets (e.g. `tests/config.yaml`).
 - No approval labels applied.
+- Draft PR already open — no `open_draft_pr` forge step required.
 
 ```yaml
 handoff:
@@ -27,16 +28,17 @@ handoff:
   signals:
     initiative: INIT-GATEFLOW-007
     wave: W1
-    prior_stage: loop-spec
+    prior_stage: ground-spec
     commit_workspace: required
     head_ref: feature/INIT-GATEFLOW-007-w1-learning-ingest
     base_ref: develop
-    published_sha: "db4f34b571bc15d18e8a0f282983d65778df21a2"
+    published_sha: "fdaa0f9e67e4e97efb609dde21ccfee1e33a6f3c"
+    pr_number: 102
     board_issue: "86"
   human_checkpoint: false
   external_action: true
   forge:
-    action: open_draft_pr
+    action: none
     draft: true
     apply_labels: []
     remove_labels: []
@@ -46,4 +48,4 @@ handoff:
     base_ref: develop
 ```
 
-Continue from content handoff: `loop-spec` → `wave-pr-action` → `/open-draft-pr`.
+Continue from content handoff: `ground-spec` → `wave-signoff` (human exact-head review + merge). Reviewed head after this publish: `fdaa0f9e67e4e97efb609dde21ccfee1e33a6f3c` (plus follow-up note commit if any).
