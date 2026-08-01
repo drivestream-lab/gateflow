@@ -979,3 +979,16 @@ async def test_publish_stage_workspace_optional_commits(
     event_arg = events.append_event.await_args.args[1]
     assert event_arg.event_type == "stage_commit"
     assert event_arg.payload["commit_sha"] == "deadbeef"
+
+
+def test_src_has_no_retired_checkpoint_transition_ids() -> None:
+    """REQ-16 — runtime src must not hardcode retired pin checkpoint ids."""
+    retired = ("gate-1", "gate-2", "wave-human-decision")
+    root = Path("src")
+    offenders: list[str] = []
+    for path in root.rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for token in retired:
+            if token in text:
+                offenders.append(f"{path}:{token}")
+    assert not offenders, f"retired checkpoint ids still present: {offenders}"
