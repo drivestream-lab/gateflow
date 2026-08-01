@@ -1,5 +1,6 @@
 """Unit tests for BoardService (FR-24)."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -123,21 +124,27 @@ async def test_create_ticket_partial_when_labels_fail() -> None:
 @pytest.mark.asyncio
 async def test_create_ticket_success() -> None:
     service, forge = _service()
-    forge.find_issues_by_labels = AsyncMock(return_value=[])
+    labeled = {
+        "number": 5,
+        "title": "Epic",
+        "state": "open",
+        "labels": [
+            {"name": "gateflow/type:EPIC"},
+            {"name": "gateflow/initiative:INIT-Z"},
+        ],
+    }
+
+    async def _find(*_a: object, **_k: object) -> list[dict[str, object]]:
+        # Pre-create lookups empty; post-label visibility poll sees the issue.
+        if forge.apply_issue_labels.await_count:
+            return [labeled]
+        return []
+
+    forge.find_issues_by_labels = AsyncMock(side_effect=_find)
     forge.create_issue = AsyncMock(
         return_value={"number": 5, "title": "Epic", "state": "open", "labels": []}
     )
-    forge.apply_issue_labels = AsyncMock(
-        return_value={
-            "number": 5,
-            "title": "Epic",
-            "state": "open",
-            "labels": [
-                {"name": "gateflow/type:EPIC"},
-                {"name": "gateflow/initiative:INIT-Z"},
-            ],
-        }
-    )
+    forge.apply_issue_labels = AsyncMock(return_value=labeled)
     result = await service.create_ticket(
         BoardTicketCreateRequest(
             org="acme",
@@ -153,3 +160,49 @@ async def test_create_ticket_success() -> None:
     assert result.ticket is not None
     assert result.ticket.ticket_type == "EPIC"
     assert result.ticket.initiative_id == "INIT-Z"
+    assert forge.find_issues_by_labels.await_count >= 3
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_waits_for_label_index(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After labels apply, poll list-by-labels until the new issue is visible."""
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+    service, forge = _service()
+    labeled = {
+        "number": 9,
+        "title": "Feature",
+        "state": "open",
+        "labels": [
+            {"name": "gateflow/type:Feature"},
+            {"name": "gateflow/initiative:INIT-LAG"},
+        ],
+    }
+    post_label_finds = {"n": 0}
+
+    async def _find(*_a: object, **_k: object) -> list[dict[str, object]]:
+        if not forge.apply_issue_labels.await_count:
+            return []
+        post_label_finds["n"] += 1
+        if post_label_finds["n"] == 1:
+            return []
+        return [labeled]
+
+    forge.find_issues_by_labels = AsyncMock(side_effect=_find)
+    forge.create_issue = AsyncMock(
+        return_value={"number": 9, "title": "Feature", "state": "open", "labels": []}
+    )
+    forge.apply_issue_labels = AsyncMock(return_value=labeled)
+
+    result = await service.create_ticket(
+        BoardTicketCreateRequest(
+            org="acme",
+            repo="widget",
+            title="Feature",
+            ticket_type=BoardTicketType.FEATURE,
+            initiative_id="INIT-LAG",
+        )
+    )
+    assert result.created is True
+    assert result.partial is False
+    assert post_label_finds["n"] >= 2
+    assert forge.find_issues_by_labels.await_count >= 3

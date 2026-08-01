@@ -58,15 +58,15 @@
 |------------|------|------|------|-------------|-------|
 | Per-node runner/model resolve + persist | FR-16 | `dispatch_plan_models` + `node_model_resolver`; API plan | `test_node_model_resolver`, orchestrator | — | Inherit from wave-start; no programme overrides |
 | Pin walker until gate | FR-15 inherit | `run_orchestrator.py` loop + PolicyEngine | `test_run_orchestrator` (multi-hop + hop cap) | implement-lane | `GATEFLOW_MAX_ORCHESTRATED_HOPS` |
-| PR-at-start via ForgeClient | FR-19 | `ensure_branch_from_base` + `create_or_update_pull_request`; caller head/base | `test_pr_branch_naming`, `test_forge_client`, orchestrator PR order | `verify_pr_thread` (optional worker) | Head from wave-start identity; no programme `pr.*`; no auto-merge |
-| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | status/metrics, implement-lane | `by_runner`, `by_model_id` |
+| PR-at-start via ForgeClient | FR-19 | **superseded (INIT-008)** — start=`ensure_branch` only; Draft PR at `wave-pr-action` | `test_pr_branch_naming`, `test_forge_client`, orchestrator | `verify_implement_lane` | `verify_pr_thread` no longer asserts `pr_number` after enqueue |
+| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | `verify_pr_thread`, status/metrics, implement-lane | `by_runner`, `by_model_id` |
 | Cursor happy path (unit double) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Unit `mock-*` only (`GATEFLOW_AGENT_STUB` removed) |
 
 ## Capability matrix (INIT-GATEFLOW-002 W2)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues MVP + labels; idempotent EPIC/Feature |
+| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues MVP + labels; idempotent EPIC/Feature; post-label list wait (GitHub index lag) |
 | Worker isolation | FR-24 | orchestrator / notifier only PR+comment | `test_process_job_never_calls_board_forge_mutations` | — | Zero board mutations on job complete |
 | Production gh-free | FR-25/26a | ForgeClient httpx only | source guard test | checklist | `docs/runbooks/gh-free-production-path-checklist.md` |
 | Forge auth modes (`pat` \| `app`) | ADR-003 / TDD §3.5a | `GithubTokenProvider` via InfraModule; `GITHUB_AUTH_MODE` required | `test_github_token_provider`, forge init | verify_board (mode+creds) | Explicit mode; no auto; App discovers single installation |
@@ -208,13 +208,14 @@
 |------------|------|------|------|-------------|-------|
 | Closeout start API | REQ-1…8, REQ-13 | `POST /api/v1/waves/closeout/start` | `test_wave_closeout` | `verify_wave_closeout` smoke — **human_approved** | Fixed Enter-at `learning-extract`; required PR bind; no meta / no client `start_node` |
 | Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood | `learning-extract` → `ground-spec` → `wave-signoff` |
-| Learning Postgres SSOT | REQ-9…12 | — | — | — | W1 — ingest Learning-Extract YAML; no skill→HTTP (H6) |
+| Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` + Alembic `cc5feda8fe3d` | `test_learning_ingest` | W2 dogfood (live rows) | W1 unit + human migration; orchestrator publish→handoff→ingest; no skill→HTTP (H6) |
 | Pass-2 full prove-it | REQ-14…17 | — | — | — | W2 — deepen `verify_wave_closeout` |
 
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
-| W0 closeout start | **Ground pass** — [`Ground-Report-INIT-GATEFLOW-007-W0.md`](../reports/Ground-Report-INIT-GATEFLOW-007-W0.md); as-built **pending human_approved** at wave-signoff (not set by ground-spec) |
+| W0 closeout start | **human_approved** — merged [#101](https://github.com/drivestream-lab/gateflow/pull/101) @ `e1604fd`; Ground-Report W0 **pass**; live smoke **human_approved** |
+| W1 learning ingest | **Ground pass** — [`Ground-Report-INIT-GATEFLOW-007-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-007-W1.md); tip `317f5c5` / [#102](https://github.com/drivestream-lab/gateflow/pull/102); as-built **pending human_approved** at wave-signoff |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -247,8 +248,11 @@ cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
-**INIT-GATEFLOW-007 (2026-07-31):** Product INIT **draft**. **W0** closeout start
-grounded — Ground-Report W0 **pass**; live smoke **human_approved**; as-built W0
-**pending human_approved** at wave-signoff. Learning tables / Pass-2 full dogfood
-remain W1/W2. Board [#84](https://github.com/drivestream-lab/gateflow/issues/84) /
-[#85](https://github.com/drivestream-lab/gateflow/issues/85).
+**INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** closeout start
+**human_approved** (merged #101 @ `e1604fd`). **W1** learning Postgres ingest —
+Ground Report **pass** at tip `317f5c5` / Draft [#102](https://github.com/drivestream-lab/gateflow/pull/102);
+human Alembic `cc5feda8fe3d`; unit ingest + orchestrator hook; human `verify_all`
+**approved**; as-built W1 **pending human_approved** at wave-signoff. Live learning
+row / Pass-2 dogfood remains W2. Board
+[#84](https://github.com/drivestream-lab/gateflow/issues/84) /
+[#86](https://github.com/drivestream-lab/gateflow/issues/86).

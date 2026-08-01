@@ -5,6 +5,7 @@ Authorized forge seeding uses ``ForgeActionService`` → these primitives after
 ``POST .../forge/authorize`` (or the human ``/create-board-tickets`` skill).
 """
 
+import asyncio
 from typing import Optional
 
 import httpx
@@ -31,6 +32,12 @@ from src.models.board_models import (
 )
 
 
+# GitHub Issues ``labels=`` list filter lags briefly after PATCH.
+# After create+label, wait until the filter sees the issue so an immediate
+# re-POST (idempotent replay) does not false-miss and duplicate.
+_LABEL_VISIBLE_RETRY_DELAYS_S: tuple[float, ...] = (0.0, 0.4, 0.8, 1.5)
+
+
 class BoardService(BaseBusinessService):
     """Programme-token board ops via ForgeClient only (no gh, no governance parsing)."""
 
@@ -38,6 +45,40 @@ class BoardService(BaseBusinessService):
     def __init__(self, forge_client: ForgeClient) -> None:
         super().__init__()
         self._forge_client = forge_client
+
+    async def _wait_until_labels_listed(
+        self,
+        org: str,
+        repo: str,
+        *,
+        labels: list[str],
+        issue_number: int,
+    ) -> None:
+        """Poll list-by-labels until ``issue_number`` appears (best-effort)."""
+        for attempt, delay_s in enumerate(_LABEL_VISIBLE_RETRY_DELAYS_S):
+            if delay_s > 0:
+                await asyncio.sleep(delay_s)
+            found = await self._forge_client.find_issues_by_labels(
+                org,
+                repo,
+                labels=labels,
+                state="all",
+            )
+            if any(int(item.get("number", -1)) == issue_number for item in found):
+                if attempt > 0:
+                    self.logger.info(
+                        "Board labels visible in list filter after retry",
+                        attempt=attempt,
+                        issue_number=issue_number,
+                        operation="create_ticket",
+                    )
+                return
+        self.logger.warning(
+            "Board labels not yet visible in list filter after create",
+            issue_number=issue_number,
+            label_count=len(labels),
+            operation="create_ticket",
+        )
 
     async def update_ticket_status(
         self,
@@ -205,6 +246,13 @@ class BoardService(BaseBusinessService):
                 created_resources.append("labels")
                 ticket = self._to_ticket(labeled, request.org, request.repo)
                 partial = False
+                # Warm GitHub label index before returning so immediate replay hits.
+                await self._wait_until_labels_listed(
+                    request.org,
+                    request.repo,
+                    labels=[type_label, initiative_label],
+                    issue_number=issue_number,
+                )
             except httpx.HTTPError as label_exc:
                 failed_resources.append(
                     BoardFailedResource(resource="labels", reason=str(label_exc))

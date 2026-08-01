@@ -1,13 +1,14 @@
-"""Live verify: PR-thread contract + metrics dimensions (FR-19 / FR-21).
+"""Live verify: metrics dimensions + wave-start api_trigger (FR-21 / FR-22).
 
 Requires running API + migrated Postgres and PROGRAMME_SERVICE_TOKEN.
 
 Asserts:
   - GET /metrics/runs exposes by_runner and by_model_id keys
   - Wave-start records an api_trigger event on the run timeline
-  - When gateflow.require_worker is true and a worker has claimed the job,
-    run detail includes pr_number (PR-at-start). Without worker, PR assert
-    is skipped with a note (unit tests own ForgeClient call-order).
+
+Does **not** assert ``pr_number`` shortly after enqueue: INIT-008 moved Draft PR
+creation to automated ``wave-pr-action`` after coding hops (no PR-at-start).
+Live PR timing belongs to ``verify_implement_lane`` / deep Pass-1 prove-it.
 
 Uses ephemeral wave identity (not features.implement_lane).
 
@@ -19,7 +20,6 @@ Usage:
 
 import os
 import sys
-import time
 
 import httpx
 
@@ -82,29 +82,14 @@ def main() -> int:
                 print(f"[ERROR] expected api_trigger event on run timeline: {events}")
                 return 1
             print("[OK] run timeline includes api_trigger")
-
+            print(
+                "[OK] pr_number assert skipped "
+                "(INIT-008: Draft PR via wave-pr-action — use verify_implement_lane)"
+            )
             if cfg.gateflow.require_worker:
-                deadline = time.time() + 30.0
-                pr_number = detail_body.get("pr_number")
-                while pr_number is None and time.time() < deadline:
-                    time.sleep(1.0)
-                    detail = client.get(f"{base_url}/api/v1/runs/{run_id}", headers=headers)
-                    if detail.status_code != 200:
-                        print(f"[ERROR] run detail poll failed: {detail.status_code}")
-                        return 1
-                    detail_body = detail.json()
-                    pr_number = detail_body.get("pr_number")
-                if pr_number is None:
-                    print(
-                        "[ERROR] gateflow.require_worker=true but pr_number still missing "
-                        "after wait — is worker running with forge credentials?"
-                    )
-                    return 1
-                print(f"[OK] run PR-at-start → pr_number={pr_number}")
-            else:
                 print(
-                    "[OK] PR-at-start live assert skipped "
-                    "(set gateflow.require_worker: true in tests/config.yaml for full PR check)"
+                    "[INFO] gateflow.require_worker=true noted; "
+                    "worker/forge PR timing is not asserted by this script"
                 )
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure: {exc}")

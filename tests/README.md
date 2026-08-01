@@ -50,13 +50,13 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_webhook
 # .venv/bin/python -m tests.verify.verify_status_metrics
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
-# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (+ optional PR)
+# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
-# .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave
+# .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in (scaffold until W2)
 #
-# Full PR-at-start live assert (optional):
-#   set gateflow.require_worker: true in tests/config.yaml with worker + forge creds
+# Draft PR live timing (INIT-008): use verify_implement_lane, not verify_pr_thread.
+#   set gateflow.require_worker: true + worker + forge creds for deep lane prove-it
 ```
 
 ## Configuration split
@@ -124,6 +124,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
 | API implement-lane start Enter-at (FR-15 / REQ-14) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
 | API closeout start Enter-at `learning-extract` (INIT-007 W0) | `python -m tests.verify.verify_wave_closeout` | `test_wave_closeout` |
+| Learning Postgres ingest after `learning-extract` (INIT-007 W1) | — (unit only; live dogfood in W2) | `test_learning_ingest` |
 | API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |

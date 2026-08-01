@@ -2,6 +2,7 @@
 
 from injector import Module, provider, singleton
 
+from src.database.postgres.repository.learning_repository import LearningRepository
 from src.database.postgres.repository.run_store_repository import (
     JobRepository,
     RunEventRepository,
@@ -41,3 +42,8 @@ class RepositoryModule(Module):
     @singleton
     def provide_run_event_repository(self, postgres_service: PostgresService) -> RunEventRepository:
         return RunEventRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_learning_repository(self, postgres_service: PostgresService) -> LearningRepository:
+        return LearningRepository(session_factory=postgres_service.get_session_factory())

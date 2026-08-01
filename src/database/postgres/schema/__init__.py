@@ -5,6 +5,10 @@ from src.database.postgres.schema.base_postgres_schema import (
     PostgresBaseModel,
     postgres_metadata,
 )
+from src.database.postgres.schema.learning_schema import (
+    LearningExtractSchema,
+    LearningItemSchema,
+)
 from src.database.postgres.schema.run_store_schema import (
     JobSchema,
     RunEventSchema,
@@ -22,4 +26,6 @@ __all__ = [
     "StageSchema",
     "RunEventSchema",
     "JobSchema",
+    "LearningExtractSchema",
+    "LearningItemSchema",
 ]
