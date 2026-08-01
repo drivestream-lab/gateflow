@@ -58,15 +58,15 @@
 |------------|------|------|------|-------------|-------|
 | Per-node runner/model resolve + persist | FR-16 | `dispatch_plan_models` + `node_model_resolver`; API plan | `test_node_model_resolver`, orchestrator | — | Inherit from wave-start; no programme overrides |
 | Pin walker until gate | FR-15 inherit | `run_orchestrator.py` loop + PolicyEngine | `test_run_orchestrator` (multi-hop + hop cap) | implement-lane | `GATEFLOW_MAX_ORCHESTRATED_HOPS` |
-| PR-at-start via ForgeClient | FR-19 | `ensure_branch_from_base` + `create_or_update_pull_request`; caller head/base | `test_pr_branch_naming`, `test_forge_client`, orchestrator PR order | `verify_pr_thread` (optional worker) | Head from wave-start identity; no programme `pr.*`; no auto-merge |
-| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | status/metrics, implement-lane | `by_runner`, `by_model_id` |
+| PR-at-start via ForgeClient | FR-19 | **superseded (INIT-008)** — start=`ensure_branch` only; Draft PR at `wave-pr-action` | `test_pr_branch_naming`, `test_forge_client`, orchestrator | `verify_implement_lane` | `verify_pr_thread` no longer asserts `pr_number` after enqueue |
+| Metrics dims + api_trigger | FR-21/22 | `metrics_emitter.py`; retention via `GATEFLOW_METRICS_RETENTION_DAYS` | `test_metrics_emitter` | `verify_pr_thread`, status/metrics, implement-lane | `by_runner`, `by_model_id` |
 | Cursor happy path (unit double) | FR-17 / V-3 | `cursor_agent_runner.py` | `test_cursor_agent_runner` | — | Unit `mock-*` only (`GATEFLOW_AGENT_STUB` removed) |
 
 ## Capability matrix (INIT-GATEFLOW-002 W2)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues MVP + labels; idempotent EPIC/Feature |
+| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues MVP + labels; idempotent EPIC/Feature; post-label list wait (GitHub index lag) |
 | Worker isolation | FR-24 | orchestrator / notifier only PR+comment | `test_process_job_never_calls_board_forge_mutations` | — | Zero board mutations on job complete |
 | Production gh-free | FR-25/26a | ForgeClient httpx only | source guard test | checklist | `docs/runbooks/gh-free-production-path-checklist.md` |
 | Forge auth modes (`pat` \| `app`) | ADR-003 / TDD §3.5a | `GithubTokenProvider` via InfraModule; `GITHUB_AUTH_MODE` required | `test_github_token_provider`, forge init | verify_board (mode+creds) | Explicit mode; no auto; App discovers single installation |

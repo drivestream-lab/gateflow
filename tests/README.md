@@ -50,13 +50,13 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_webhook
 # .venv/bin/python -m tests.verify.verify_status_metrics
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
-# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (+ optional PR)
+# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
-# .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave
+# .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in (scaffold until W2)
 #
-# Full PR-at-start live assert (optional):
-#   set gateflow.require_worker: true in tests/config.yaml with worker + forge creds
+# Draft PR live timing (INIT-008): use verify_implement_lane, not verify_pr_thread.
+#   set gateflow.require_worker: true + worker + forge creds for deep lane prove-it
 ```
 
 ## Configuration split

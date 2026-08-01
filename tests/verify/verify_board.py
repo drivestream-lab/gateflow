@@ -118,6 +118,7 @@ def main() -> int:
                 return 0
 
             initiative_id = f"INIT-BOARD-VERIFY-{uuid.uuid4().hex[:8]}"
+            idem_key = f"verify-{initiative_id}"
             create_body = {
                 "org": org,
                 "repo": repo,
@@ -128,7 +129,7 @@ def main() -> int:
             }
             created = client.post(
                 create_url,
-                headers={**headers, "Idempotency-Key": f"verify-{initiative_id}"},
+                headers={**headers, "Idempotency-Key": idem_key},
                 json=create_body,
             )
             if created.status_code not in {200, 201}:
@@ -149,9 +150,10 @@ def main() -> int:
                 f"partial={create_payload.get('partial')}"
             )
 
+            # Same Idempotency-Key as first create (initiative+type also deduped server-side).
             replay = client.post(
                 create_url,
-                headers=headers,
+                headers={**headers, "Idempotency-Key": idem_key},
                 json=create_body,
             )
             if replay.status_code not in {200, 201}:
