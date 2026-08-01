@@ -123,8 +123,9 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Env notifier (`GATEFLOW_NOTIFIER`) | — | `test_wave_start`, `test_slot_validator` |
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
 | API implement-lane start Enter-at (FR-15 / REQ-14) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
-| API closeout start Enter-at `learning-extract` (INIT-007 W0) | `python -m tests.verify.verify_wave_closeout` | `test_wave_closeout` |
-| Learning Postgres ingest after `learning-extract` (INIT-007 W1) | — (unit only; live dogfood in W2) | `test_learning_ingest` |
+| API closeout start Enter-at `learning-extract` (INIT-007 W0) | `python -m tests.verify.verify_wave_closeout` (smoke: `enabled` + `pr_number`) | `test_wave_closeout` |
+| Learning Postgres ingest after `learning-extract` (INIT-007 W1) | W2 dogfood artifact assert; DB rows via Live-Verify SQL (no learning HTTP) | `test_learning_ingest` |
+| Pass-2 closeout dogfood → `wave-signoff` (INIT-007 W2) | `python -m tests.verify.verify_wave_closeout` with `dogfood: true` + `require_worker: true` | — |
 | API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
@@ -223,20 +224,30 @@ set -a && source .env && set +a
 
 Keep `features.implement_lane.enabled: false` for routine smoke.
 
-### Closeout start smoke (INIT-GATEFLOW-007 W0)
+### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 
 ```bash
-# edit tests/config.yaml:
+# Smoke (W0): auth/validation always; happy enqueue when enabled:
 #   features.wave_closeout.enabled: true
 #   features.wave_closeout.pr_number: <existing wave PR>
 #   features.wave_closeout.wave_start.workspace: /absolute/path/on/tip  # optional
+#
+# Dogfood (W2): after enqueue, poll Pass-2 to wave-signoff:
+#   gateflow.require_worker: true
+#   features.wave_closeout.dogfood: true
+#   features.wave_closeout.timeout_s: 3600
+#   features.wave_closeout.assert_learning_artifact: true
+#   features.wave_closeout.wave_start.workspace: /absolute/checkout/with/tip
+#   features.wave_closeout.wave_start.wave_id: W2   # matches Learning-Extract-*-W2.md
 
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_wave_closeout
 ```
 
 Without `enabled: true`, the script still asserts 401 + body validation (smoke).
-Full Pass-2 dogfood to `wave-signoff` is W2 (same module, deeper asserts).
+With `dogfood: true`, requires worker and asserts `learning-extract` + `ground-spec`
+success and terminal `stopped` at `wave-signoff` (Learning-Extract file when configured).
+Postgres `learning_extracts` row evidence is human Live-Verify (no learning HTTP).
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.

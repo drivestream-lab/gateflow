@@ -95,7 +95,7 @@ class LaneFeatureConfig(BaseModel):
 
 
 class WaveCloseoutFeatureConfig(BaseModel):
-    """Opt-in closeout start smoke / dogfood (INIT-GATEFLOW-007)."""
+    """Opt-in closeout start smoke / Pass-2 dogfood (INIT-GATEFLOW-007)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -107,6 +107,20 @@ class WaveCloseoutFeatureConfig(BaseModel):
     prior_run_id: str = Field(
         default="",
         description="Optional Pass-1 run id audit link",
+    )
+    # W2 dogfood: after smoke enqueue, poll Pass-2 to wave-signoff (requires worker).
+    dogfood: bool = Field(
+        default=False,
+        description="When true with enabled, poll learning-extract → ground-spec → wave-signoff",
+    )
+    timeout_s: float = Field(
+        default=3600.0,
+        ge=1.0,
+        description="Dogfood poll timeout seconds",
+    )
+    assert_learning_artifact: bool = Field(
+        default=True,
+        description="When dogfood, require Learning-Extract-*.md under workspace reports_dir",
     )
     wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
 

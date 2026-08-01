@@ -62,13 +62,18 @@ features:
       meta_workspace: ""
       workspace: ""
 
-  # Closeout start smoke (INIT-GATEFLOW-007 W0):
+  # Closeout start (INIT-GATEFLOW-007):
   #   .venv/bin/python -m tests.verify.verify_wave_closeout
   # Auth/validation always run; set enabled + pr_number for happy enqueue.
+  # W2 dogfood: dogfood: true + gateflow.require_worker: true → poll Pass-2 to
+  # wave-signoff (learning-extract → ground-spec); assert Learning-Extract artifact.
   wave_closeout:
     enabled: false
     pr_number: 0
     prior_run_id: ""
+    dogfood: false
+    timeout_s: 3600
+    assert_learning_artifact: true
     wave_start:
       initiative_id: INIT-GATEFLOW-007
       wave_id: W0
@@ -76,7 +81,9 @@ features:
       branch_slug: closeout-start
       runner: cursor
       model_id: cursor/auto
+      # Absolute checkout with tip under test (dogfood reads Learning-Extract here)
       workspace: ""
+
 
 forge:
   org: drivestream-lab
