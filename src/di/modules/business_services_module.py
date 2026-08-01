@@ -7,6 +7,7 @@ from src.business_services.board_service import BoardService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.job_worker_service import JobWorkerService
+from src.business_services.learning_ingest_service import LearningIngestService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.notifier import Notifier
@@ -37,4 +38,5 @@ class BusinessServicesModule(Module):
         binder.bind(WaveStartService, scope=singleton)
         binder.bind(BoardService, scope=singleton)
         binder.bind(ForgeActionService, scope=singleton)
+        binder.bind(LearningIngestService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)

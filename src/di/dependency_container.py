@@ -30,6 +30,7 @@ def configure_container() -> Injector:
     from src.business_services.forge_action_service import ForgeActionService
     from src.business_services.handoff_reader import HandoffReader
     from src.business_services.job_worker_service import JobWorkerService
+    from src.business_services.learning_ingest_service import LearningIngestService
     from src.business_services.meta_pr_intake import MetaPrIntakeService
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
@@ -92,6 +93,7 @@ def configure_container() -> Injector:
             WaveStartService,
             BoardService,
             ForgeActionService,
+            LearningIngestService,
             RunOrchestrator,
         )
         logger.info("DI container configured successfully")

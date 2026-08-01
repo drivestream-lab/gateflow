@@ -124,6 +124,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Adapter registry / SlotValidator fail-closed | — | `test_slot_validator` |
 | API implement-lane start Enter-at (FR-15 / REQ-14) | `python -m tests.verify.verify_wave_start` (in `verify_all`) | `test_wave_start` |
 | API closeout start Enter-at `learning-extract` (INIT-007 W0) | `python -m tests.verify.verify_wave_closeout` | `test_wave_closeout` |
+| Learning Postgres ingest after `learning-extract` (INIT-007 W1) | — (unit only; live dogfood in W2) | `test_learning_ingest` |
 | API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
 | Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |

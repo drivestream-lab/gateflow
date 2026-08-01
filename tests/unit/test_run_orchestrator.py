@@ -178,6 +178,9 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "run_event_repository": run_event_repo,
         "stage_repository": stage_repo,
         "prompt_resolver": prompt_resolver,
+        "learning_ingest_service": MagicMock(
+            ingest_after_learning_extract=AsyncMock(return_value=None)
+        ),
     }
     defaults.update(overrides)
     orch = RunOrchestrator(**defaults)

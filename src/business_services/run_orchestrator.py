@@ -12,6 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
+from src.business_services.learning_ingest_service import (
+    LEARNING_EXTRACT_NODE,
+    LearningIngestService,
+)
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.notifier import Notifier
@@ -71,6 +75,7 @@ class RunOrchestrator(BaseBusinessService):
         run_event_repository: RunEventRepository,
         stage_repository: StageRepository,
         prompt_resolver: PromptResolver,
+        learning_ingest_service: LearningIngestService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -78,6 +83,7 @@ class RunOrchestrator(BaseBusinessService):
         self._policy_engine = policy_engine
         self._workflow_engine = workflow_engine
         self._handoff_reader = handoff_reader
+        self._learning_ingest_service = learning_ingest_service
         self._notifier = notifier
         self._metrics_emitter = metrics_emitter
         self._launchpad_client = launchpad_client
@@ -355,6 +361,36 @@ class RunOrchestrator(BaseBusinessService):
                         org=context.org,
                         repo=context.repo,
                     )
+
+                if next_node.node_id == LEARNING_EXTRACT_NODE:
+                    try:
+                        tip_raw = handoff.signals.get("tip_sha")
+                        source_sha = str(tip_raw).strip() if tip_raw else None
+                        prior_raw = payload.get("prior_run_id")
+                        prior_run_id: Optional[UUID] = None
+                        if prior_raw:
+                            prior_run_id = UUID(str(prior_raw))
+                        await self._learning_ingest_service.ingest_after_learning_extract(
+                            session,
+                            run,
+                            workspace_path,
+                            source_sha=source_sha,
+                            prior_run_id=prior_run_id,
+                        )
+                    except (ValueError, TypeError) as exc:
+                        return await self._finalize_run(
+                            session,
+                            run,
+                            status_type=RunStatusType.FAILED,
+                            outcome_type=RunOutcomeType.FAILED,
+                            stop_reason=str(exc),
+                            workflow_node=next_node.node_id,
+                            dispatched=True,
+                            notify_pending=notify_pending,
+                            issue_ref=issue_ref,
+                            org=context.org,
+                            repo=context.repo,
+                        )
 
                 if handoff.outcome == "findings":
                     retry_counter += 1
