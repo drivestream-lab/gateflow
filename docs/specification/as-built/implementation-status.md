@@ -208,14 +208,14 @@
 |------------|------|------|------|-------------|-------|
 | Closeout start API | REQ-1…8, REQ-13 | `POST /api/v1/waves/closeout/start` | `test_wave_closeout` | `verify_wave_closeout` smoke — **human_approved** | Fixed Enter-at `learning-extract`; required PR bind; no meta / no client `start_node` |
 | Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood | `learning-extract` → `ground-spec` → `wave-signoff` |
-| Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` | `test_learning_ingest` | W2 dogfood | W1 unit: parse/upsert/orchestrator hook; human Alembic required for live DB; no skill→HTTP (H6) |
+| Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` + Alembic `cc5feda8fe3d` | `test_learning_ingest` | W2 dogfood (live rows) | W1 unit + human migration; orchestrator publish→handoff→ingest; no skill→HTTP (H6) |
 | Pass-2 full prove-it | REQ-14…17 | — | — | — | W2 — deepen `verify_wave_closeout` |
 
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
 | W0 closeout start | **human_approved** — merged [#101](https://github.com/drivestream-lab/gateflow/pull/101) @ `e1604fd`; Ground-Report W0 **pass**; live smoke **human_approved** |
-| W1 learning ingest | **in progress** — ORM + `LearningIngestService` + orchestrator hook (unit); human Alembic pending; live ingest evidence in W2 |
+| W1 learning ingest | **Ground pass** — [`Ground-Report-INIT-GATEFLOW-007-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-007-W1.md); tip `317f5c5` / [#102](https://github.com/drivestream-lab/gateflow/pull/102); as-built **pending human_approved** at wave-signoff |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -248,11 +248,11 @@ cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
-**INIT-GATEFLOW-007 (2026-07-31):** Product INIT **draft**. **W0** closeout start
+**INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** closeout start
 **human_approved** (merged #101 @ `e1604fd`). **W1** learning Postgres ingest —
-ORM schema + repository + `LearningIngestService` + orchestrator hook after
-`learning-extract` (publish → handoff → ingest); unit via `test_learning_ingest`.
-Human Alembic for `learning_extracts` / `learning_items` still required before live
-DB rows. Pass-2 full dogfood remains W2. Board
+Ground Report **pass** at tip `317f5c5` / Draft [#102](https://github.com/drivestream-lab/gateflow/pull/102);
+human Alembic `cc5feda8fe3d`; unit ingest + orchestrator hook; human `verify_all`
+**approved**; as-built W1 **pending human_approved** at wave-signoff. Live learning
+row / Pass-2 dogfood remains W2. Board
 [#84](https://github.com/drivestream-lab/gateflow/issues/84) /
 [#86](https://github.com/drivestream-lab/gateflow/issues/86).
