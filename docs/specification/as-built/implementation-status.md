@@ -215,7 +215,7 @@
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
 | W0 closeout start | **human_approved** — merged [#101](https://github.com/drivestream-lab/gateflow/pull/101) @ `e1604fd`; Ground-Report W0 **pass**; live smoke **human_approved** |
-| W1 learning ingest | **Ground pass** — [`Ground-Report-INIT-GATEFLOW-007-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-007-W1.md); tip `317f5c5` / [#102](https://github.com/drivestream-lab/gateflow/pull/102); as-built **pending human_approved** at wave-signoff |
+| W1 learning ingest | **human_approved** — merged [#102](https://github.com/drivestream-lab/gateflow/pull/102) @ `c4ce8f6`; Ground-Report W1 **pass**; human Alembic `cc5feda8fe3d`; live `verify_all` **approved** |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -249,10 +249,8 @@ unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
 **INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** closeout start
-**human_approved** (merged #101 @ `e1604fd`). **W1** learning Postgres ingest —
-Ground Report **pass** at tip `317f5c5` / Draft [#102](https://github.com/drivestream-lab/gateflow/pull/102);
-human Alembic `cc5feda8fe3d`; unit ingest + orchestrator hook; human `verify_all`
-**approved**; as-built W1 **pending human_approved** at wave-signoff. Live learning
-row / Pass-2 dogfood remains W2. Board
-[#84](https://github.com/drivestream-lab/gateflow/issues/84) /
-[#86](https://github.com/drivestream-lab/gateflow/issues/86).
+**human_approved** (merged #101 @ `e1604fd`). **W1** learning Postgres ingest
+**human_approved** (merged #102 @ `c4ce8f6`; Ground-Report W1 **pass**; Alembic
+`cc5feda8fe3d`). Live learning row / full Pass-2 dogfood remains **W2**
+([#87](https://github.com/drivestream-lab/gateflow/issues/87)). Board
+[#84](https://github.com/drivestream-lab/gateflow/issues/84).
