@@ -207,9 +207,9 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Closeout start API | REQ-1…8, REQ-13 | `POST /api/v1/waves/closeout/start` | `test_wave_closeout` | `verify_wave_closeout` smoke — **human_approved** | Fixed Enter-at `learning-extract`; required PR bind; no meta / no client `start_node` |
-| Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood (script ready) | `learning-extract` → `ground-spec` → `wave-signoff` |
-| Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` + Alembic `cc5feda8fe3d` | `test_learning_ingest` | W2 dogfood (artifact assert; DB via Live-Verify SQL) | W1 unit + human migration; orchestrator publish→handoff→ingest; no skill→HTTP (H6) |
-| Pass-2 full prove-it (implement) | REQ-14, REQ-17 | `verify_wave_closeout` `dogfood: true` | — | **pending human** Live-Verify | Opt-in poll to `wave-signoff` + Learning-Extract file; fill run id / tip after sandbox |
+| Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood — **human_approved** | `learning-extract` → `ground-spec` → `wave-signoff` |
+| Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` + Alembic `cc5feda8fe3d` | `test_learning_ingest` | W2 dogfood — **human_approved** | W1 unit + human migration; orchestrator publish→handoff→ingest; no skill→HTTP (H6) |
+| Pass-2 full prove-it (implement) | REQ-14, REQ-17 | `verify_wave_closeout` `dogfood: true` | — | **human_approved** | Merged [#107](https://github.com/drivestream-lab/gateflow/pull/107) @ `cd2640d`; see [`Live-Verify-INIT-GATEFLOW-007-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-007-W2.md) |
 | Spec-lane closeout (REQ-15) | REQ-15 | same route | — | **PE-waived deferral** | Implement-lane dogfood first (Q-6); spec-lane closeout live deferred — same Enter-at/API; no separate verify script this wave |
 
 | Gap | Status |
@@ -217,7 +217,7 @@
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
 | W0 closeout start | **human_approved** — merged [#101](https://github.com/drivestream-lab/gateflow/pull/101) @ `e1604fd`; Ground-Report W0 **pass**; live smoke **human_approved** |
 | W1 learning ingest | **human_approved** — merged [#102](https://github.com/drivestream-lab/gateflow/pull/102) @ `c4ce8f6`; Ground-Report W1 **pass**; human Alembic `cc5feda8fe3d`; live `verify_all` **approved** |
-| W2 Pass-2 dogfood | **in progress** — `feature/INIT-GATEFLOW-007-w2-closeout-prove` / [#87](https://github.com/drivestream-lab/gateflow/issues/87); script deepened; live run id / tip / L-* cite **pending human** `verify_wave_closeout` dogfood |
+| W2 Pass-2 dogfood | **human_approved** — merged [#107](https://github.com/drivestream-lab/gateflow/pull/107) @ `cd2640d`; Live-Verify **human_approved**; REQ-15 PE-waived |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -250,10 +250,8 @@ cut over (implement/spec); ambient handoff scan removed; meta accept + dual bind
 unit-wired. Still open: live forge dogfood, human Alembic for `runs.meta_*`,
 pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
-**INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** / **W1**
-**human_approved** (#101 / #102). **W2** deepens `verify_wave_closeout` with
-`dogfood: true` (Pass-2 → `wave-signoff` + Learning-Extract artifact); live sandbox
-evidence **pending human**. **REQ-15** spec-lane closeout live **PE-waived deferred**
-(implement path first; same closeout API). Board
+**INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** / **W1** / **W2**
+**human_approved** (#101 / #102 / #107 @ `cd2640d`). W2: `verify_wave_closeout`
+dogfood **human_approved**; **REQ-15** spec-lane closeout live **PE-waived**. Board
 [#84](https://github.com/drivestream-lab/gateflow/issues/84) /
 [#87](https://github.com/drivestream-lab/gateflow/issues/87).
