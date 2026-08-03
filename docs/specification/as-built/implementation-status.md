@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-07-30 |
-| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0 closeout start in flight; pin `v0.5.0-rc.2` ≡ submodule `355f403` |
+| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 W0 pending wave-signoff; pin `v0.5.0-rc.2` ≡ submodule `72ad383` |
 
 ## Engineering lane naming
 
@@ -201,6 +201,25 @@
 | Pin `workmanifest_contract` before board create | REQ-13, REQ-14 | `run_workmanifest_contract` + `execute_create_board_tickets` | `test_forge_action_service`, `test_forge_merge` | `verify_board` launchpad reject | Accept only `prayog/v1` |
 | Board create remains explicit authorize | REQ-15 | pin `board-tickets-action` + policy STOP | `test_board_tickets_action_remains_explicit_*` | — | Never APPLY_FORGE |
 | Feature map / as-built / REQ-17 | REQ-16, REQ-17 | as-built, `tests/README.md`, `docs/specification/README.md` | — | review | 007 dogfood after 008 on develop |
+
+## INIT-GATEFLOW-009 — both-lane factory prove-out (draft)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Pin consume (`v0.5.0-rc.2` family) | REQ-1 | `.harness-pin.yaml` + submodule | `make test` regression | N/A — W0 inspection | Submodule `72ad383` == tag tip; `spec-draft` orchestrated |
+| W0 prove-out checklist | REQ-2 | `W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` | — | N/A — P15 N/A | Meta Gate 1, dual workspace, token, reviewer steps, W1 verify knobs |
+| Spec Pass-1 live prove-out | REQ-3…REQ-9 | existing APIs + pin walker | unit regression | **deferred W1** — `verify_spec_lane` | Checklist + plan §2 W1 |
+| Spec-lane wrap-up live | REQ-10…REQ-12 | closeout route (INIT-007) | — | **deferred W2** — `verify_wave_closeout` | Lifts REQ-15 deferral for programme exit |
+| Authorize API live | REQ-13…REQ-15 | forge authorize path | unit regression | **deferred W3** — `verify_authorize` | |
+| Feature readiness freeze + CI | REQ-16…REQ-20 | — | — | **deferred W3** | Placeholder CI today |
+
+| Gap | Status |
+|-----|--------|
+| Product INIT | **Draft** — [`product/INIT-GATEFLOW-009-gateflow.md`](../product/INIT-GATEFLOW-009-gateflow.md); spec PR [#119](https://github.com/drivestream-lab/gateflow/pull/119) merged with `spec-lgtm` |
+| W0 pin + checklist | **pending human_approved** — Draft PR [#126](https://github.com/drivestream-lab/gateflow/pull/126) @ `1605575`; Ground-Report W0 **pass**; Live-Verify human tip pass (P15 N/A); merge at `wave-signoff` |
+| W1 spec-lane prove-out | **not started** — board [#122](https://github.com/drivestream-lab/gateflow/issues/122) |
+| W2 closeout prove-out | **not started** — board [#123](https://github.com/drivestream-lab/gateflow/issues/123) |
+| W3 authorize + freeze + CI | **not started** — board [#124](https://github.com/drivestream-lab/gateflow/issues/124) |
 
 ## INIT-GATEFLOW-007 — wave closeout + learning DB (draft)
 
