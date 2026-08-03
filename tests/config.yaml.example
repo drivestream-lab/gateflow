@@ -62,9 +62,11 @@ features:
       meta_workspace: ""
       workspace: ""
 
-  # Closeout start (INIT-GATEFLOW-007):
+  # Closeout start (INIT-GATEFLOW-007 / Pass-2):
   #   .venv/bin/python -m tests.verify.verify_wave_closeout
   # Auth/validation always run; set enabled + pr_number for happy enqueue.
+  # Publish head is resolved from the open wave PR (pr_number) — do not invent
+  # a sibling …-{branch_slug} head. branch_slug is optional / non-binding.
   # W2 dogfood: dogfood: true + gateflow.require_worker: true → poll Pass-2 to
   # wave-signoff (learning-extract → ground-spec); assert Learning-Extract artifact.
   wave_closeout:
@@ -78,7 +80,8 @@ features:
       initiative_id: INIT-GATEFLOW-007
       wave_id: W0
       ticket_id: "85"
-      branch_slug: closeout-start
+      # Optional; ignored for publish head when pr_number is set (PR head is SSOT).
+      branch_slug: implement-lane
       runner: cursor
       model_id: cursor/auto
       # Absolute checkout with tip under test (dogfood reads Learning-Extract here)

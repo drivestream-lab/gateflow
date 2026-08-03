@@ -230,6 +230,7 @@ Keep `features.implement_lane.enabled: false` for routine smoke.
 # Smoke (W0): auth/validation always; happy enqueue when enabled:
 #   features.wave_closeout.enabled: true
 #   features.wave_closeout.pr_number: <existing wave PR>
+#   # Publish head = that PR's head.ref (branch_slug optional / non-binding)
 #   features.wave_closeout.wave_start.workspace: /absolute/path/on/tip  # optional
 #
 # Dogfood (W2): after enqueue, poll Pass-2 to wave-signoff:

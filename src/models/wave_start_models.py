@@ -152,6 +152,9 @@ class CloseoutWaveStartRequest(BaseModel):
 
     Enter-at is server-fixed to ``learning-extract`` — no client ``start_node``.
     Meta intake fields are forbidden. ``pr_number`` and absolute workspace required.
+
+    Publish head is resolved from the open wave PR (``pr_number``), not from
+    ``branch_slug``. Optional ``branch_slug`` is non-binding (ignored for head).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -161,8 +164,12 @@ class CloseoutWaveStartRequest(BaseModel):
     ticket_id: str = Field(
         description="Forge ticket/issue id (required; must agree with initiative+wave)",
     )
-    branch_slug: str = Field(
-        description="Lowercase kebab slug for the existing wave head branch",
+    branch_slug: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional; ignored for publish head. Closeout binds head from pr_number. "
+            "Kept for backward-compatible clients."
+        ),
     )
     base_branch: str = Field(description="PR base branch (merge target)")
     runner: str = Field(description="AgentRunner adapter id for learning-extract")
@@ -173,7 +180,9 @@ class CloseoutWaveStartRequest(BaseModel):
     )
     org: str
     repo: str
-    pr_number: int = Field(description="Existing wave PR number (required for Pass-2 bind)")
+    pr_number: int = Field(
+        description="Existing wave PR number — SSOT for Pass-2 publish head",
+    )
     workspace_path: str = Field(
         description="Absolute app workspace path checked out on the wave PR tip",
     )
@@ -196,8 +205,13 @@ class CloseoutWaveStartRequest(BaseModel):
 
     @field_validator("branch_slug")
     @classmethod
-    def _branch_slug(cls, value: str) -> str:
-        return validate_branch_slug(value)
+    def _branch_slug(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return validate_branch_slug(cleaned)
 
     @field_validator("base_branch")
     @classmethod
@@ -225,10 +239,6 @@ class CloseoutWaveStartRequest(BaseModel):
             raise ValueError("workspace_path must be an absolute path")
         return self
 
-    def head_branch(self) -> str:
-        """Deterministic PR head from validated identity fields."""
-        return build_wave_head_branch(self.initiative_id, self.wave_id, self.branch_slug)
-
     def build_dispatch_plan(self) -> DispatchPlan:
         """Build inherit-capable dispatch plan from start fields + node_dispatch."""
         return DispatchPlan(
@@ -236,12 +246,16 @@ class CloseoutWaveStartRequest(BaseModel):
             nodes=dict(self.node_dispatch),
         )
 
-    def as_targeting_fields(self) -> WaveStartTargetingFields:
-        """Project into shared targeting with fixed closeout Enter-at."""
+    def as_targeting_fields(self, *, branch_slug: str) -> WaveStartTargetingFields:
+        """Project into shared targeting with fixed closeout Enter-at.
+
+        ``branch_slug`` must already be resolved for job payload compatibility
+        (derived from PR head when the client omitted it).
+        """
         return WaveStartTargetingFields(
             initiative_id=self.initiative_id,
             wave_id=self.wave_id,
-            branch_slug=self.branch_slug,
+            branch_slug=branch_slug,
             base_branch=self.base_branch,
             start_node=CLOSEOUT_START_NODE,
             runner=self.runner,
@@ -292,6 +306,13 @@ class WaveStartJobPayload(BaseModel):
     prior_run_id: Optional[str] = Field(
         default=None,
         description="Optional Pass-1 run id audit link (closeout only)",
+    )
+    head_ref: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resolved publish head (closeout: open wave PR head.ref). "
+            "When set, orchestrator must not invent head from branch_slug."
+        ),
     )
 
     def to_job_payload_document(self) -> JobPayloadDocument:

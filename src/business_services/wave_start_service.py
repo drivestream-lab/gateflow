@@ -23,8 +23,10 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
+from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
 from src.models.meta_pr_models import MetaPrAcceptResult
+from src.models.pr_branch_naming import branch_slug_from_head_ref
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import (
@@ -51,6 +53,7 @@ class WaveStartService(BaseBusinessService):
         run_repository: RunRepository,
         job_repository: JobRepository,
         meta_pr_intake: MetaPrIntakeService,
+        forge_client: ForgeClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -60,6 +63,7 @@ class WaveStartService(BaseBusinessService):
         self._run_repository = run_repository
         self._job_repository = job_repository
         self._meta_pr_intake = meta_pr_intake
+        self._forge_client = forge_client
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -147,7 +151,22 @@ class WaveStartService(BaseBusinessService):
             wave_id=request.wave_id,
             issue_number=request.issue_number,
         )
-        targeting = request.as_targeting_fields()
+        head_ref = await self._resolve_closeout_pr_head(request)
+        # branch_slug is non-binding for publish; derive for job payload only.
+        payload_slug = branch_slug_from_head_ref(
+            head_ref,
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+        )
+        if request.branch_slug is not None and request.branch_slug != payload_slug:
+            self.logger.info(
+                "Closeout branch_slug ignored for publish head (PR head is SSOT)",
+                pr_number=request.pr_number,
+                branch_slug=request.branch_slug,
+                head_ref=head_ref,
+                derived_slug=payload_slug,
+            )
+        targeting = request.as_targeting_fields(branch_slug=payload_slug)
         return await self._enqueue_wave(
             targeting,
             initiative_id=initiative_id,
@@ -159,7 +178,75 @@ class WaveStartService(BaseBusinessService):
             meta_workspace_path=None,
             prior_run_id=request.prior_run_id,
             lane="closeout",
+            head_ref=head_ref,
         )
+
+    async def _resolve_closeout_pr_head(self, request: CloseoutWaveStartRequest) -> str:
+        """Resolve publish head from the open wave PR (SSOT for Pass-2)."""
+        try:
+            pr = await self._forge_client.get_pull_request(
+                request.org,
+                request.repo,
+                request.pr_number,
+            )
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            if status == 404:
+                raise ValidationError(
+                    message=f"wave PR #{request.pr_number} not found",
+                    field_errors={"pr_number": "not_found"},
+                ) from exc
+            self.logger.error(
+                "Closeout PR fetch failed",
+                pr_number=request.pr_number,
+                status_code=status,
+                error=str(exc),
+                exc_info=True,
+            )
+            raise ServiceUnavailableError(
+                service_name="forge",
+                message="Unable to resolve wave PR for closeout head bind",
+            ) from exc
+        except httpx.HTTPError as exc:
+            self.logger.error(
+                "Closeout PR fetch forge failure",
+                pr_number=request.pr_number,
+                error=str(exc),
+                exc_info=True,
+            )
+            raise ServiceUnavailableError(
+                service_name="forge",
+                message="Unable to resolve wave PR for closeout head bind",
+            ) from exc
+
+        state = (pr.state or "").strip().lower()
+        if state != "open":
+            raise ValidationError(
+                message=f"wave PR #{request.pr_number} must be open (got {state!r})",
+                field_errors={"pr_number": "must_be_open"},
+            )
+        head_ref = (pr.head.ref or "").strip()
+        if not head_ref:
+            raise ValidationError(
+                message=f"wave PR #{request.pr_number} has empty head.ref",
+                field_errors={"pr_number": "missing_head_ref"},
+            )
+        base_ref = (pr.base.ref or "").strip()
+        if base_ref != request.base_branch:
+            raise ValidationError(
+                message=(
+                    f"wave PR #{request.pr_number} base {base_ref!r} does not match "
+                    f"request base_branch {request.base_branch!r}"
+                ),
+                field_errors={"base_branch": "mismatch"},
+            )
+        self.logger.info(
+            "Closeout publish head resolved from wave PR",
+            pr_number=request.pr_number,
+            head_ref=head_ref,
+            base_ref=base_ref,
+        )
+        return head_ref
 
     async def _enqueue_wave(
         self,
@@ -174,8 +261,18 @@ class WaveStartService(BaseBusinessService):
         meta_workspace_path: Optional[str],
         prior_run_id: Optional[UUID],
         lane: str,
+        head_ref: Optional[str] = None,
     ) -> WaveStartResponse:
-        _ = request.head_branch()
+        if head_ref is None:
+            _ = request.head_branch()
+        else:
+            # Closeout: publish head is PR-bound; slug formula must not invent a head.
+            _ = head_ref.strip()
+            if not _:
+                raise ValidationError(
+                    message="head_ref must be non-empty when provided",
+                    field_errors={"head_ref": "required"},
+                )
 
         try:
             handoff_root = self._orchestration.require_handoff_root()
@@ -300,6 +397,7 @@ class WaveStartService(BaseBusinessService):
                     meta_head_sha=meta_accept.meta_head_sha if meta_accept else None,
                     meta_workspace_path=meta_workspace_path if meta_accept else None,
                     prior_run_id=str(prior_run_id) if prior_run_id is not None else None,
+                    head_ref=head_ref.strip() if head_ref else None,
                 )
                 job = await self._job_repository.enqueue(
                     session,
