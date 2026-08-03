@@ -6,13 +6,13 @@ date_created: 2026-08-03
 source_spec: docs/specification/product/INIT-GATEFLOW-009-gateflow.md
 source_spec_digest: sha256:f4c93f4a13bb72617555fe320b3926130a0885ede45f9574c4ff1a09e2cad642
 feasibility_report: docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-009.md
-feasibility_digest: sha256:99dec941857a7e8112d9ec6d4b3821feca2b34f9019495a20a6a6ae0020caa31
+feasibility_digest: sha256:36d16d9c31d43ebbed356f36efc415f30978c29821755cc328aa7b41f12ce0ca
 technical_review: docs/specification/reports/Technical-Review-INIT-GATEFLOW-009.md
-technical_review_digest: sha256:7ec5a04c91ef9e6dfd68dbafc8c58619bf2a109eb32700a537b9d3dba64cd911
+technical_review_digest: sha256:b314173e7e35104bbb62730816c9d94947057b6ae56eb3b45be82046af079562
 prd_digest: sha256:76ab22b3c197b9d0cb6b08e6cea377c4e07b3a471b8a88203fddca6014c1c012
 impact_map: prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-009.md
 impact_map_revision: 1
-repo_scope_digest: sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217022dda242a99b3392978e9b
+repo_scope_digest: sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217092dda242a99b3392978e9b
 approved_meta_pr_head: 6660aa4fefbcd80324cb970aa5bab642d3e5e0a1
 branch: feature/INIT-GATEFLOW-009-w0-spec-lane
 review_deadline: 2026-08-06
@@ -26,8 +26,8 @@ deciders: PE @drivestream-lab/prayog-pe-team
 | Item | Value | Status |
 |------|-------|--------|
 | Spec / digest | `docs/specification/product/INIT-GATEFLOW-009-gateflow.md` / `sha256:f4c93f4a…` | CURRENT |
-| Feasibility / digest | `…/Initiative-Feasibility-Report-INIT-GATEFLOW-009.md` / `sha256:99dec941…` | CURRENT |
-| Technical review / digest | `…/Technical-Review-INIT-GATEFLOW-009.md` / `sha256:7ec5a04c…` | CURRENT — **Accepted** |
+| Feasibility / digest | `…/Initiative-Feasibility-Report-INIT-GATEFLOW-009.md` / `sha256:36d16d9c…` | CURRENT |
+| Technical review / digest | `…/Technical-Review-INIT-GATEFLOW-009.md` / `sha256:b314173e…` | CURRENT — **Accepted** |
 | Impact map / revision | `prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-009.md` / `1` | CURRENT |
 | Repo scope digest | `sha256:d0a2b626…` | CURRENT |
 | Approved meta PR head | `6660aa4fefbcd80324cb970aa5bab642d3e5e0a1` | CURRENT |
@@ -745,7 +745,7 @@ handoff:
     tdd_status: Accepted
     ready_for_plan: true
     prd_digest: "sha256:76ab22b3c197b9d0cb6b08e6cea377c4e07b3a471b8a88203fddca6014c1c012"
-    scope_digest: "sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217022dda242a99b3392978e9b"
+    scope_digest: "sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217092dda242a99b3392978e9b"
     impact_map_revision: 1
     approved_meta_pr_head: "6660aa4fefbcd80324cb970aa5bab642d3e5e0a1"
     check_command: "make check"
