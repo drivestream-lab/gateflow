@@ -16,7 +16,7 @@
 | Date | 2026-08-03 |
 | Branch | `chore/INIT-GATEFLOW-009-spec-gateflow` (Draft spec PR — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-009` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-10 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
 
@@ -402,7 +402,7 @@ handoff:
     draft_adr_paths: []
     draft_adr_digests: []
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
     findings_critical: 0
     findings_should_fix: 0
     pe_questions_resolved: "Q-1,Q-2,Q-3,Q-4"
