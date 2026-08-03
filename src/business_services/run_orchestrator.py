@@ -938,14 +938,23 @@ class RunOrchestrator(BaseBusinessService):
         )
 
     def _require_run_head_branch(self, *, run: RunModel, payload: dict[str, Any]) -> str:
-        """Bind publish head from wave PR targeting on the job payload (pin forbids forge.head)."""
+        """Bind publish head from job payload (pin forbids forge.head).
+
+        Closeout Pass-2 sets ``head_ref`` from the open wave PR. When present,
+        that ref is SSOT — do not invent a head from ``branch_slug``.
+        """
+        raw_head = payload.get("head_ref")
+        if isinstance(raw_head, str) and raw_head.strip():
+            return raw_head.strip()
+
         initiative_id = run.initiative_id or payload.get("initiative_id")
         wave_id = run.wave_id or payload.get("wave_id")
         branch_slug = payload.get("branch_slug")
         if not initiative_id or not wave_id or not branch_slug:
             raise ValueError(
                 "Stage forge commit requires initiative_id, wave_id, and branch_slug "
-                "on the run/job payload to bind the run head branch"
+                "on the run/job payload to bind the run head branch "
+                "(or head_ref when closeout-bound to a wave PR)"
             )
         return build_wave_head_branch(
             str(initiative_id),
@@ -965,25 +974,38 @@ class RunOrchestrator(BaseBusinessService):
         if run.id is None:
             raise RuntimeError("Run missing id before ensure_branch")
 
-        initiative_id = run.initiative_id or payload.get("initiative_id")
-        wave_id = run.wave_id or payload.get("wave_id")
-        branch_slug = payload.get("branch_slug")
         base_branch = payload.get("base_branch")
-        if not initiative_id or not wave_id or not branch_slug or not base_branch:
+        if not base_branch:
             raise ValueError(
-                "ensure_branch requires initiative_id, wave_id, branch_slug, and "
-                "base_branch on the wave-start job payload (caller-owned targeting)"
+                "ensure_branch requires base_branch on the wave-start job payload "
+                "(caller-owned targeting)"
             )
 
-        try:
-            head = build_wave_head_branch(
-                str(initiative_id),
-                str(wave_id),
-                str(branch_slug),
-            )
-            base = validate_base_branch(str(base_branch))
-        except ValueError as exc:
-            raise ValueError(f"Invalid branch targeting for run start: {exc}") from exc
+        raw_head = payload.get("head_ref")
+        if isinstance(raw_head, str) and raw_head.strip():
+            head = raw_head.strip()
+            try:
+                base = validate_base_branch(str(base_branch))
+            except ValueError as exc:
+                raise ValueError(f"Invalid branch targeting for run start: {exc}") from exc
+        else:
+            initiative_id = run.initiative_id or payload.get("initiative_id")
+            wave_id = run.wave_id or payload.get("wave_id")
+            branch_slug = payload.get("branch_slug")
+            if not initiative_id or not wave_id or not branch_slug:
+                raise ValueError(
+                    "ensure_branch requires initiative_id, wave_id, branch_slug, and "
+                    "base_branch on the wave-start job payload (caller-owned targeting)"
+                )
+            try:
+                head = build_wave_head_branch(
+                    str(initiative_id),
+                    str(wave_id),
+                    str(branch_slug),
+                )
+                base = validate_base_branch(str(base_branch))
+            except ValueError as exc:
+                raise ValueError(f"Invalid branch targeting for run start: {exc}") from exc
 
         try:
             await self._forge_client.ensure_branch_from_base(

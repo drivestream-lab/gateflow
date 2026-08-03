@@ -13,12 +13,21 @@ class GithubPullRequestLabel(BaseModel):
     name: str = Field(default="")
 
 
-class GithubPullRequestHead(BaseModel):
-    """Minimal GitHub PR head shape."""
+class GithubPullRequestRef(BaseModel):
+    """Minimal GitHub PR head/base ref shape (branch tip)."""
 
     model_config = ConfigDict(extra="ignore")
 
+    ref: str = Field(default="", description="Branch name, e.g. feature/INIT-…-w0-…")
     sha: str = Field(default="")
+
+
+class GithubPullRequestHead(GithubPullRequestRef):
+    """Minimal GitHub PR head shape (compat alias)."""
+
+
+class GithubPullRequestBase(GithubPullRequestRef):
+    """Minimal GitHub PR base shape."""
 
 
 class GithubPullRequestDocument(BaseModel):
@@ -28,8 +37,10 @@ class GithubPullRequestDocument(BaseModel):
 
     title: str = Field(default="")
     body: Optional[str] = Field(default=None)
+    state: str = Field(default="", description="open | closed")
     labels: list[GithubPullRequestLabel] = Field(default_factory=list)
     head: GithubPullRequestHead = Field(default_factory=GithubPullRequestHead)
+    base: GithubPullRequestBase = Field(default_factory=GithubPullRequestBase)
 
 
 class GithubIssueLabel(BaseModel):

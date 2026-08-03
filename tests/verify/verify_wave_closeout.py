@@ -53,7 +53,6 @@ def _closeout_body(cfg: Any, *, workspace: Path) -> dict[str, Any]:
     initiative = ws.initiative_id or "INIT-GATEFLOW-007"
     wave_id = ws.wave_id or "W0"
     ticket = ws.ticket_id or "85"
-    branch_slug = ws.branch_slug or "closeout-start"
     workspace_path = ws.workspace.strip() if ws.workspace.strip() else str(workspace)
     pr_number = closeout.pr_number
     body: dict[str, Any] = {
@@ -62,13 +61,16 @@ def _closeout_body(cfg: Any, *, workspace: Path) -> dict[str, Any]:
         "initiative_id": initiative,
         "wave_id": wave_id,
         "ticket_id": ticket,
-        "branch_slug": branch_slug,
         "base_branch": cfg.gateflow.base_branch,
         "runner": ws.runner or "cursor",
         "model_id": ws.model_id or "cursor/auto",
         "pr_number": pr_number,
         "workspace_path": workspace_path,
     }
+    # Optional / non-binding — API resolves publish head from pr_number.
+    slug = ws.branch_slug.strip() if ws.branch_slug else ""
+    if slug:
+        body["branch_slug"] = slug
     if closeout.prior_run_id.strip():
         body["prior_run_id"] = closeout.prior_run_id.strip()
     return body

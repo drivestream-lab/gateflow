@@ -69,3 +69,29 @@ def build_wave_head_branch(
     wave_token = normalize_wave_token(wave_id)
     slug = validate_branch_slug(branch_slug)
     return f"feature/{initiative}-{wave_token}-{slug}"
+
+
+def branch_slug_from_head_ref(
+    head_ref: str,
+    *,
+    initiative_id: str,
+    wave_id: str,
+) -> str:
+    """Derive a job-payload ``branch_slug`` from an existing PR head ref.
+
+    When the head matches ``feature/{INIT}-{wn}-{slug}``, return ``slug``.
+    Otherwise return a stable placeholder ``wave-pr`` (valid kebab) so closeout
+    can omit client ``branch_slug`` while still filling WaveStartJobPayload.
+    """
+    cleaned = head_ref.strip()
+    if not cleaned:
+        raise ValueError("head_ref must be non-empty")
+    initiative = validate_initiative_id(initiative_id)
+    wave_token = normalize_wave_token(wave_id)
+    prefix = f"feature/{initiative}-{wave_token}-"
+    if cleaned.startswith(prefix):
+        remainder = cleaned[len(prefix) :]
+        if remainder and _BRANCH_SLUG_RE.fullmatch(remainder):
+            if not _BRANCH_SLUG_WAVE_PREFIX_RE.match(remainder):
+                return remainder
+    return "wave-pr"
