@@ -127,7 +127,16 @@ def _git_porcelain(root: Path) -> list[str]:
 
 
 def _git_diff_name_only(root: Path, base_ref: str) -> list[str]:
-    """Files changed between ``base_ref`` and ``HEAD`` (Added/Copied/Modified/Renamed)."""
+    """Files changed between ``base_ref`` and ``HEAD`` (Added/Copied/Modified/Renamed).
+
+    This is a **safety net** for mistaken local commits ahead of the remote tip.
+    When ``base_ref`` is a remote SHA that has not been fetched into the local
+    object database (e.g. a bootstrap commit created on GitHub by
+    ``ensure_branch_from_base``), git emits ``fatal: Invalid revision range``
+    or ``bad revision``.  In that case we degrade to ``[]`` — the primary
+    dirty/untracked collection in :func:`collect_commit_paths` still publishes
+    the agent's actual output.
+    """
     proc = subprocess.run(
         [
             "git",
@@ -144,6 +153,8 @@ def _git_diff_name_only(root: Path, base_ref: str) -> list[str]:
     )
     if proc.returncode != 0:
         err = (proc.stderr or proc.stdout or "").strip()
+        if _is_unknown_revision_error(err):
+            return []
         raise ValueError(f"git diff {base_ref}..HEAD failed in {root}: {err or proc.returncode}")
 
     paths: list[str] = []
@@ -156,6 +167,19 @@ def _git_diff_name_only(root: Path, base_ref: str) -> list[str]:
             continue
         paths.append(str(rel))
     return paths
+
+
+def _is_unknown_revision_error(stderr: str) -> bool:
+    """True when git cannot resolve ``base_ref`` locally (remote-only SHA)."""
+    markers = (
+        "Invalid revision range",
+        "bad revision",
+        "bad object",
+        "Not a valid commit name",
+        "ambiguous argument",
+        "no such commit",
+    )
+    return any(m.lower() in stderr.lower() for m in markers)
 
 
 def _is_denied(rel: str, *, root: Path, handoff_root: Path | None) -> bool:
