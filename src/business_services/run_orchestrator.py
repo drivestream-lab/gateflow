@@ -390,6 +390,7 @@ class RunOrchestrator(BaseBusinessService):
                             issue_ref=issue_ref,
                             org=context.org,
                             repo=context.repo,
+                            handoff=handoff,
                         )
 
                 if handoff.outcome == "findings":
@@ -438,6 +439,7 @@ class RunOrchestrator(BaseBusinessService):
                             issue_ref=issue_ref,
                             org=context.org,
                             repo=context.repo,
+                            handoff=handoff,
                         )
                     if apply_result.get("pr_number") is not None:
                         refreshed = await self._run_repository.update_run(
@@ -494,6 +496,7 @@ class RunOrchestrator(BaseBusinessService):
                             issue_ref=issue_ref,
                             org=context.org,
                             repo=context.repo,
+                            handoff=handoff,
                         )
                     # Fall through to STOP handling (e.g. live-verify)
 
@@ -512,6 +515,7 @@ class RunOrchestrator(BaseBusinessService):
                         issue_ref=issue_ref,
                         org=context.org,
                         repo=context.repo,
+                        handoff=handoff,
                     )
 
                 # STOP at gate (checkpoint / manual / terminal / findings budget)
@@ -541,6 +545,7 @@ class RunOrchestrator(BaseBusinessService):
                             issue_ref=issue_ref,
                             org=context.org,
                             repo=context.repo,
+                            handoff=handoff,
                         )
                     await self._run_event_repository.append_event(
                         session,
@@ -575,6 +580,7 @@ class RunOrchestrator(BaseBusinessService):
                     issue_ref=issue_ref,
                     org=context.org,
                     repo=context.repo,
+                    handoff=handoff,
                 )
 
     async def _run_orchestrated_stage(
@@ -1123,12 +1129,28 @@ class RunOrchestrator(BaseBusinessService):
         issue_ref: Optional[int] = None,
         org: Optional[str] = None,
         repo: Optional[str] = None,
+        handoff: Optional[HandoffEnvelope] = None,
     ) -> RunProcessSummary:
         if run.id is None:
             raise RuntimeError("Run missing id during finalize")
 
         ended_at = datetime.now(UTC)
         wave_duration_ms = self._compute_wave_duration_ms(run, ended_at)
+
+        payload: dict[str, Any] = {
+            "stop_reason": stop_reason,
+            "event_type": "run_stopped",
+            "wave_duration_ms": wave_duration_ms,
+        }
+        if handoff is not None:
+            payload["handoff_context"] = {
+                "stage": handoff.stage,
+                "outcome": handoff.outcome,
+                "blockers": list(handoff.blockers),
+                "signals": dict(handoff.signals),
+                "next_candidates": list(handoff.next_candidates),
+                "human_checkpoint": handoff.human_checkpoint,
+            }
 
         await self._run_event_repository.append_event(
             session,
@@ -1137,11 +1159,7 @@ class RunOrchestrator(BaseBusinessService):
                 event_type="run_stopped",
                 workflow_node=workflow_node,
                 outcome_type=outcome_type,
-                payload={
-                    "stop_reason": stop_reason,
-                    "event_type": "run_stopped",
-                    "wave_duration_ms": wave_duration_ms,
-                },
+                payload=payload,
             ),
         )
 
