@@ -58,8 +58,9 @@ from tests._helpers.tests_config import load_tests_config, resolve_wave_start_id
 _SPEC_LANE_NODES = ("spec-draft", "initiative-feasibility", "spec-technical-review")
 _SPEC_LANE_NODE_SET = frozenset(_SPEC_LANE_NODES)
 
-# Happy-path Cursor chain (spec-technical-review is on the findings side branch).
-_SPEC_HAPPY_CHAIN = ("spec-draft", "initiative-feasibility")
+# Happy-path Cursor chain (pin rc.2-16: initiative-feasibility pass → spec-technical-review
+# always, then technical-review-approval human STOP).
+_SPEC_HAPPY_CHAIN = ("spec-draft", "initiative-feasibility", "spec-technical-review")
 
 # Valid Pass-1 stop nodes (manual or human-checkpoint gates where the walker
 # correctly stops and waits for a human decision).
