@@ -321,8 +321,14 @@ def test_spec_requires_workspace_path(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_spec_rejects_manual_start_node(tmp_path: Path) -> None:
+    """A ``dispatch: manual`` start_node must be rejected for spec lane.
+
+    ``spec-draft`` is orchestrated on the mounted pin (v0.5.0-rc.2); use
+    ``spec-implementation-plan`` (which is ``dispatch: manual``) to exercise
+    the reject path.
+    """
     intake = MagicMock(spec=MetaPrIntakeService)
     intake.accept = AsyncMock(return_value=_meta_accept())
     service = _service(meta_pr_intake=intake)
     with pytest.raises(ValidationError, match="orchestrated"):
-        await service.start_spec_wave(_spec_req(tmp_path, start_node="spec-draft"))
+        await service.start_spec_wave(_spec_req(tmp_path, start_node="spec-implementation-plan"))
