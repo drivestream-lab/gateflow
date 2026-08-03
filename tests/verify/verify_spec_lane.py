@@ -330,11 +330,28 @@ def main() -> int:
                 return 1
 
             if stop_node not in _SPEC_STOP_NODES:
-                print(
-                    f"[ERROR] stopped at unexpected node {stop_node!r}; "
-                    f"valid stop nodes: {sorted(_SPEC_STOP_NODES)}"
-                )
-                return 1
+                # When the policy engine stops due to blockers, it short-circuits
+                # before resolve_next, so workflow_node stays at the skill that
+                # was running (e.g. spec-draft), not the gate in next_candidates
+                # (e.g. spec-human-decision).  Accept the stop if next_candidates
+                # points to a valid gate.
+                ctx = stop_payload.get("handoff_context") or {}
+                next_candidates = ctx.get("next_candidates", [])
+                blockers = ctx.get("blockers", [])
+                valid_next = [n for n in next_candidates if n in _SPEC_STOP_NODES]
+                if blockers and valid_next:
+                    gate = valid_next[0]
+                    print(
+                        f"[OK] stopped at skill node {stop_node!r} with blockers {blockers}; "
+                        f"next gate: {gate}"
+                    )
+                    stop_node = gate
+                else:
+                    print(
+                        f"[ERROR] stopped at unexpected node {stop_node!r}; "
+                        f"valid stop nodes: {sorted(_SPEC_STOP_NODES)}"
+                    )
+                    return 1
 
             print(f"[OK] stopped at valid gate: {stop_node}")
 
