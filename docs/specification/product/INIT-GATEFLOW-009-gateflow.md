@@ -207,7 +207,7 @@ handoff:
   outcome: blocked
   artifact:
     path: docs/specification/product/INIT-GATEFLOW-009-gateflow.md
-    digest: sha256:e240ea6393f37800b6e95489acff3f3e0f325a4bcbb50d6f9c0e890a252c314c
+    digest: sha256:7cd89ed7768385b42ee4c6987975c50abe54a71c159603b0cbe8ec6decec82be
   blockers:
     - Q-1
   signals:
@@ -218,6 +218,7 @@ handoff:
     impact_map_revision: 1
     prd_digest: sha256:76ab22b3c197b9d0cb6b08e6cea379c4e07b3a471b8a88203fddca6014c1c012
     scope_digest: sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217092dda242a99b3392978e9b
+    ticket_id: "7390350"
     d_checks: fail
     d1_status: fail
     d11_status: fail
