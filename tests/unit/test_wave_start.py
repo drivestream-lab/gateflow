@@ -167,6 +167,7 @@ def _service(
         run_repository=run_repo,
         job_repository=job_repo,
         meta_pr_intake=intake,
+        forge_client=MagicMock(),
     )
 
 

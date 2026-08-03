@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import httpx
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
@@ -18,6 +19,11 @@ from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.configs.orchestration_settings import OrchestrationSettings
 from src.exceptions.app_exceptions import ConflictError, ValidationError
 from src.models.adapter_models import AdapterSlotKindType
+from src.models.meta_pr_models import (
+    GithubPullRequestBase,
+    GithubPullRequestDocument,
+    GithubPullRequestHead,
+)
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import CLOSEOUT_START_NODE, CloseoutWaveStartRequest
@@ -43,7 +49,6 @@ def _closeout_req(tmp_path: Path, **overrides: object) -> CloseoutWaveStartReque
         "initiative_id": "INIT-ACME-001",
         "wave_id": "W0",
         "ticket_id": "85",
-        "branch_slug": "closeout-start",
         "base_branch": "develop",
         "runner": "cursor",
         "model_id": "cursor/auto",
@@ -54,10 +59,26 @@ def _closeout_req(tmp_path: Path, **overrides: object) -> CloseoutWaveStartReque
     return CloseoutWaveStartRequest.model_validate(body)
 
 
+def _open_wave_pr(
+    *,
+    head_ref: str = "feature/INIT-ACME-001-w0-implement-lane",
+    base_ref: str = "develop",
+    state: str = "open",
+) -> GithubPullRequestDocument:
+    return GithubPullRequestDocument(
+        title="wave",
+        state=state,
+        head=GithubPullRequestHead(ref=head_ref, sha="abc"),
+        base=GithubPullRequestBase(ref=base_ref, sha="def"),
+    )
+
+
 def _service(
     *,
     active: RunModel | None = None,
     prior_run: RunModel | None = None,
+    wave_pr: GithubPullRequestDocument | None = None,
+    get_pr_side_effect: object | None = None,
 ) -> WaveStartService:
     session = MagicMock()
 
@@ -120,6 +141,13 @@ def _service(
     metrics_emitter = MagicMock()
     metrics_emitter.record_api_trigger = AsyncMock()
     intake = MagicMock(spec=MetaPrIntakeService)
+    forge = MagicMock()
+    if get_pr_side_effect is not None:
+        forge.get_pull_request = AsyncMock(side_effect=get_pr_side_effect)
+    else:
+        forge.get_pull_request = AsyncMock(
+            return_value=wave_pr if wave_pr is not None else _open_wave_pr()
+        )
     return WaveStartService(
         postgres_service=postgres,
         slot_validator=validator,
@@ -128,6 +156,7 @@ def _service(
         run_repository=run_repo,
         job_repository=job_repo,
         meta_pr_intake=intake,
+        forge_client=forge,
     )
 
 
@@ -146,7 +175,8 @@ async def test_closeout_wave_start_ok(tmp_path: Path) -> None:
     raw = call.args[1].payload.model_dump()
     assert raw["start_node"] == CLOSEOUT_START_NODE
     assert raw["pr_number"] == 42
-    assert raw["branch_slug"] == "closeout-start"
+    assert raw["head_ref"] == "feature/INIT-ACME-001-w0-implement-lane"
+    assert raw["branch_slug"] == "implement-lane"
     assert raw["base_branch"] == "develop"
     assert raw["workspace_path"]
     assert raw.get("meta_pr_url") is None
@@ -155,6 +185,53 @@ async def test_closeout_wave_start_ok(tmp_path: Path) -> None:
     assert isinstance(create, AsyncMock)
     assert create.await_args is not None
     assert create.await_args.args[1].pr_number == 42
+    get_pr = service._forge_client.get_pull_request
+    assert isinstance(get_pr, AsyncMock)
+    get_pr.assert_awaited_once_with("acme", "widget", 42)
+
+
+@pytest.mark.asyncio
+async def test_closeout_ignores_client_branch_slug_for_head(tmp_path: Path) -> None:
+    """Client branch_slug must not invent a competing publish head."""
+    service = _service()
+    response = await service.start_closeout_wave(
+        _closeout_req(tmp_path, branch_slug="closeout-start")
+    )
+    assert response.run_id
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_args is not None
+    raw = enqueue.await_args.args[1].payload.model_dump()
+    assert raw["head_ref"] == "feature/INIT-ACME-001-w0-implement-lane"
+    assert raw["branch_slug"] == "implement-lane"
+
+
+@pytest.mark.asyncio
+async def test_closeout_rejects_closed_pr(tmp_path: Path) -> None:
+    service = _service(wave_pr=_open_wave_pr(state="closed"))
+    with pytest.raises(ValidationError, match="must be open"):
+        await service.start_closeout_wave(_closeout_req(tmp_path))
+
+
+@pytest.mark.asyncio
+async def test_closeout_rejects_base_mismatch(tmp_path: Path) -> None:
+    service = _service(wave_pr=_open_wave_pr(base_ref="main"))
+    with pytest.raises(ValidationError, match="base"):
+        await service.start_closeout_wave(_closeout_req(tmp_path))
+
+
+@pytest.mark.asyncio
+async def test_closeout_pr_not_found(tmp_path: Path) -> None:
+    response = MagicMock()
+    response.status_code = 404
+    err = httpx.HTTPStatusError(
+        "not found",
+        request=MagicMock(),
+        response=response,
+    )
+    service = _service(get_pr_side_effect=err)
+    with pytest.raises(ValidationError, match="not found"):
+        await service.start_closeout_wave(_closeout_req(tmp_path))
 
 
 @pytest.mark.asyncio
