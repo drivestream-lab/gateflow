@@ -6,9 +6,9 @@
 | Initiative | INIT-GATEFLOW-009 |
 | Wave | W0 |
 | Date | 2026-08-03 |
-| Outcome | `stale` |
-| Outcome reason | Plan § source-freshness digests and `repo_scope_digest` do not match merged upstream files / canonical spec handoff — refresh via `/spec-implementation-plan` before `/loop-spec` |
-| Wave head context | Bound by Forge/run context: `feature/INIT-GATEFLOW-009-w0-implement-lane` @ `f47042d` (remote); current checkout `develop` @ `b3fdd14` — not opened by this skill |
+| Outcome | `pass` |
+| Outcome reason | Spec merged + board seeded + WorkManifest pass + plan PE sign-off; P15 N/A; no prior-wave gate (W0) |
+| Wave head context | Recommended bind: `feature/INIT-GATEFLOW-009-w0-pin-checklist` from `develop` @ `bf5d3c6` — **not** opened by this skill; current checkout is `develop` |
 
 ---
 
@@ -20,183 +20,184 @@
 
 | Item | Required | Status |
 |------|----------|--------|
-| Branch context (read-only) | Bound head is `develop` or `feature/INIT-*-w{N}-*` — not open `chore/*-spec-*` | [x] ok — on `develop` @ `b3fdd14`; remote wave head `feature/INIT-GATEFLOW-009-w0-implement-lane` exists |
-| Spec PR merged | Implementation plan on integration branch | [x] yes — PR [#119](https://github.com/drivestream-lab/gateflow/pull/119) MERGED @ `b3fdd14` |
-| Coding-readiness at merge | Merged spec PR had `spec-lgtm` on head | [x] verified — label `spec-lgtm`; merge head `f4d1bb7…`; merge commit `b3fdd14` |
-| Board seed (read-only) | Wave issue(s) from plan §9 exist; TASK ids present in wave body | [x] seeded — EPIC [#120](https://github.com/drivestream-lab/gateflow/issues/120); W0 [#121](https://github.com/drivestream-lab/gateflow/issues/121) sub-issue of 120; W1–W3 [#122–124](https://github.com/drivestream-lab/gateflow/issues/122) |
+| Branch context (read-only) | Bound head is `develop` or `feature/INIT-*-w{N}-*` — not open `chore/*-spec-*` | [x] ok — on `develop` @ `bf5d3c6` |
+| Spec PR merged | Implementation plan on integration branch | [x] yes — PR [#119](https://github.com/drivestream-lab/gateflow/pull/119) MERGED to `develop` |
+| Coding-readiness at merge | Merged spec PR had `spec-lgtm` on head | [x] verified — labels include `spec-lgtm`; merge `b3fdd14118f1c078654ba0e8452cb83ebd2ba2f4` |
+| Board seed (read-only) | Wave issue(s) from plan §9 exist; TASK ids present in wave body | [x] seeded — EPIC [#120](https://github.com/drivestream-lab/gateflow/issues/120); W0 [#121](https://github.com/drivestream-lab/gateflow/issues/121) parent=120; W1 [#122](https://github.com/drivestream-lab/gateflow/issues/122); W2 [#123](https://github.com/drivestream-lab/gateflow/issues/123); W3 [#124](https://github.com/drivestream-lab/gateflow/issues/124) |
 | WorkManifest contract | `prayog/v1` §9 passes `scripts/workmanifest_contract.py` | [x] pass — `{"ok": true, "errors": []}` |
-| TASK exit proof | Every wave `TASK-*` has `exit.criteria` + `exit.proof` | [x] complete — W0 `TASK-W0-01`, `TASK-W0-02` |
-| Live-verification contract | When P15 applies: `verification.live` + script under `live_verify_dir` | [x] N/A — W0 docs-only; `verification.live.applicable: false` |
-| Plan source freshness | all upstream rows `CURRENT` **and digests match files** | [ ] **stale** — table marks CURRENT but recorded digests ≠ merged file SHA-256 (see below) |
-| Impact-map repo scope | revision and scope digest match canonical handoff | [ ] **stale** — plan `repo_scope_digest` typo vs spec/feasibility canonical (`7092` vs `7022` in digest) |
+| TASK exit proof | Every wave `TASK-*` has `exit.criteria` + `exit.proof` (kind/command\|review/expected/evidence_expected) | [x] complete — TASK-W0-01, TASK-W0-02 |
+| Live-verification contract | When P15 applies: `verification.live` applicable + script under `live_verify_dir` | [x] N/A — docs-only wave (`verification.live.applicable: false`) |
+| Plan source freshness | all upstream rows `CURRENT` | [x] current — digests backfilled on `develop` via PR [#125](https://github.com/drivestream-lab/gateflow/pull/125) |
+| Impact-map repo scope | revision and scope digest match canonical handoff | [x] match — revision `1`, scope digest `sha256:d0a2b626…` per plan header |
 | `check_command` | resolved | [x] `make check` |
 | `test_command` | resolved | [x] `make test` |
-| `verify_command` | live script when P15; else N/A | [x] N/A — P15 N/A for W0 |
-| `ground_command` | resolved or N/A | [x] N/A — Pass-2 pin skill `/ground-spec` |
-| Co-shipped live verify (P15) | FILE under `live_verify_dir` when surface changes | [x] N/A (no new product surface) |
-| Prior wave as-built row | `human_approved` | [x] N/A — first wave of INIT-009 |
-| Prior Ground Report exists | `Ground-Report-W{N-1}.md` | [x] N/A — W0 |
+| `verify_command` | live script under `live_verify_dir` when P15 applies; else command or N/A with reason | [x] N/A — P15 N/A (docs-only; no co-shipped live script) |
+| `ground_command` | resolved or N/A with reason | [x] N/A — `/ground-spec` Pass-2 pin skill |
+| Co-shipped live verify (P15) | If wave adds/changes product surface: FILE path under `live_verify_dir` listed | [x] N/A (no surface) |
+| Prior wave as-built row | `human_approved` | [x] N/A — first wave of INIT-GATEFLOW-009 |
+| Prior Ground Report exists | `reports/Ground-Report-{SPEC}-W{N-1}.md` | [x] N/A — W0 |
 | Plan PE sign-off (W0 only) | Implementation-Plan §0 marked complete | [x] complete — 2026-08-03 |
 
-**Digest evidence (stale):**
+**Gate verdict:** **PASS**
 
-| Source | Plan records | Actual on `develop` @ `b3fdd14` |
-|--------|--------------|----------------------------------|
-| Feasibility report | `sha256:99dec941…` | `sha256:36d16d9c31d43ebbed356f36efc415f30978c29821755cc328aa7b41f12ce0ca` |
-| Technical review | `sha256:7ec5a04c…` | `sha256:b314173e7e35104bbb62730816c9d94947057b6ae56eb3b45be82046af079562` |
-| Spec | `sha256:f4c93f4a…` | [x] match |
-| `repo_scope_digest` (plan) | `…8217022dda…` | Canonical in spec + feasibility: `…8217092dda…` |
-
-**Gate verdict:** **BLOCKED (stale inputs)** — do not invoke `/loop-spec` until plan digests are refreshed on `develop`.
-
-**Forge readiness:** N/A on `stale` — route to `/spec-implementation-plan` first. On a future `pass`, fill `handoff.forge` for `commit_workspace` to publish this checklist onto bound `head_ref`.
+**Forge readiness:** `commit_workspace` **required** — publish this checklist onto bound wave `head_ref` (cut `feature/INIT-GATEFLOW-009-w0-pin-checklist` from `develop` outside this skill if unbound). Do **not** open Draft PR here.
 
 ---
 
 ### Contracts consumed (from prior Ground Report)
 
-> W0 of INIT-009 — no prior Ground Report. Baseline contracts from as-built + pin consume (REQ-1).
+> W0 of INIT-GATEFLOW-009 — no prior Ground Report for this initiative.
+> Cross-init contracts below are verified against as-built + `src/` (not spec alone).
 
 | Assumed contract | Entry point | Input shape | Output shape | Source | Confirmed? |
 |-----------------|-------------|-------------|--------------|--------|------------|
-| Harness pin load | `.harness-pin.yaml` → submodule `prayog-skills` | pin ref `v0.5.0-rc.2` | tag tip `72ad383` ≡ describe output | `.harness-pin.yaml`, `git -C prayog-skills describe` | [x] yes — TASK-W0-01 inspect target |
-| Pin workflow graph | `prayog-skills/workflow.yaml` | node id + outcome | next node, forge policy | submodule @ `v0.5.0-rc.2` | [x] yes — `spec-draft` orchestrated; implement lane chain documented |
-| Forge publish authority | pin `forge.commit_workspace` on `pre-implement` | stage outcome `pass` | required publish before `loop-spec` | ADR-009 Accepted + pin | [x] yes |
-| Dual workspace (later W1) | lane intake per ADR-010 | `workspace` + optional `meta_workspace` | bound run context | ADR-010 Accepted | [x] yes — W0 checklist must document knobs (TASK-W0-02) |
+| Harness pin consume | `.harness-pin.yaml` `agent_skills.ref` | tag ref `v0.5.0-rc.2` | submodule at tag tip | inspect + `git -C prayog-skills describe` | [x] yes — submodule `72ad383` == tag `v0.5.0-rc.2` |
+| Pin workflow load | `WorkflowEngine.load_pin` / `get_node` | pin YAML path from harness | resolved node map incl. `dispatch`, `forge` | as-built INIT-008 + `src/business_services/workflow_engine.py` | [x] yes |
+| `spec-draft` orchestrated | `prayog-skills/workflow.yaml` node `spec-draft` | pin node id | `dispatch: orchestrated`; `forge.commit_workspace: required` | pin submodule @ `v0.5.0-rc.2` | [x] yes |
+| Dual authorization on EA nodes | pin `authorization` field | node type external-action | `explicit` \| `automated` enum on resolved node | Ground-Report-INIT-GATEFLOW-008-W0 + ADR-009 | [x] yes — Accepted |
+| Meta intake + dual workspace (W1 prereq) | `POST /api/v1/waves/spec/start` | programme token + meta PR URL + dual bind | 202 + run_id or 4xx fail closed | Ground-Report-INIT-GATEFLOW-002-W0 + ADR-010 | [x] yes — unit + as-built; W1 live deferred to prove-out |
 
-**Unconfirmed contracts:** none blocking W0. W1+ live paths depend on W0 checklist + prior wave completion (not assumed grounded yet).
+**Unconfirmed contracts:** none blocking W0. W1 will live-prove spec lane; W2 closeout; W3 authorize — all documented in plan but not yet grounded under INIT-009.
 
 ---
 
 ### Must read
 
 - [x] `AGENTS.md`
-- [x] MDC rules (domain-filtered — W0 is pin/docs-only; no new API surface):
-  - [x] `spec-driven-development.mdc` — same-PR discipline; as-built updates in later waves
-  - [x] `testing-verify-flows.mdc` — unit vs live separation; W0 unit-only (`make test`)
-  - [x] `code-guidelines-index.mdc` — rule index (skipped deep infra/http rules — out of W0 scope)
-- [x] ADRs (keyword-matched — pin, forge, lane intake, handoff):
-  - [x] ADR-009 — pin forge publish/mutate authority (Accepted)
-  - [x] ADR-010 — lane intake + dual-workspace (Accepted)
-  - [x] ADR-003 — slot/layer ownership (Accepted; context for forge client boundary)
-  - [x] ADR-005 — programme-token mutations (Accepted; W1+ live)
-  - [x] ADR-008 — packaged handoff ingest (Accepted; orchestrator baton)
-- [x] Spec: `docs/specification/product/INIT-GATEFLOW-009-gateflow.md` (REQ-1, REQ-2)
+- [x] MDC rules (domain-filtered — docs + pin inspect slice):
+  - [x] `spec-driven-development.mdc` — truth hierarchy; same-PR discipline for artifacts
+  - [x] `testing-verify-flows.mdc` — unit vs live layers (W0 unit-only + inspection)
+  - [x] `code-guidelines-index.mdc` — rule index (no code changes expected beyond checklist doc)
+- [x] ADRs (keyword-matched):
+  - [x] ADR-009 — pin forge publish/mutate authority (**Accepted**; consume-only this wave)
+  - [x] ADR-010 — lane intake + dual workspace (**Accepted**; checklist must document for W1)
+  - [x] ADR-005 — programme token mutations (referenced by spec lane start)
+  - [x] ADR-003 — ForgeClient infra boundary (unchanged)
+- [x] Spec: `docs/specification/product/INIT-GATEFLOW-009-gateflow.md` (REQ-1…REQ-2)
 - [x] Plan wave section / §9 WorkManifest: `docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-009.md` W0
-- [x] Board wave issue: https://github.com/drivestream-lab/gateflow/issues/121 — TASK list (projection from §9):
-  - [x] **TASK-W0-01** — implements REQ-1 — depends_on: [] — files: `.harness-pin.yaml` (inspect) — exit: pin resolves `spec-draft` orchestrated; pin == submodule — proof: command `make check` → exit 0
-  - [x] **TASK-W0-02** — implements REQ-2 — depends_on: [TASK-W0-01] — files: `docs/specification/reports/W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` (create) — exit: checklist exists; PE can execute — proof: review / inspection
+- [x] Board wave issue: https://github.com/drivestream-lab/gateflow/issues/121 — TASK list (projection from WorkManifest):
+  - [x] **TASK-W0-01** — implements REQ-1 — depends_on: [] — files: `.harness-pin.yaml` inspect — exit: pin resolves `spec-draft` orchestrated; pin == submodule — proof: command `make check` → exit 0 — evidence: `Wave-Execution-INIT-GATEFLOW-009-W0.md § TASK-W0-01`
+  - [x] **TASK-W0-02** — implements REQ-2 — depends_on: TASK-W0-01 — files: `docs/specification/reports/W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` create — exit: checklist exists; PE can execute — proof: review/inspection — evidence: `Wave-Execution-INIT-GATEFLOW-009-W0.md § TASK-W0-02`
 
 ---
 
 ### Governance alignment
 
-- [x] Slice spec does not contradict listed Accepted ADRs (factory prove-out only)
-- [x] Plan P11/P12 MDC + ADR notes reviewed for W0
-- [x] ADR-009, ADR-010, ADR-003, ADR-005, ADR-008 are **Accepted** in `docs/specification/adr/`
+- [x] Slice spec does not contradict any listed Accepted ADR (prove-out only; consume pin)
+- [x] Plan TASK MDC notes and ADR notes for W0 reviewed (P15 N/A; docs-only)
+- [x] ADR-009, ADR-010, ADR-003, ADR-005 cited in plan §0 are **Accepted** in `docs/specification/adr/`
 
 ---
 
-### Must update (in the same change as the code — via `/loop-spec`, after stale cleared)
+### Must update (in the same change as the code — via `/loop-spec`)
 
-- [ ] `docs/specification/reports/W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` — create (TASK-W0-02): meta preconditions, dual workspace, programme token, reviewer tip inspection, verify config knobs per REQ-2
-- [ ] `.harness-pin.yaml` — inspect only (TASK-W0-01); confirm `agent_skills.ref: v0.5.0-rc.2` matches submodule HEAD
-- [ ] `docs/specification/as-built/implementation-status.md` — W0 row when wave lands (§6 plan; not required at pre-implement)
-- [ ] `tests/README.md` — no W0 feature-map change (docs-only wave)
-- [ ] Live verification — N/A (P15 N/A)
+- [ ] Product spec — only if checklist wording requires spec amendment (prefer leave Draft)
+- [ ] `docs/specification/as-built/implementation-status.md` — optional W0 row after checklist lands (not required for W0 exit proof)
+- [ ] `tests/README.md` — **not required for W0** (no verification coverage change)
+- [ ] Unit verification — REQ-1 regression via existing `make test` (pin load paths)
+- [ ] Live verification — N/A this wave
+- [ ] Create `docs/specification/reports/W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` (TASK-W0-02 deliverable)
 - [ ] ADR — no supersede in W0
 
 ---
 
 ### Must not
 
-- [ ] Implement product code or open/create a branch from this skill
-- [ ] Proceed to `/loop-spec` while plan digests are stale
+- [ ] Run W1 live prove-out (`verify_spec_lane`) in W0
+- [ ] Open spec Pass-1 run or Draft Spec PR from this wave
+- [ ] Redesign prayog-skills pin or cut a new RC (REQ-1 consume-only)
+- [ ] Assume W1 meta/fixture preconditions without documenting them in the checklist
+- [ ] Open a branch, commit, push, open a PR, apply labels, or create board issues from this skill
 - [ ] Treat board issue #121 body as SSOT over plan §9 WorkManifest
-- [ ] Run live verify scripts as W0 exit proof (P15 N/A)
-- [ ] Apply `*-lgtm` labels or merge
+
+---
+
+### Implementation sketch (for `/loop-spec` — not executed here)
+
+1. **TASK-W0-01:** Confirm `.harness-pin.yaml` `agent_skills.ref: v0.5.0-rc.2` resolves to submodule HEAD at tag tip (`72ad383`). Confirm pin node `spec-draft` has `dispatch: orchestrated`. Run `make check` → exit 0 as harness sanity.
+2. **TASK-W0-02:** Create `docs/specification/reports/W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` covering: meta PR #23 accept preconditions (`meta_pr_url`, approved head `6660aa4…`, digest match), dual workspace paths (`workspace`, `meta_workspace`), programme token, reviewer tip-inspection steps, and live-verify config knobs for W1 (`tests/config.yaml` / `verify_spec_lane`).
+
+**Current gap evidence:** W0 prove-out checklist artifact does not yet exist; pin consume preconditions otherwise satisfied on `develop`.
 
 ---
 
 ### Verification plan
 
-| Layer | What it proves | Command |
-|-------|----------------|---------|
-| Static check | Formatting, linting, types, layer checks | `make check` |
-| Unit | Pin load / regression (REQ-1) | `make test` |
-| Live verify | Product behaviour on running stack | N/A — P15 N/A (docs-only W0) |
-| Ground check | Wave REQs satisfied post Pass-2 | N/A — `/ground-spec` after later waves |
+| Layer | What it proves | Command (from tests_readme / profile) |
+|-------|----------------|---------------------------------------|
+| Static check | Formatting, linting, types, import layers | `make check` |
+| Unit | Pin/harness regression; no new product surface | `make test` |
+| Live verify | N/A — P15 N/A | N/A — docs-only wave |
+| Ground check | `/ground-spec` after Pass-2 (not this wave) | N/A |
 
-> Human runs co-shipped live scripts only at checkpoint `live-verify` on W1+ waves.
+> When P15 applies: N/A or unit-only for live verify **blocks** the gate.
+> Agent implements live scripts in later waves via `/loop-spec`; does **not** run them as W0 success.
 
 ### Human live-verify (after loop-spec)
 
-- [ ] N/A for W0 — no co-shipped live script; implement-lane Draft PR + live-verify follow W0 code wave via pin
+- [ ] N/A for W0 — no co-shipped live script; human checkpoint follows pin after W1+ `wave-pr-action` → `live-verify`
 
 ---
 
 ### Tracker / PR (read-only context)
 
 - Initiative: INIT-GATEFLOW-009
+- Issue: [#121](https://github.com/drivestream-lab/gateflow/issues/121) (W0)
 - EPIC: [#120](https://github.com/drivestream-lab/gateflow/issues/120)
-- Wave issue: [#121](https://github.com/drivestream-lab/gateflow/issues/121)
 - Spec path: `docs/specification/product/INIT-GATEFLOW-009-gateflow.md`
 - Plan: `docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-009.md`
 - Verify command (human): N/A — P15 N/A
-- ADRs in scope: ADR-009, ADR-010, ADR-003, ADR-005, ADR-008
-- Wave head (bound): `feature/INIT-GATEFLOW-009-w0-implement-lane` @ `f47042d` (implement-lane dogfood); plan §2 branch column also names `feature/INIT-GATEFLOW-009-w0-pin-checklist`
+- ADRs in scope: ADR-009, ADR-010, ADR-005, ADR-003 (Accepted)
+- Wave head: bind `feature/INIT-GATEFLOW-009-w0-pin-checklist` (plan §2 Branch column) before `/commit-workspace` / `/loop-spec`
 
 ---
 
-### Checklist publish readiness (on `stale`)
+### Checklist publish readiness (on `pass` — fill handoff.forge commit_workspace)
 
 | Field | Value |
 |-------|-------|
-| Workflow outcome | `stale` — plan digest / scope digest mismatch |
-| Next | `spec-implementation-plan` (`skill`) — refresh § source-freshness + digests on `develop` |
-| Forge (this hop) | **disabled** — no `commit_workspace` until `pass` after plan refresh |
-| After refresh | Re-run `/pre-implement`; on `pass` → `loop-spec` with `forge.commit_workspace` required |
+| Workflow outcome | `pass` — W0 gate satisfied |
+| Next | `loop-spec` (`skill`) — `human_checkpoint: false`, `external_action: false` |
+| Forge (this hop) | `commit_workspace` **required** — publish this file to bound `head_ref` |
+| Later | After `/loop-spec` code publish → `wave-pr-action` (automated `open_draft_pr`) |
 
-Recommend: `/spec-implementation-plan` to reconcile feasibility/TDD/scope digests → re-run `/pre-implement` → `/commit-workspace` (checklist) → `/loop-spec`.
+Recommend: bind wave branch → `/commit-workspace` (this checklist) → `/loop-spec`.
 
 ---
 
 ### Merge order (if cross-module / cross-service)
 
-N/A — gateflow-only W0; W0 checklist before W1 spec-lane live prove-out.
+N/A — gateflow-only docs wave; W0 before W1 (checklist is W1 prerequisite per REQ-2 / DEP-1).
 
 ```yaml
 handoff:
   contract: sdd-delivery/v2
   stage: pre-implement
-  outcome: stale
+  outcome: pass
   artifact:
     path: docs/specification/reports/Pre-Implement-INIT-GATEFLOW-009-W0.md
-    digest: sha256:9640b7e90b9b647f2d1592d6681054e46fb0a45b5612def89d6378a95e99636d
+    digest: sha256:790687fb3c770f1b95fba355d8dd73b218b452c111e9be0e54614b0a21a2cc96
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-009
     wave: W0
     board_issue: "121"
     epic: "120"
-    ticket_id: "121"
     tasks: "TASK-W0-01,TASK-W0-02"
     check_command: make check
     test_command: make test
     verify_command: "N/A — P15 N/A"
-    integration_sha: b3fdd14118f1c078654ba0e8452cb83ebd2ba2f4
-    spec_pr: "119"
-    spec_lgtm: true
-    workmanifest_contract: pass
-    stale_reason: plan_digest_mismatch
-    feasibility_digest_plan: "sha256:99dec941857a7e8112d9ec6d4b3821feca2b34f9019495a20a6a6ae0020caa31"
-    feasibility_digest_actual: "sha256:36d16d9c31d43ebbed356f36efc415f30978c29821755cc328aa7b41f12ce0ca"
-    tdd_digest_plan: "sha256:7ec5a04c91ef9e6dfd68dbafc8c58619bf2a109eb32700a537b9d3dba64cd911"
-    tdd_digest_actual: "sha256:b314173e7e35104bbb62730816c9d94947057b6ae56eb3b45be82046af079562"
-    scope_digest_canonical: "sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217092dda242a99b3392978e9b"
-    scope_digest_plan: "sha256:d0a2b62632113db0fa64cb7d7e63dc393fa5a8217022dda242a99b3392978e9b"
-    recommended_head_ref: feature/INIT-GATEFLOW-009-w0-implement-lane
+    recommended_head_ref: feature/INIT-GATEFLOW-009-w0-pin-checklist
+    base_ref: develop
+    integration_sha: bf5d3c6abfd5afa4b50e0a2157afb2d578ecb52c
+    spec_merge_pr: "119"
+    spec_lgtm_merge_sha: b3fdd14118f1c078654ba0e8452cb83ebd2ba2f4
   next_candidates:
-    - spec-implementation-plan
+    - loop-spec
   human_checkpoint: false
   external_action: false
+  forge:
+    action: commit_workspace
+    # Pin: pre-implement commit_workspace = required.
+    # Publish Pre-Implement artifact onto bound wave head_ref before loop-spec.
+```
