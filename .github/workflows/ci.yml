@@ -1,4 +1,4 @@
-# Placeholder CI — replace with repo-specific lint/test (Python, Next.js, etc.).
+# Basic PR / push checks (INIT-GATEFLOW-009 REQ-19/20).
 # Job name must stay "ci" when enabling as a required branch-protection check.
 
 name: ci
@@ -7,15 +7,35 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, main, 'feature/**']
+    branches: [develop, main, "feature/**", "chore/**"]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: ci placeholder
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Configure Poetry (in-project .venv for pyright)
+        run: poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Make check (format/lint/types/layers)
         run: |
-          echo "Replace this workflow with repo-specific checks (ruff, pytest, npm run build, ...)"
-          echo "Job name must remain: ci"
+          .venv/bin/black --check --line-length 100 src/ tests/
+          .venv/bin/ruff check src/ tests/
+          .venv/bin/pyright
+          .venv/bin/lint-imports
+
+      - name: Unit tests
+        run: .venv/bin/pytest tests/unit/ -v

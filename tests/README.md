@@ -4,8 +4,8 @@
 
 | Name | Legacy name | Pin skills (today) | Verify |
 |------|-------------|--------------------|--------|
-| **spec lane** | Scenario A | `spec-draft` … `spec-implementation-plan` | `verify_spec_lane` (scaffold; W2) |
-| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → automated `wave-pr-action` → `live-verify` STOP | `verify_implement_lane` |
+| **spec lane** | Scenario A | `spec-draft` … `technical-review-approval` STOP | `verify_spec_lane` — **INIT-009 W1 live proven** |
+| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → automated `wave-pr-action` → `live-verify` STOP | `verify_implement_lane` — **INIT-009 W0 live proven** |
 
 Both are wave-shaped Gateflow features.
 
@@ -53,7 +53,9 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
-# .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in (scaffold until W2)
+# .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
+# .venv/bin/python -m tests.verify.verify_wave_closeout   # opt-in — INIT-009 W2 live proven (Pass-2)
+# authorize live (REQ-15): PE-waived for INIT-009 — unit only; no verify_authorize yet
 #
 # Draft PR live timing (INIT-008): use verify_implement_lane, not verify_pr_thread.
 #   set gateflow.require_worker: true + worker + forge creds for deep lane prove-it
@@ -253,3 +255,13 @@ Postgres `learning_extracts` row evidence is human Live-Verify (no learning HTTP
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /
 `docs/specification/product/INIT-GATEFLOW-003-gateflow.md`.
 See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
+
+## Feature map (INIT-GATEFLOW-009 — factory prove-out freeze)
+
+| Capability | Live verify | Unit / notes |
+|------------|-------------|--------------|
+| Spec Pass-1 | `verify_spec_lane` — **live** ([Live-Verify W1](../docs/specification/reports/Live-Verify-INIT-GATEFLOW-009-W1.md)) | `test_wave_start`, `test_meta_pr_intake` |
+| Implement Pass-1 | `verify_implement_lane` — **live** (Live-Verify W0) | implement-lane suite |
+| Closeout Pass-2 | `verify_wave_closeout` — **live** ([Live-Verify W2](../docs/specification/reports/Live-Verify-INIT-GATEFLOW-009-W2.md)) | `test_wave_closeout` |
+| Authorize live | **PE-waived** (INIT-009) | `test_forge_action_service` unit only |
+| Feature readiness + CI | inspection + GitHub Actions `ci` | [`Feature-Readiness-INIT-GATEFLOW-009.md`](../docs/specification/reports/Feature-Readiness-INIT-GATEFLOW-009.md) |
