@@ -202,24 +202,24 @@
 | Board create remains explicit authorize | REQ-15 | pin `board-tickets-action` + policy STOP | `test_board_tickets_action_remains_explicit_*` | — | Never APPLY_FORGE |
 | Feature map / as-built / REQ-17 | REQ-16, REQ-17 | as-built, `tests/README.md`, `docs/specification/README.md` | — | review | 007 dogfood after 008 on develop |
 
-## INIT-GATEFLOW-009 — both-lane factory prove-out (draft)
+## INIT-GATEFLOW-009 — both-lane factory prove-out (**human_approved** freeze)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Pin consume (`v0.5.0-rc.2` family) | REQ-1 | `.harness-pin.yaml` + submodule | `make test` regression | N/A — W0 inspection | Submodule `72ad383` == tag tip; `spec-draft` orchestrated |
-| W0 prove-out checklist | REQ-2 | `W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` | — | N/A — P15 N/A | Meta Gate 1, dual workspace, token, reviewer steps, W1 verify knobs |
-| Spec Pass-1 live prove-out | REQ-3…REQ-9 | existing APIs + pin walker | unit regression | **deferred W1** — `verify_spec_lane` | Checklist + plan §2 W1 |
-| Spec-lane wrap-up live | REQ-10…REQ-12 | closeout route (INIT-007) | — | **deferred W2** — `verify_wave_closeout` | Lifts REQ-15 deferral for programme exit |
-| Authorize API live | REQ-13…REQ-15 | forge authorize path | unit regression | **deferred W3** — `verify_authorize` | |
-| Feature readiness freeze + CI | REQ-16…REQ-20 | — | — | **deferred W3** | Placeholder CI today |
+| W0 prove-out checklist | REQ-2 | `W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` | — | N/A — P15 N/A | Meta Gate 1, dual workspace, token, reviewer steps |
+| Spec Pass-1 live prove-out | REQ-3…REQ-9 | existing APIs + pin walker | unit regression | **live** — [`Live-Verify-INIT-GATEFLOW-009-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-009-W1.md) | run `89fd636d-…` → PR [#119](https://github.com/drivestream-lab/gateflow/pull/119); stop @ `technical-review-approval` |
+| Closeout Pass-2 prove-out | REQ-10…REQ-12 | closeout route (INIT-007) | `test_wave_closeout` | **live** — [`Live-Verify-INIT-GATEFLOW-009-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-009-W2.md) | run `4da11692-…` on [#126](https://github.com/drivestream-lab/gateflow/pull/126) after Spec #119 merge; lifts 007 REQ-15 **for 009 exit** |
+| Authorize API live | REQ-13…REQ-15 | forge authorize path | `test_forge_action_service` | **PE-waived** (INIT-009 exit) | Unit-complete; no `verify_authorize` live run this INIT — see Feature-Readiness |
+| Feature readiness freeze + CI | REQ-16…REQ-20 | [`Feature-Readiness-INIT-GATEFLOW-009.md`](../reports/Feature-Readiness-INIT-GATEFLOW-009.md); `.github/workflows/ci.yml` | — | CI on PRs | Placeholder replaced with `make check-ci` toolchain + unit tests |
 
 | Gap | Status |
 |-----|--------|
-| Product INIT | **Draft** — [`product/INIT-GATEFLOW-009-gateflow.md`](../product/INIT-GATEFLOW-009-gateflow.md); spec PR [#119](https://github.com/drivestream-lab/gateflow/pull/119) merged with `spec-lgtm` |
-| W0 pin + checklist | **pending human_approved** — Draft PR [#126](https://github.com/drivestream-lab/gateflow/pull/126) @ `1605575`; Ground-Report W0 **pass**; Live-Verify human tip pass (P15 N/A); merge at `wave-signoff` |
-| W1 spec-lane prove-out | **not started** — board [#122](https://github.com/drivestream-lab/gateflow/issues/122) |
-| W2 closeout prove-out | **not started** — board [#123](https://github.com/drivestream-lab/gateflow/issues/123) |
-| W3 authorize + freeze + CI | **not started** — board [#124](https://github.com/drivestream-lab/gateflow/issues/124) |
+| Product INIT | **Freeze** — [`product/INIT-GATEFLOW-009-gateflow.md`](../product/INIT-GATEFLOW-009-gateflow.md); Feature-Readiness **2026-08-04** |
+| W0 pin + checklist | **human_approved** — merged [#126](https://github.com/drivestream-lab/gateflow/pull/126) @ `f8b4577` |
+| W1 spec-lane prove-out | **live proven** — board [#122](https://github.com/drivestream-lab/gateflow/issues/122); Live-Verify W1 |
+| W2 closeout prove-out | **live proven** — board [#123](https://github.com/drivestream-lab/gateflow/issues/123); Live-Verify W2 |
+| W3 authorize + freeze + CI | **human_approved (partial)** — board [#124](https://github.com/drivestream-lab/gateflow/issues/124); freeze + CI shipped; authorize live **PE-waived** |
 
 ## INIT-GATEFLOW-007 — wave closeout + learning DB (draft)
 
@@ -229,14 +229,14 @@
 | Pass-2 pin walker | REQ-7 | pin graph | `test_handoff_workflow` | W2 dogfood — **human_approved** | `learning-extract` → `ground-spec` → `wave-signoff` |
 | Learning Postgres SSOT | REQ-9…12 | `learning_ingest_service` + `learning_schema` + Alembic `cc5feda8fe3d` | `test_learning_ingest` | W2 dogfood — **human_approved** | W1 unit + human migration; orchestrator publish→handoff→ingest; no skill→HTTP (H6) |
 | Pass-2 full prove-it (implement) | REQ-14, REQ-17 | `verify_wave_closeout` `dogfood: true` | — | **human_approved** | Merged [#107](https://github.com/drivestream-lab/gateflow/pull/107) @ `cd2640d`; see [`Live-Verify-INIT-GATEFLOW-007-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-007-W2.md) |
-| Spec-lane closeout (REQ-15) | REQ-15 | same route | — | **PE-waived deferral** | Implement-lane dogfood first (Q-6); spec-lane closeout live deferred — same Enter-at/API; no separate verify script this wave |
+| Spec-lane closeout (REQ-15) | REQ-15 | same route | — | **lifted for INIT-009 exit** | INIT-007 Q-6 deferral superseded for programme exit of INIT-009 — see [`Live-Verify-INIT-GATEFLOW-009-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-009-W2.md) + Feature-Readiness-009 (closeout Pass-2 on #126 after Spec #119 merge). Literal open-Draft-Spec tip closeout still not separately dogfooded. |
 
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Draft** — [`product/INIT-GATEFLOW-007-gateflow.md`](../product/INIT-GATEFLOW-007-gateflow.md); Gate 1 TBD (Q-1) |
 | W0 closeout start | **human_approved** — merged [#101](https://github.com/drivestream-lab/gateflow/pull/101) @ `e1604fd`; Ground-Report W0 **pass**; live smoke **human_approved** |
 | W1 learning ingest | **human_approved** — merged [#102](https://github.com/drivestream-lab/gateflow/pull/102) @ `c4ce8f6`; Ground-Report W1 **pass**; human Alembic `cc5feda8fe3d`; live `verify_all` **approved** |
-| W2 Pass-2 dogfood | **human_approved** — merged [#107](https://github.com/drivestream-lab/gateflow/pull/107) @ `cd2640d`; Live-Verify **human_approved**; REQ-15 PE-waived |
+| W2 Pass-2 dogfood | **human_approved** — merged [#107](https://github.com/drivestream-lab/gateflow/pull/107) @ `cd2640d`; Live-Verify **human_approved**; REQ-15 deferral **lifted for INIT-009 exit** (see INIT-009 Feature-Readiness) |
 | Authorize → resume into closeout skills | **Out of scope** — Pass-2 is new closeout Enter-at |
 
 ## Verdict
@@ -271,6 +271,12 @@ pin orchestrate for spec-draft chain, INIT-005 W2 (out of track).
 
 **INIT-GATEFLOW-007 (2026-08-01):** Product INIT **draft**. **W0** / **W1** / **W2**
 **human_approved** (#101 / #102 / #107 @ `cd2640d`). W2: `verify_wave_closeout`
-dogfood **human_approved**; **REQ-15** spec-lane closeout live **PE-waived**. Board
-[#84](https://github.com/drivestream-lab/gateflow/issues/84) /
+dogfood **human_approved**. **REQ-15** spec-lane closeout deferral **lifted for
+INIT-009 programme exit** (2026-08-04 Feature-Readiness + Live-Verify-009-W2).
+Board [#84](https://github.com/drivestream-lab/gateflow/issues/84) /
 [#87](https://github.com/drivestream-lab/gateflow/issues/87).
+
+**INIT-GATEFLOW-009 (2026-08-04):** Feature readiness **freeze** —
+[`Feature-Readiness-INIT-GATEFLOW-009.md`](../reports/Feature-Readiness-INIT-GATEFLOW-009.md).
+W0–W2 live proven; W3 CI + freeze shipped; **authorize live PE-waived**. Epic
+[#120](https://github.com/drivestream-lab/gateflow/issues/120).
