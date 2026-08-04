@@ -19,6 +19,7 @@ agent_skills:
     - learning-extract
     - ground-spec
     - verify
+    - purge-initiative-artifacts-app
     - commit-workspace
     - open-draft-pr
     - create-board-tickets
