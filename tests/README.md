@@ -52,6 +52,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
 # .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
+# .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
 # .venv/bin/python -m tests.verify.verify_wave_closeout   # opt-in — INIT-009 W2 live proven (Pass-2)
@@ -148,6 +149,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Board APIs create/list/status/link (FR-24) | `verify_board` (in `verify_all`) | `test_board_service`, `test_forge_client_board` |
+| WorkManifest → EPIC/wave board seed (create_board_tickets projection) | `verify_create_tickets` (opt-in; **not** in `verify_all`) | `test_forge_action_service` (authorize path) |
 | WorkManifest pin contract before board seed (INIT-008 W2) | `verify_board` asserts launchpad/v1 reject; authorize path unit | `test_forge_action_service` (`prayog_v1` / `rejects_launchpad_v1`), `test_forge_merge` |
 | Forge auth modes `pat` \| `app` (ADR-003) | `verify_board` when mode+creds set | `test_github_token_provider`, `test_forge_client` |
 | Worker isolation — zero board mutations | — | `test_process_job_never_calls_board_forge_mutations` |
@@ -225,6 +227,28 @@ set -a && source .env && set +a
 ```
 
 Keep `features.implement_lane.enabled: false` for routine smoke.
+
+### Create board tickets from WorkManifest (INIT-GATEFLOW-010)
+
+After spec merge (plan §9 on `develop`), seed EPIC + wave tickets before implement-lane:
+
+```bash
+# features.create_tickets.enabled: true
+# features.create_tickets.workspace: /absolute/path/to/gateflow
+# features.create_tickets.plan_path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-010.md
+# features.create_tickets.initiative: INIT-GATEFLOW-010
+# features.create_tickets.wave_id: W0
+# optional dry_run: true  → contract + parse only
+# optional authorize_run_id: <uuid>  → forge/authorize when run STOPPED at board-tickets-action
+
+make run   # API; forge board creds required for creates
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_create_tickets
+# → paste printed ticket_id into features.implement_lane.wave_start.ticket_id
+# → enable implement_lane and run verify_implement_lane
+```
+
+Not in `verify_all`. Idempotent on `initiative_id` (+ wave suffix) like forge seed.
 
 ### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 

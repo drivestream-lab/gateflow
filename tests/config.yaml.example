@@ -89,6 +89,20 @@ features:
       # Absolute checkout with tip under test (dogfood reads Learning-Extract here)
       workspace: ""
 
+  # WorkManifest → board EPIC + wave tickets (before implement_lane)
+  #   .venv/bin/python -m tests.verify.verify_create_tickets
+  # Seeds via POST /api/v1/board/tickets (same projection as forge create_board_tickets).
+  # Optional authorize_run_id: use forge/authorize when a run is STOPPED at
+  # board-tickets-action instead of the board projection path.
+  create_tickets:
+    enabled: false
+    workspace: ""
+    plan_path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-010.md
+    initiative: INIT-GATEFLOW-010
+    wave_id: W0
+    dry_run: false
+    authorize_run_id: ""
+
 
 forge:
   org: drivestream-lab
