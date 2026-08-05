@@ -63,6 +63,10 @@ class HandoffForgeDocument(BaseModel):
         default=None,
         description="PR base branch when listed in pin forge.requires",
     )
+    ticket: Optional[str] = Field(
+        default=None,
+        description="Board ticket id when listed in pin forge.requires",
+    )
 
 
 class CommitPathsResult(BaseModel):
@@ -93,6 +97,20 @@ class EffectiveForgePolicy(BaseModel):
     project_owner: Optional[str] = Field(default=None)
     head_ref: Optional[str] = Field(default=None)
     base_ref: Optional[str] = Field(default=None)
+    status: Optional[BoardStatusType] = Field(
+        default=None,
+        description="Pin board column target for update_board_status",
+    )
+    ticket: Optional[str] = Field(default=None)
+
+
+def board_column_for_pin_status(status: BoardStatusType) -> str:
+    """Map pin ``forge.status`` enum to programme board column label (A-1)."""
+    if status == BoardStatusType.IN_PROGRESS:
+        return "In Progress"
+    if status == BoardStatusType.DONE:
+        return "Done"
+    raise ValueError(f"Unsupported board status {status.value!r}")
 
 
 class OpenDraftPrResult(BaseModel):
@@ -198,6 +216,7 @@ def merge_pin_and_handoff_forge(
         "plan_path": hf.plan_path,
         "head_ref": hf.head_ref,
         "base_ref": hf.base_ref,
+        "ticket": hf.ticket,
     }
     missing = [
         name
@@ -221,6 +240,8 @@ def merge_pin_and_handoff_forge(
         project_owner=hf.project_owner.strip() if hf.project_owner else None,
         head_ref=hf.head_ref.strip() if hf.head_ref else None,
         base_ref=hf.base_ref.strip() if hf.base_ref else None,
+        status=pin.status,
+        ticket=hf.ticket.strip() if hf.ticket else None,
     )
 
 

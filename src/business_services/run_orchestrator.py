@@ -1070,6 +1070,7 @@ class RunOrchestrator(BaseBusinessService):
                 workspace=workspace,
                 head_ref=head,
                 base_ref=base,
+                ticket_ref=str(payload.get("ticket_id") or "").strip() or None,
             )
         except ValidationError as exc:
             return {"error": exc.message}

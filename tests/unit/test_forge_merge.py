@@ -11,11 +11,40 @@ from src.models.forge_models import (
     merge_pin_and_handoff_forge,
     parse_node_forge,
 )
-from src.models.forge_types import ForgeActionType
+from src.models.forge_types import BoardStatusType, ForgeActionType
 from src.models.work_manifest_models import (
     parse_work_manifest_from_plan,
     run_workmanifest_contract,
 )
+
+
+def test_merge_update_board_status_requires_ticket() -> None:
+    pin = parse_node_forge(
+        {
+            "action": "update_board_status",
+            "status": "in_progress",
+            "requires": ["ticket"],
+        }
+    )
+    with pytest.raises(ValueError, match="missing required slots"):
+        merge_pin_and_handoff_forge(pin, HandoffForgeDocument())
+
+
+def test_merge_update_board_status_fills_ticket() -> None:
+    pin = parse_node_forge(
+        {
+            "action": "update_board_status",
+            "status": "done",
+            "requires": ["ticket"],
+        }
+    )
+    effective = merge_pin_and_handoff_forge(
+        pin,
+        HandoffForgeDocument(ticket="139"),
+    )
+    assert effective.action == ForgeActionType.UPDATE_BOARD_STATUS
+    assert effective.status == BoardStatusType.DONE
+    assert effective.ticket == "139"
 
 
 def test_merge_open_draft_pr_fills_slots() -> None:

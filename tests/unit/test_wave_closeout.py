@@ -157,6 +157,7 @@ def _service(
         job_repository=job_repo,
         meta_pr_intake=intake,
         forge_client=forge,
+        board_service=MagicMock(),
     )
 
 
