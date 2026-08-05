@@ -3,6 +3,7 @@
 import pytest
 
 from src.models.pr_branch_naming import (
+    build_spec_head_branch,
     build_wave_head_branch,
     normalize_wave_token,
     validate_base_branch,
@@ -16,6 +17,15 @@ def test_build_wave_head_branch_happy() -> None:
         build_wave_head_branch("INIT-GATEFLOW-003", "W1", "implement-lane")
         == "feature/INIT-GATEFLOW-003-w1-implement-lane"
     )
+
+
+def test_build_spec_head_branch_happy() -> None:
+    assert build_spec_head_branch("INIT-GATEFLOW-010") == "feature/INIT-GATEFLOW-010-spec"
+
+
+def test_build_spec_head_branch_rejects_invalid_initiative() -> None:
+    with pytest.raises(ValueError, match="initiative_id"):
+        build_spec_head_branch("INIT-X")
 
 
 def test_normalize_wave_token() -> None:

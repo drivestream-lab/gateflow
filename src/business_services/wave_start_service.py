@@ -140,6 +140,7 @@ class WaveStartService(BaseBusinessService):
             meta_workspace_path=request.meta_workspace_path,
             prior_run_id=None,
             lane="spec",
+            head_ref=request.head_branch(),
         )
 
     async def start_closeout_wave(self, request: CloseoutWaveStartRequest) -> WaveStartResponse:
@@ -397,6 +398,7 @@ class WaveStartService(BaseBusinessService):
                     meta_head_sha=meta_accept.meta_head_sha if meta_accept else None,
                     meta_workspace_path=meta_workspace_path if meta_accept else None,
                     prior_run_id=str(prior_run_id) if prior_run_id is not None else None,
+                    lane=lane,
                     head_ref=head_ref.strip() if head_ref else None,
                 )
                 job = await self._job_repository.enqueue(

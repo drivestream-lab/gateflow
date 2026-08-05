@@ -295,7 +295,16 @@ async def test_spec_wave_start_ok(tmp_path: Path) -> None:
     assert raw["meta_head_sha"] == "abc123"
     assert raw["meta_workspace_path"]
     assert raw["ticket_id"] == "INIT-ACME-001:W0"
+    assert raw["lane"] == "spec"
+    assert raw["head_ref"] == "feature/INIT-ACME-001-spec"
+    assert raw["branch_slug"] == "spec-unit"
     intake.accept.assert_awaited_once()
+
+
+def test_spec_head_branch_ignores_wave_and_slug(tmp_path: Path) -> None:
+    req = _spec_req(tmp_path, wave_id="W2", branch_slug="ignored-slug")
+    assert req.head_branch() == "feature/INIT-ACME-001-spec"
+    assert _implement_req().head_branch() == "feature/INIT-ACME-001-w0-unit-test"
 
 
 @pytest.mark.asyncio

@@ -17,6 +17,14 @@ class ForgeActionType(str, Enum):
     COMMIT_WORKSPACE = "commit_workspace"
     OPEN_DRAFT_PR = "open_draft_pr"
     CREATE_BOARD_TICKETS = "create_board_tickets"
+    UPDATE_BOARD_STATUS = "update_board_status"
+
+
+class BoardStatusType(str, Enum):
+    """Pin ``forge.status`` for ``update_board_status`` hops."""
+
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
 
 
 class AuthorizationModeType(str, Enum):

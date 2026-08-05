@@ -6,6 +6,7 @@ from src.business_services.workflow_engine import WorkflowEngine
 from src.models.forge_models import HandoffForgeDocument, parse_node_forge
 from src.models.forge_types import (
     AuthorizationModeType,
+    BoardStatusType,
     CommitWorkspaceModeType,
     ForgeActionType,
 )
@@ -52,6 +53,53 @@ def test_parse_node_forge_external_action() -> None:
     assert policy.draft is True
     assert policy.apply_labels == ["impact-map-pending"]
     assert policy.requires == ["title", "body_path"]
+
+
+def test_parse_node_forge_update_board_status() -> None:
+    policy = parse_node_forge(
+        {
+            "action": "update_board_status",
+            "status": "in_progress",
+            "requires": ["ticket"],
+        }
+    )
+    assert policy.action == ForgeActionType.UPDATE_BOARD_STATUS
+    assert policy.status == BoardStatusType.IN_PROGRESS
+    assert policy.requires == ["ticket"]
+
+
+def test_parse_node_forge_update_board_status_requires_status() -> None:
+    with pytest.raises(ValueError, match="forge.status is required"):
+        parse_node_forge({"action": "update_board_status", "requires": ["ticket"]})
+
+
+def test_parse_node_forge_invalid_board_status_fails_closed() -> None:
+    with pytest.raises(ValueError, match="forge.status"):
+        parse_node_forge(
+            {
+                "action": "update_board_status",
+                "status": "blocked",
+                "requires": ["ticket"],
+            }
+        )
+
+
+def test_all_remounted_pin_nodes_parse() -> None:
+    """REQ-02: every remounted workflow.yaml node must get_node (0 BROKEN)."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node_ids = sorted(engine.known_node_ids())
+    assert node_ids, "pin must declare nodes"
+    for node_id in node_ids:
+        resolved = engine.get_node(node_id)
+        assert resolved.node_id == node_id
+    in_progress = engine.get_node("wave-in-progress-action")
+    assert in_progress.forge.action == ForgeActionType.UPDATE_BOARD_STATUS
+    assert in_progress.forge.status == BoardStatusType.IN_PROGRESS
+    done = engine.get_node("wave-done-action")
+    assert done.forge.action == ForgeActionType.UPDATE_BOARD_STATUS
+    assert done.forge.status == BoardStatusType.DONE
+    assert done.authorization == AuthorizationModeType.AUTOMATED
 
 
 def test_handoff_envelope_parses_forge_document() -> None:
