@@ -18,11 +18,12 @@
 
 - [x] `make check`
 - [x] `make test` (243 unit)
-- [ ] Human live verify: `.venv/bin/python -m tests.verify.verify_implement_lane` (P15 applicable)
-- [ ] Ground / learning-extract — Pass-2 after live-verify
+- [x] Human live verify: `.venv/bin/python -m tests.verify.verify_implement_lane` — **pass** (`human_approved: true`); run `852a0a42-…` → [#146](https://github.com/drivestream-lab/gateflow/pull/146); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](Live-Verify-INIT-GATEFLOW-010-W1.md)
+- [ ] Ground / learning-extract — Pass-2 closeout **while this PR stays open**
 
 ## Checklist
 
 - [x] **App / service** (feature branch → `develop`)
 - [x] Board fields: Initiative, Spec path, Verify command
 - [x] As-built updated for W1 board-status apply + implement In Progress + REQ-11
+- [x] Live-Verify W1 recorded; do **not** merge until closeout dogfood completes

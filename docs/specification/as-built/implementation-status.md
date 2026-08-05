@@ -228,7 +228,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W1 board-status + implement In Progress | **implemented locally** — Wave-Execution W1; human live-verify pending |
+| W1 board-status + implement In Progress | **human_approved** — live verify pass 2026-08-05; run `852a0a42-…` → PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); board [#139](https://github.com/drivestream-lab/gateflow/issues/139); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md) |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 

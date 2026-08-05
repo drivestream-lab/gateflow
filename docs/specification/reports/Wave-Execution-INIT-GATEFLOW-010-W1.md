@@ -25,11 +25,11 @@
 - `{check_command}`: `make check` — exit 0 (black, ruff, pyright, import-linter)
 - `{test_command}`: `make test` — **243 passed**
 
-## Live verify (human — not claimed here)
+## Live verify (human)
 
-- Planned script: `.venv/bin/python -m tests.verify.verify_implement_lane` under `tests/verify/`
+- Script: `.venv/bin/python -m tests.verify.verify_implement_lane`
 - Agent created planned FILE: **yes** — extended with `assert_board_in_progress` + board-status hop timeline asserts
-- **Did not** run smoke/sandbox as success
+- **Human live verify:** **pass** — `human_approved: true` (2026-08-05); run `852a0a42-1602-4004-bae2-cc092d17dd05` stopped @ `live-verify`; PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); see [`Live-Verify-INIT-GATEFLOW-010-W1.md`](Live-Verify-INIT-GATEFLOW-010-W1.md)
 
 ## Forge readiness
 
@@ -40,10 +40,9 @@
   - **head_ref:** `feature/INIT-GATEFLOW-010-w1-board-status`
   - **base_ref:** `develop`
 
-## Notes (not claimed complete)
+## Notes
 
-- Human live-verify at `live-verify` with `.venv/bin/python -m tests.verify.verify_implement_lane` required before Pass-2.
-- This skill did **not** commit or push.
+- Pass-2 closeout next: keep PR [#146](https://github.com/drivestream-lab/gateflow/pull/146) **open** until `verify_wave_closeout` completes.
 
 ```yaml
 handoff:
@@ -61,8 +60,11 @@ handoff:
     ticket_id: 139
     ticket_url: https://github.com/drivestream-lab/gateflow/issues/139
     epic_ticket_id: 137
+    human_approved: true
+    live_verify_run_id: "852a0a42-1602-4004-bae2-cc092d17dd05"
+    live_verify_pr: "https://github.com/drivestream-lab/gateflow/pull/146"
     wave_head: develop
-    wave_branch_planned: feature/INIT-GATEFLOW-010-w1-board-status
+    wave_branch_planned: feature/INIT-GATEFLOW-010-w1-implement-lane
     completed_tasks:
       - TASK-W1-01
       - TASK-W1-02
@@ -79,22 +81,22 @@ handoff:
     verify_command: .venv/bin/python -m tests.verify.verify_implement_lane
     verify_script_path: tests/verify/verify_implement_lane.py
     ground_command: "N/A — /ground-spec pin skill"
-    board_wave_status: Todo
+    board_wave_status: In Progress
     spec_pr: https://github.com/drivestream-lab/gateflow/pull/135
     spec_merge_commit: 1901dbe5b8ce10ff6e0426c0df1e1dd1906ed655
     workmanifest_contract: pass
     p15_applicable: true
   next_candidates:
-    - wave-pr-action
+    - learning-extract
   human_checkpoint: false
-  external_action: true
+  external_action: false
   forge:
-    action: open_draft_pr
+    action: commit_workspace
     draft: true
     apply_labels: []
     remove_labels: []
     title: "INIT-GATEFLOW-010 W1 — board-status apply + implement In Progress"
     body_path: docs/specification/reports/PR-body-INIT-GATEFLOW-010-W1.md
-    head_ref: feature/INIT-GATEFLOW-010-w1-board-status
+    head_ref: feature/INIT-GATEFLOW-010-w1-implement-lane
     base_ref: develop
 ```
