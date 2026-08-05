@@ -52,12 +52,15 @@ agent / Slack; Initiative C2 probes; discover waves via `list_tickets(initiative
 alone (caller must pass `wave_ticket_ids[]` from create-tickets).
 
 **As-built baseline (2026-08-05):** Submodule `prayog-skills` @ `6561c7c` ≡ tag
-`v0.5.0-rc.2` ≡ `.harness-pin.yaml` `agent_skills.ref`. Partial W0 work exists:
-`ForgeActionType.update_board_status`, `parse_node_forge` status validation, and
-`test_all_remounted_pin_nodes_parse` (REQ-02 partial). **Gaps for W0 exit:** pin
-`purpose` / `owner` not carried on `ResolvedWorkflowNode`; `run_stopped` timeline
-payload lacks pin `purpose` when next node is `human-checkpoint` (REQ-10).
-`ForgeActionService` does not execute `update_board_status` (W1 / REQ-03).
+`v0.5.0-rc.2` ≡ `.harness-pin.yaml` `agent_skills.ref`. W0 **human_approved**:
+board-status forge parse (`parse_node_forge`, `get_node`); pin `purpose`/`owner` on
+`ResolvedWorkflowNode`; `run_stopped` timeline carries purpose/owner when present
+(REQ-01, REQ-02, REQ-10).
+
+**W1 as-built (live verify pass 2026-08-05):** `ForgeActionService.execute_update_board_status`
+apply branch; implement-start In Progress pre-hop (`WaveStartService`); REQ-11 policy
+guard blocks same-run resume from `board-tickets-action` pass; partial REQ-17 via
+`verify_implement_lane` board asserts (REQ-03, REQ-04, REQ-11).
 
 **Delivery waves (product-normative; PRD §5):**
 

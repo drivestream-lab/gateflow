@@ -215,9 +215,22 @@
 |-----|--------|
 | Product INIT | **Accepted** — [`product/INIT-GATEFLOW-010-gateflow.md`](../product/INIT-GATEFLOW-010-gateflow.md); PE package accept 2026-08-05 |
 | W0 pin parse + stop payload | **human_approved** — merge [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; Live-Verify skipped (P15 N/A); Learning/Ground backfill on `develop` |
-| APPLY_FORGE board-status apply | **deferred W1** — REQ-03; parse-only this wave; W1 reads `Ground-Report-INIT-GATEFLOW-010-W0.md` §Contracts produced |
+| APPLY_FORGE board-status apply | **W1 complete** — REQ-03 apply on `develop` tip via PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); Ground-Report W1 pending sign-off |
 
-## INIT-GATEFLOW-009 — both-lane factory prove-out (**human_approved** freeze)
+## Capability matrix (INIT-GATEFLOW-010 W1 — board-status apply + implement In Progress)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| APPLY_FORGE `update_board_status` | REQ-03 | `ForgeActionService.execute_update_board_status` | `test_apply_update_board_status_*`, `test_forge_merge` | `verify_implement_lane` (board hop events) | Pin status → column via `board_column_for_pin_status`; missing ticket fail-closed |
+| Implement-start In Progress pre-hop | REQ-04 | `WaveStartService._apply_implement_in_progress` | `test_implement_wave_start_ok`, `test_implement_in_progress_idempotent_*` | `verify_implement_lane` (`assert_board_in_progress`) | Before enqueue; idempotent when column already In Progress |
+| No same-run resume after create-tickets | REQ-11 | `PolicyEngine.evaluate_dispatch` guard | `test_policy_create_tickets_pass_stops_same_run_resume` | secondary | `board-tickets-action` pass → STOP; implement via new API |
+| Live implement_lane board asserts | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | human at `live-verify` | In Progress column + optional `update_board_status` timeline evidence |
+
+| Gap | Status |
+|-----|--------|
+| W1 board-status + implement In Progress | **pending human_approved** — live verify pass 2026-08-05; run `852a0a42-…` → PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); board [#139](https://github.com/drivestream-lab/gateflow/issues/139); Ground-Report W1 + merge at `wave-signoff`; [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md) |
+
+## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|

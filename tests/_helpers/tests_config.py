@@ -90,6 +90,10 @@ class LaneFeatureConfig(BaseModel):
         description="Post-lane file assert path; agent must create the file",
     )
     timeout_s: float = Field(default=3600.0, ge=1.0)
+    assert_board_in_progress: bool = Field(
+        default=True,
+        description="When true and ticket_id is numeric, assert board column In Progress after implement/start",
+    )
     # [API] wave-start body for this feature
     wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
 
