@@ -17,7 +17,11 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Active initiative (009 spec draft):** [`product/INIT-GATEFLOW-009-gateflow.md`](product/INIT-GATEFLOW-009-gateflow.md)
+**Active initiative (010 spec draft):** [`product/INIT-GATEFLOW-010-gateflow.md`](product/INIT-GATEFLOW-010-gateflow.md)
+(eng-lane pin tip executor parity — W0 pin parse + purpose/owner; full lifecycle
+REQ-01…REQ-20; Gate 1 approved on [prayog-meta#28](https://github.com/drivestream-lab/prayog-meta/pull/28)).
+
+**Prior (009 freeze):** [`product/INIT-GATEFLOW-009-gateflow.md`](product/INIT-GATEFLOW-009-gateflow.md)
 (both-lane factory prove-out — spec Draft PR tip + wrap-up + authorize API live;
 Gate 1 approved on [prayog-meta#23](https://github.com/drivestream-lab/prayog-meta/pull/23)).
 
