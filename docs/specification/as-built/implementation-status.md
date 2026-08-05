@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0+W1 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0+W1 **human_approved**; W2 live-verify **human_approved** on PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `dd8412f` (Pass-2 learning/ground / merge may follow); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -238,11 +238,11 @@
 | Create success epic + wave ids | REQ-07 | `BoardTicketsSeedResult` post-create contract | `test_authorize_create_board_tickets_prayog_v1`, `*_requires_wave_ids` | authorize positive path | Non-empty `epic_ticket_id` + `wave_ticket_ids[]` |
 | Implement-start ticket gate | REQ-08 | `implement_ticket_gate` + `WaveStartService.start_implement_wave` | `test_implement_malformed_*`, `test_implement_unresolvable_*`, `test_implement_rejects_done_*`, `test_implement_dual_identity_disagree` | `verify_wave_start` negative probes | 400 malformed; 422 unresolvable/mismatch/Done; 0 enqueue |
 | Board status label + Project Status | REQ-03/04 follow-on | `ForgeClient.update_issue_status` | `test_update_issue_status_*` Project Status | human board UI | Lifts INIT-002 Issues-MVP deferral for Status; fail closed if no project item / option |
-| Live verify co-ship | REQ-17 (partial) | `verify_wave_start.py`, `tests/README.md` | — | human at `live-verify` | Did not claim human smoke success in loop-spec |
+| Live verify co-ship | REQ-17 (partial) | `verify_wave_start.py`, `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W2.md) | run `89b7b7d9-…` → PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) |
 
 | Gap | Status |
 |-----|--------|
-| W2 ticket gates + create predicates | **implemented** — loop-spec pass 2026-08-05; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live verify pending human at `live-verify` |
+| W2 ticket gates + create predicates | **human_approved** (live-verify) — PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `dd8412f`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); [`Live-Verify-INIT-GATEFLOW-010-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W2.md); Pass-2 Learning/Ground + merge still programme steps |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
