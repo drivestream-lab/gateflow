@@ -115,6 +115,25 @@ class BoardService(BaseBusinessService):
         )
         return self._to_ticket(data, request.org, request.repo)
 
+    async def get_ticket(
+        self,
+        ticket_id: str,
+        *,
+        org: str,
+        repo: str,
+    ) -> BoardTicketResource:
+        """Fetch one board ticket by numeric issue id (read-only)."""
+        issue_number = self._parse_ticket_id(ticket_id)
+        try:
+            document = await self._forge_client.get_issue(org, repo, issue_number)
+        except httpx.HTTPError as exc:
+            raise ServiceUnavailableError(
+                service_name="github",
+                message="Forge board ticket fetch failed",
+                details={"error": str(exc)},
+            ) from exc
+        return self._to_ticket(document.model_dump(mode="json"), org, repo)
+
     async def link_pull_request(
         self,
         ticket_id: str,

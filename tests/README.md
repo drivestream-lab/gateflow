@@ -263,6 +263,17 @@ set -a && source .env && set +a
 
 Not in `verify_all`. Idempotent on `initiative_id` (+ wave suffix) like forge seed.
 
+## Feature map (INIT-GATEFLOW-010 W2 — ticket gates + create predicates)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Create triple predicate gate (REQ-06) | `verify_board` / `verify_create_tickets` (authorize path docs) | `test_authorize_create_board_tickets_*`, `test_create_board_tickets_gate` patterns in forge tests |
+| Create success epic + wave ids (REQ-07) | authorize positive path prints ids | `test_authorize_create_board_tickets_prayog_v1`, `test_authorize_create_board_tickets_success_requires_wave_ids` |
+| Implement-start ticket 400/422 matrix (REQ-08) | `verify_wave_start` negative probes | `test_implement_malformed_ticket_id_400`, `test_implement_unresolvable_dual_identity_422`, `test_implement_rejects_done_ticket_422`, `test_implement_dual_identity_disagree` |
+| Live co-ship (REQ-17 partial) | `verify_wave_start` extended | unit matrix above |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_start` (+ `verify_board` / `verify_create_tickets` for create predicates when knobs set).
+
 ### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 
 ```bash

@@ -291,9 +291,15 @@ def main() -> int:
     authorize_run_id = feature.authorize_run_id.strip()
     if authorize_run_id:
         print(
-            f"[INFO] using forge/authorize path run_id={authorize_run_id} "
-            "(board-tickets-action STOP required)"
+            f"[INFO] forge/authorize predicate probe run_id={authorize_run_id} "
+            "(requires STOPPED run at board-tickets-action)"
         )
+        bad_plan_handoff_note = (
+            "Use a workspace whose handoff.forge.plan_path is not the canonical "
+            "Implementation-Plan-{initiative}.md to assert 422 + 0 creates; "
+            "positive authorize path prints epic_ticket_id + wave_ticket_ids."
+        )
+        print(f"[INFO] {bad_plan_handoff_note}")
         return _authorize_path(
             base_url=base_url,
             headers=headers,

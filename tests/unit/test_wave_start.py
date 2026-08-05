@@ -172,6 +172,17 @@ def _service(
             repo="widget",
         )
     )
+    board.get_ticket = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="42",
+            number=42,
+            title="Wave",
+            state="open",
+            column="In Progress",
+            org="acme",
+            repo="widget",
+        )
+    )
     return WaveStartService(
         postgres_service=postgres,
         slot_validator=validator,
@@ -214,6 +225,17 @@ async def test_implement_wave_start_ok() -> None:
 @pytest.mark.asyncio
 async def test_implement_in_progress_idempotent_when_already_set() -> None:
     board = MagicMock()
+    board.get_ticket = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="42",
+            number=42,
+            title="Wave",
+            state="open",
+            column="In Progress",
+            org="acme",
+            repo="widget",
+        )
+    )
     board.update_ticket_status = AsyncMock(
         return_value=BoardTicketResource(
             ticket_id="42",
@@ -251,7 +273,7 @@ async def test_implement_dual_identity_agree() -> None:
 @pytest.mark.asyncio
 async def test_implement_dual_identity_disagree() -> None:
     service = _service()
-    with pytest.raises(ValidationError, match="disagree"):
+    with pytest.raises(UnprocessableEntityError, match="disagree"):
         await service.start_implement_wave(
             _implement_req(ticket_id="INIT-ACME-001:W0", wave_id="W1")
         )
@@ -282,6 +304,44 @@ def test_implement_missing_ticket_id() -> None:
         ImplementWaveStartRequest.model_validate(
             {k: v for k, v in _implement_req().model_dump().items() if k != "ticket_id"}
         )
+
+
+@pytest.mark.asyncio
+async def test_implement_malformed_ticket_id_400() -> None:
+    service = _service()
+    with pytest.raises(ValidationError, match="numeric board issue"):
+        await service.start_implement_wave(_implement_req(ticket_id="not-valid"))
+
+
+@pytest.mark.asyncio
+async def test_implement_unresolvable_dual_identity_422() -> None:
+    service = _service()
+    with pytest.raises(UnprocessableEntityError, match="Unresolvable"):
+        await service.start_implement_wave(
+            _implement_req(ticket_id="INIT-ACME-001:W0", issue_number=None)
+        )
+
+
+@pytest.mark.asyncio
+async def test_implement_rejects_done_ticket_422() -> None:
+    board = MagicMock()
+    board.get_ticket = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="42",
+            number=42,
+            title="Wave",
+            state="open",
+            column="Done",
+            org="acme",
+            repo="widget",
+        )
+    )
+    board.update_ticket_status = AsyncMock()
+    service = _service()
+    service._board_service = board
+    with pytest.raises(UnprocessableEntityError, match="Done"):
+        await service.start_implement_wave(_implement_req())
+    board.update_ticket_status.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -14,13 +14,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
+from src.business_services.create_board_tickets_gate import (
+    CreateBoardTicketsGateError,
+    evaluate_create_board_tickets_predicates,
+)
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.workflow_engine import WorkflowEngine
 from src.database.postgres.repository.run_store_repository import (
     RunEventRepository,
     RunRepository,
 )
-from src.exceptions.app_exceptions import NotFoundError, ValidationError
+from src.exceptions.app_exceptions import NotFoundError, UnprocessableEntityError, ValidationError
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import (
@@ -43,10 +47,7 @@ from src.models.forge_types import ForgeActionType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.run_store_models import RunEventCreate, RunModel
 from src.models.run_store_types import RunStatusType
-from src.models.work_manifest_models import (
-    parse_work_manifest_from_plan,
-    run_workmanifest_contract,
-)
+from src.models.work_manifest_models import parse_work_manifest_from_plan
 
 
 class ForgeApplyResult(BaseModel):
@@ -387,21 +388,25 @@ class ForgeActionService(BaseBusinessService):
             )
 
         try:
-            run_workmanifest_contract(workspace=workspace, plan_file=plan_file)
-        except ValueError as exc:
+            evaluate_create_board_tickets_predicates(
+                workspace=workspace,
+                plan_path=effective.plan_path,
+                initiative=effective.initiative,
+            )
+        except CreateBoardTicketsGateError as exc:
             self.logger.error(
-                "WorkManifest contract failed before board create",
+                "Create-tickets predicate gate failed",
                 initiative=effective.initiative,
                 plan_path=effective.plan_path,
-                error=str(exc),
+                predicate=exc.predicate,
+                error=exc.message,
             )
-            raise ValidationError(
-                message=str(exc),
-                field_errors={"plan_path": "workmanifest_contract"},
-            ) from exc
+            raise
+        except UnprocessableEntityError:
+            raise
 
         self.logger.info(
-            "WorkManifest contract passed before board create",
+            "Create-tickets triple predicate gate passed",
             initiative=effective.initiative,
             plan_path=effective.plan_path,
             api_version="prayog/v1",
@@ -463,6 +468,18 @@ class ForgeActionService(BaseBusinessService):
                 created_count += 1
             if wave_resp.idempotent_replay:
                 replayed_count += 1
+
+        if not epic_id or not wave_ids:
+            raise UnprocessableEntityError(
+                message=(
+                    "create_board_tickets succeeded partially but response contract "
+                    "requires epic_ticket_id and non-empty wave_ticket_ids"
+                ),
+                details={
+                    "epic_ticket_id": epic_id,
+                    "wave_ticket_ids": wave_ids,
+                },
+            )
 
         self.logger.info(
             "Forge create_board_tickets executed",

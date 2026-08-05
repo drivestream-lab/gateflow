@@ -11,6 +11,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
+from src.business_services.implement_ticket_gate import (
+    assert_dual_identity_agreement,
+    assert_implement_ticket_id_well_formed,
+    assert_ticket_not_done,
+    assert_ticket_resolvable,
+    resolve_board_ticket_id,
+)
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
@@ -72,8 +79,25 @@ class WaveStartService(BaseBusinessService):
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
         """Implement-lane start: ticket identity + Enter-at; no meta fields."""
+        ticket = assert_implement_ticket_id_well_formed(ticket_id=request.ticket_id)
+        assert_dual_identity_agreement(
+            ticket_id=ticket,
+            initiative_id=request.initiative_id,
+            wave_id=request.wave_id,
+        )
+        assert_ticket_resolvable(ticket_id=ticket, issue_number=request.issue_number)
+        board_ticket_id = resolve_board_ticket_id(
+            ticket_id=ticket,
+            issue_number=request.issue_number,
+        )
+        existing = await self._board_service.get_ticket(
+            board_ticket_id,
+            org=request.org,
+            repo=request.repo,
+        )
+        assert_ticket_not_done(column=existing.column)
         initiative_id, wave_id, issue_number, ticket = self._resolve_ticket_identity(
-            ticket_id=request.ticket_id,
+            ticket_id=ticket,
             initiative_id=request.initiative_id,
             wave_id=request.wave_id,
             issue_number=request.issue_number,
@@ -473,7 +497,7 @@ class WaveStartService(BaseBusinessService):
         wave_id: str,
         issue_number: Optional[int],
     ) -> tuple[str, str, Optional[int], str]:
-        """Resolve initiative/wave; require non-empty ticket_id for dual-identity rules."""
+        """Resolve initiative/wave for lane starts after implement gate checks."""
         ticket = ticket_id
         resolved_issue = issue_number
 
@@ -516,9 +540,9 @@ class WaveStartService(BaseBusinessService):
         elif issue_number is not None:
             board_ticket_id = str(issue_number)
         if board_ticket_id is None:
-            raise ValidationError(
+            raise UnprocessableEntityError(
                 message="ticket_id must resolve to a numeric board ticket for implement-start",
-                field_errors={"ticket_id": "must_resolve_to_board_ticket"},
+                details={"ticket_id": ticket},
             )
         existing = await self._board_service.update_ticket_status(
             board_ticket_id,

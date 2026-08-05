@@ -8,6 +8,10 @@ board methods).
 
 INIT-GATEFLOW-008 W2: also asserts the pinned WorkManifest contract script
 rejects ``apiVersion: launchpad/v1`` (prayog/v1-only before create_board_tickets).
+
+INIT-GATEFLOW-010 W2: when ``features.create_tickets.authorize_run_id`` is set with a
+STOPPED run at ``board-tickets-action``, a non-canonical ``plan_path`` must fail closed
+with **422** and **0** board creates (triple predicate gate — unit owns matrix).
 Authorize + board-seed projection remains unit-owned
 (``test_forge_action_service``); create_board_tickets stays
 ``authorization: explicit``.

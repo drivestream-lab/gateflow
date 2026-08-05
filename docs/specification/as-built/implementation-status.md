@@ -230,6 +230,19 @@
 |-----|--------|
 | W1 board-status + implement In Progress | **human_approved** — merge [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; live verify pass 2026-08-05 run `852a0a42-…`; board [#139](https://github.com/drivestream-lab/gateflow/issues/139); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md); [`Ground-Report-INIT-GATEFLOW-010-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W1.md) |
 
+## Capability matrix (INIT-GATEFLOW-010 W2 — ticket gates + create predicates)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Create triple predicate gate | REQ-06 | `create_board_tickets_gate.evaluate_*` + `execute_create_board_tickets` | `test_authorize_create_board_tickets_*` | `verify_board` / `verify_create_tickets` (authorize docs) | 422 + 0 creates on any predicate fail |
+| Create success epic + wave ids | REQ-07 | `BoardTicketsSeedResult` post-create contract | `test_authorize_create_board_tickets_prayog_v1`, `*_requires_wave_ids` | authorize positive path | Non-empty `epic_ticket_id` + `wave_ticket_ids[]` |
+| Implement-start ticket gate | REQ-08 | `implement_ticket_gate` + `WaveStartService.start_implement_wave` | `test_implement_malformed_*`, `test_implement_unresolvable_*`, `test_implement_rejects_done_*`, `test_implement_dual_identity_disagree` | `verify_wave_start` negative probes | 400 malformed; 422 unresolvable/mismatch/Done; 0 enqueue |
+| Live verify co-ship | REQ-17 (partial) | `verify_wave_start.py`, `tests/README.md` | — | human at `live-verify` | Did not claim human smoke success in loop-spec |
+
+| Gap | Status |
+|-----|--------|
+| W2 ticket gates + create predicates | **implemented** — loop-spec pass 2026-08-05; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live verify pending human at `live-verify` |
+
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
