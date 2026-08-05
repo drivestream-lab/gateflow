@@ -6,13 +6,13 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-010-gateflow.md` |
 | Initiative | INIT-GATEFLOW-010 |
 | Date | 2026-08-05 |
-| Wave head (exact) | `feature/INIT-GATEFLOW-010-w1-implement-lane` @ `2c62306f507ec2a8e9769e57f2fce11fe8413a00` — reviewed head for sign-off |
-| PR URL | https://github.com/drivestream-lab/gateflow/pull/146 — read-only context (Draft — open for Pass-2 closeout) |
+| Wave head (exact) | `develop` @ `34e581337685198554b929d1c19c4412dfa113e3` — merge of [#146](https://github.com/drivestream-lab/gateflow/pull/146) |
+| PR URL | https://github.com/drivestream-lab/gateflow/pull/146 — **MERGED** 2026-08-05 |
 | Board | https://github.com/drivestream-lab/gateflow/issues/139 |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-08-07 |
-| Deciders | Tech lead / reviewer — explicit LGTM required (human merge at wave-signoff) |
-| Outcome | **pass** |
+| Deciders | Tech lead / reviewer — human_approved backfill after merge (wave-signoff) |
+| Outcome | **pass** → **human_approved** |
 | Outcome reason | Wave-assigned REQs verified on tip + unit + human live-verify; §Contracts produced complete for W2; no Blocking GF-*; exact-head sign-off package ready |
 | Assigned REQs | REQ-03, REQ-04, REQ-11, REQ-17 (partial) — from WorkManifest TASK-W1-01…05 `implements` |
 
@@ -102,21 +102,21 @@ Manual re-proof at ground time (2026-08-05):
 - Live evidence path: `docs/specification/reports/Live-Verify-INIT-GATEFLOW-010-W1.md`
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-010-W1.md`
 - Learning-Extract path: `docs/specification/reports/Learning-Extract-INIT-GATEFLOW-010-W1.md`
-- As-built row: INIT-GATEFLOW-010 W1 → **pending human_approved** (formal gate at `wave-signoff`)
-- Checkpoint evidence fields (human fills at `wave-signoff`): `reviewed_head_sha`, `merge_commit_sha`
+- As-built row: INIT-GATEFLOW-010 W1 → **human_approved** (backfill after merge `34e5813`)
+- Checkpoint evidence: `reviewed_head_sha` = `ad20f066a1a648d310463acad423dca0d2bb6d59` (feature tip); `merge_commit_sha` = `34e581337685198554b929d1c19c4412dfa113e3`
 
 ### Human sign-off / merge checklist
 
-- [ ] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate and complete for W2 `/pre-implement`
-- [ ] Confirm reviewed head SHA matches the package above (republish Pass-2 closeout docs before merge)
-- [ ] Mark as-built: INIT-GATEFLOW-010 W1 = human_approved (human only)
-- [ ] Merge PR [#146](https://github.com/drivestream-lab/gateflow/pull/146) manually (human only) — record merge commit SHA
-- [ ] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
+- [x] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
+- [x] Review §Contracts produced — accurate and complete for W2 `/pre-implement`
+- [x] Confirm reviewed head / merge SHA recorded (feature tip `ad20f06`; merge `34e5813`)
+- [x] Mark as-built: INIT-GATEFLOW-010 W1 = human_approved (backfill chore)
+- [x] Merge PR [#146](https://github.com/drivestream-lab/gateflow/pull/146) — done 2026-08-05
+- [x] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
 
 ## Ready for human checkpoint?
 
-**yes (after closeout publish)** — G1–G10 satisfied; no Blocking GF-*; publish Ground Report + doc fixes via `/commit-workspace`, then `wave-done-action` (board Done), then human merge at `wave-signoff`.
+**yes — human_approved** (2026-08-05). Wave PR merged; as-built + Ground Report status backfilled. W2 `/pre-implement` may consume §Contracts produced.
 
 ## Checks G1–G10
 
@@ -150,8 +150,10 @@ handoff:
     pr_number: 146
     pr_url: "https://github.com/drivestream-lab/gateflow/pull/146"
     pass1_tip_sha: "98bb02179f03128baf351643678d157ba4e12c88"
-    tip_sha: "2c62306f507ec2a8e9769e57f2fce11fe8413a00"
-    reviewed_head_sha_expected: "2c62306f507ec2a8e9769e57f2fce11fe8413a00"
+    tip_sha: "34e581337685198554b929d1c19c4412dfa113e3"
+    reviewed_head_sha_expected: "ad20f066a1a648d310463acad423dca0d2bb6d59"
+    merge_commit_sha: "34e581337685198554b929d1c19c4412dfa113e3"
+    human_approved: true
     contracts_produced: 5
     assigned_reqs:
       - REQ-03

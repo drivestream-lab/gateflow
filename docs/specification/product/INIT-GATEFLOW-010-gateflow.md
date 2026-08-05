@@ -57,10 +57,11 @@ board-status forge parse (`parse_node_forge`, `get_node`); pin `purpose`/`owner`
 `ResolvedWorkflowNode`; `run_stopped` timeline carries purpose/owner when present
 (REQ-01, REQ-02, REQ-10).
 
-**W1 as-built (live verify pass 2026-08-05):** `ForgeActionService.execute_update_board_status`
-apply branch; implement-start In Progress pre-hop (`WaveStartService`); REQ-11 policy
-guard blocks same-run resume from `board-tickets-action` pass; partial REQ-17 via
-`verify_implement_lane` board asserts (REQ-03, REQ-04, REQ-11).
+**W1 human_approved (2026-08-05):** merge [#146](https://github.com/drivestream-lab/gateflow/pull/146)
+`34e5813`. `ForgeActionService.execute_update_board_status` apply branch; implement-start
+In Progress pre-hop (`WaveStartService`); REQ-11 policy guard blocks same-run resume from
+`board-tickets-action` pass; partial REQ-17 via `verify_implement_lane` board asserts
+(REQ-03, REQ-04, REQ-11). Live-Verify + Ground-Report W1 on tip.
 
 **Delivery waves (product-normative; PRD §5):**
 
