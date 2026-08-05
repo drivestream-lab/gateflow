@@ -59,6 +59,10 @@ alone (caller must pass `wave_ticket_ids[]` from create-tickets).
 payload lacks pin `purpose` when next node is `human-checkpoint` (REQ-10).
 `ForgeActionService` does not execute `update_board_status` (W1 / REQ-03).
 
+**W1 as-built (local — pending live-verify):** `ForgeActionService.execute_update_board_status`
+apply branch; implement-start In Progress pre-hop (`WaveStartService`); REQ-11 policy
+guard blocks same-run resume from `board-tickets-action` pass.
+
 **Delivery waves (product-normative; PRD §5):**
 
 | Wave | Intent | Exit PRD REQs |

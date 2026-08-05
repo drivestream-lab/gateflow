@@ -228,6 +228,17 @@ set -a && source .env && set +a
 
 Keep `features.implement_lane.enabled: false` for routine smoke.
 
+## Feature map (INIT-GATEFLOW-010 W1 — board-status + implement In Progress)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| APPLY_FORGE `update_board_status` apply | `verify_implement_lane` (forge_executed timeline) | `test_apply_update_board_status_*`, `test_forge_merge` |
+| Implement-start In Progress pre-hop (REQ-04) | `verify_implement_lane` (`assert_board_in_progress`) | `test_implement_wave_start_ok`, `test_implement_in_progress_idempotent_*` |
+| No same-run resume after create-tickets (REQ-11) | — | `test_policy_create_tickets_pass_stops_same_run_resume` |
+| Pin `ticket` slot merge for board-status hops | — | `test_merge_update_board_status_*` |
+
+`features.implement_lane.assert_board_in_progress: true` (default) checks board column after implement/start when `ticket_id` is numeric.
+
 ### Create board tickets from WorkManifest (INIT-GATEFLOW-010)
 
 After spec merge (plan §9 on `develop`), seed EPIC + wave tickets before implement-lane:

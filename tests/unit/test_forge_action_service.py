@@ -242,6 +242,75 @@ async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Pat
     board.create_ticket.assert_not_awaited()
 
 
+@pytest.mark.asyncio
+async def test_apply_update_board_status_in_progress() -> None:
+    board = MagicMock()
+    board.update_ticket_status = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="139",
+            number=139,
+            title="W1",
+            state="open",
+            column="In Progress",
+            org="acme",
+            repo="widget",
+        )
+    )
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("wave-in-progress-action")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="board-tickets-action",
+        outcome="pass",
+        forge=HandoffForgeDocument(ticket="139"),
+    )
+    svc = _service(
+        run=_run(workflow_node="wave-in-progress-action"),
+        handoff=handoff,
+        board_service=board,
+    )
+    result = await svc.apply_external_action(
+        org="acme",
+        repo="widget",
+        node=node,
+        handoff=handoff,
+        workspace=Path("."),
+        ticket_ref="139",
+    )
+    assert result.action == ForgeActionType.UPDATE_BOARD_STATUS
+    assert result.board_ticket is not None
+    assert result.board_ticket.column == "In Progress"
+    board.update_ticket_status.assert_awaited_once()
+    req = board.update_ticket_status.await_args.args[1]
+    assert req.column == "In Progress"
+
+
+@pytest.mark.asyncio
+async def test_apply_update_board_status_missing_ticket_fails_closed() -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("wave-in-progress-action")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="board-tickets-action",
+        outcome="pass",
+    )
+    svc = _service(
+        run=_run(workflow_node="wave-in-progress-action"),
+        handoff=handoff,
+        board_service=MagicMock(),
+    )
+    with pytest.raises(ValidationError, match="ticket"):
+        await svc.apply_external_action(
+            org="acme",
+            repo="widget",
+            node=node,
+            handoff=handoff,
+            workspace=Path("."),
+        )
+
+
 def test_board_tickets_action_remains_explicit_authorize_stop() -> None:
     """REQ-15: board-tickets-action stays explicit STOP (not APPLY_FORGE)."""
     engine = WorkflowEngine()

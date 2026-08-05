@@ -61,6 +61,16 @@ class PolicyEngine(BaseBusinessService):
                 retry_counter=retry_counter,
             )
 
+        if handoff.stage == "board-tickets-action" and handoff.outcome == "pass":
+            return PolicyDecision(
+                decision=PolicyDecisionType.STOP,
+                block_reason=(
+                    "Create-tickets complete; spec lane terminates here (REQ-11). "
+                    "Implement via POST /api/v1/waves/implement/start — no same-run resume."
+                ),
+                retry_counter=retry_counter,
+            )
+
         try:
             next_node = self._workflow_engine.resolve_next(handoff)
         except FileNotFoundError as exc:

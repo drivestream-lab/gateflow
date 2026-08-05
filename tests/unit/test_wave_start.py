@@ -25,6 +25,7 @@ from src.models.adapter_models import AdapterSlotKindType
 from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
+from src.models.board_models import BoardTicketResource
 from src.models.wave_start_models import ImplementWaveStartRequest, SpecWaveStartRequest
 
 
@@ -159,6 +160,18 @@ def _service(
         intake.accept = AsyncMock(return_value=_meta_accept())
     else:
         intake = meta_pr_intake
+    board = MagicMock()
+    board.update_ticket_status = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="42",
+            number=42,
+            title="Wave",
+            state="open",
+            column="In Progress",
+            org="acme",
+            repo="widget",
+        )
+    )
     return WaveStartService(
         postgres_service=postgres,
         slot_validator=validator,
@@ -168,6 +181,7 @@ def _service(
         job_repository=job_repo,
         meta_pr_intake=intake,
         forge_client=MagicMock(),
+        board_service=board,
     )
 
 
@@ -178,6 +192,13 @@ async def test_implement_wave_start_ok() -> None:
     assert response.status == "active"
     assert response.run_id
     assert response.job_id
+    board = service._board_service
+    assert isinstance(board.update_ticket_status, AsyncMock)
+    board.update_ticket_status.assert_awaited_once()
+    board_call = board.update_ticket_status.await_args
+    assert board_call is not None
+    board_req = board_call.args[1]
+    assert board_req.column == "In Progress"
     enqueue = service._job_repository.enqueue
     assert isinstance(enqueue, AsyncMock)
     assert enqueue.await_count == 1
@@ -191,6 +212,27 @@ async def test_implement_wave_start_ok() -> None:
 
 
 @pytest.mark.asyncio
+async def test_implement_in_progress_idempotent_when_already_set() -> None:
+    board = MagicMock()
+    board.update_ticket_status = AsyncMock(
+        return_value=BoardTicketResource(
+            ticket_id="42",
+            number=42,
+            title="Wave",
+            state="open",
+            column="In Progress",
+            org="acme",
+            repo="widget",
+        )
+    )
+    service = _service()
+    service._board_service = board
+    response = await service.start_implement_wave(_implement_req())
+    assert response.run_id
+    board.update_ticket_status.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_implement_rejects_manual_start_node() -> None:
     service = _service()
     with pytest.raises(ValidationError, match="orchestrated"):
@@ -200,7 +242,9 @@ async def test_implement_rejects_manual_start_node() -> None:
 @pytest.mark.asyncio
 async def test_implement_dual_identity_agree() -> None:
     service = _service()
-    response = await service.start_implement_wave(_implement_req(ticket_id="INIT-ACME-001:W0"))
+    response = await service.start_implement_wave(
+        _implement_req(ticket_id="INIT-ACME-001:W0", issue_number=42)
+    )
     assert response.run_id
 
 

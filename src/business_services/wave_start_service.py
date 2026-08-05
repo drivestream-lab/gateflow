@@ -10,6 +10,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.business_services.board_service import BoardService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
@@ -25,6 +26,7 @@ from src.exceptions.app_exceptions import (
 )
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
+from src.models.board_models import BoardTicketStatusUpdateRequest
 from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.pr_branch_naming import branch_slug_from_head_ref
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
@@ -54,6 +56,7 @@ class WaveStartService(BaseBusinessService):
         job_repository: JobRepository,
         meta_pr_intake: MetaPrIntakeService,
         forge_client: ForgeClient,
+        board_service: BoardService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -64,6 +67,7 @@ class WaveStartService(BaseBusinessService):
         self._job_repository = job_repository
         self._meta_pr_intake = meta_pr_intake
         self._forge_client = forge_client
+        self._board_service = board_service
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -73,6 +77,12 @@ class WaveStartService(BaseBusinessService):
             initiative_id=request.initiative_id,
             wave_id=request.wave_id,
             issue_number=request.issue_number,
+        )
+        await self._apply_implement_in_progress(
+            org=request.org,
+            repo=request.repo,
+            ticket=ticket,
+            issue_number=issue_number,
         )
         return await self._enqueue_wave(
             request,
@@ -490,6 +500,46 @@ class WaveStartService(BaseBusinessService):
             )
 
         return initiative_id, wave_id, resolved_issue, ticket
+
+    async def _apply_implement_in_progress(
+        self,
+        *,
+        org: str,
+        repo: str,
+        ticket: str,
+        issue_number: Optional[int],
+    ) -> None:
+        """REQ-04: board In Progress before implement enqueue; idempotent when already set."""
+        board_ticket_id: Optional[str] = None
+        if ticket.isdigit():
+            board_ticket_id = ticket
+        elif issue_number is not None:
+            board_ticket_id = str(issue_number)
+        if board_ticket_id is None:
+            raise ValidationError(
+                message="ticket_id must resolve to a numeric board ticket for implement-start",
+                field_errors={"ticket_id": "must_resolve_to_board_ticket"},
+            )
+        existing = await self._board_service.update_ticket_status(
+            board_ticket_id,
+            BoardTicketStatusUpdateRequest(
+                org=org,
+                repo=repo,
+                column="In Progress",
+            ),
+        )
+        if existing.column == "In Progress":
+            self.logger.info(
+                "Implement-start board In Progress (idempotent)",
+                ticket_id=board_ticket_id,
+                column=existing.column,
+            )
+        else:
+            self.logger.info(
+                "Implement-start applied board In Progress",
+                ticket_id=board_ticket_id,
+                column=existing.column,
+            )
 
 
 def get_wave_start_service() -> WaveStartService:

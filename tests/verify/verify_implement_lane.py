@@ -228,6 +228,44 @@ def main() -> int:
                 return 1
             print("[OK] pr_number unset at implement start (no PR-at-start)")
 
+            if lane.assert_board_in_progress and str(identity["ticket_id"]).isdigit():
+                ticket_num = str(identity["ticket_id"])
+                listed = client.get(
+                    f"{base_url}/api/v1/board/tickets",
+                    headers=headers,
+                    params={
+                        "org": identity["org"],
+                        "repo": identity["repo"],
+                        "state": "all",
+                    },
+                )
+                if listed.status_code != 200:
+                    print(
+                        f"[ERROR] board list for In Progress assert {listed.status_code}: "
+                        f"{listed.text}"
+                    )
+                    return 1
+                tickets = listed.json().get("tickets") or []
+                matched = next(
+                    (t for t in tickets if str(t.get("ticket_id")) == ticket_num),
+                    None,
+                )
+                if matched is None:
+                    print(
+                        f"[WARN] ticket {ticket_num} not found in board list — "
+                        "cannot assert In Progress column (REQ-04)"
+                    )
+                elif matched.get("column") == "In Progress":
+                    print(
+                        f"[OK] board ticket #{ticket_num} column In Progress before coding (REQ-04)"
+                    )
+                else:
+                    print(
+                        f"[ERROR] expected board ticket #{ticket_num} column 'In Progress', "
+                        f"got {matched.get('column')!r}"
+                    )
+                    return 1
+
             deadline = time.time() + timeout_s
             detail_body: dict[str, Any] = {}
             while time.time() < deadline:
@@ -374,6 +412,31 @@ def main() -> int:
                 print(
                     f"[OK] stage_commit events for required nodes: "
                     f"{sorted(commit_nodes & _REQUIRED_COMMIT_NODES)}"
+                )
+
+            events = detail_body.get("events") or []
+            board_status_hops = [
+                e
+                for e in events
+                if e.get("event_type") == "forge_executed"
+                and (e.get("payload") or {}).get("action") == "update_board_status"
+            ]
+            if board_status_hops:
+                nodes = sorted(
+                    {
+                        str(e.get("workflow_node"))
+                        for e in board_status_hops
+                        if e.get("workflow_node")
+                    }
+                )
+                print(
+                    f"[OK] board-status hop evidence: {len(board_status_hops)} "
+                    f"forge_executed update_board_status event(s) at {nodes}"
+                )
+            else:
+                print(
+                    "[INFO] no update_board_status forge_executed on timeline "
+                    "(REQ-04 may apply In Progress at implement/start API only)"
                 )
 
             if not evidence_path.is_file():

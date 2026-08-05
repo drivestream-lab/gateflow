@@ -188,6 +188,22 @@ def test_policy_explicit_external_action_stops() -> None:
     assert "authorization=explicit" in (decision.block_reason or "")
 
 
+def test_policy_create_tickets_pass_stops_same_run_resume() -> None:
+    """REQ-11: board-tickets-action pass must not dispatch pre-implement on same run."""
+    engine = MagicMock()
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="board-tickets-action",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "REQ-11" in (decision.block_reason or "")
+    assert "implement/start" in (decision.block_reason or "")
+    engine.resolve_next.assert_not_called()
+
+
 def test_policy_automated_external_action_apply_forge() -> None:
     from src.models.forge_types import AuthorizationModeType
     from src.models.handoff_models import ResolvedWorkflowNode

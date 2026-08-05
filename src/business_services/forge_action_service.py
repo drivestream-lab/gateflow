@@ -23,7 +23,12 @@ from src.database.postgres.repository.run_store_repository import (
 from src.exceptions.app_exceptions import NotFoundError, ValidationError
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
-from src.models.board_models import BoardTicketCreateRequest, BoardTicketType
+from src.models.board_models import (
+    BoardTicketCreateRequest,
+    BoardTicketResource,
+    BoardTicketStatusUpdateRequest,
+    BoardTicketType,
+)
 from src.models.forge_models import (
     BoardTicketsSeedResult,
     EffectiveForgePolicy,
@@ -31,6 +36,7 @@ from src.models.forge_models import (
     ForgeAuthorizeResponse,
     HandoffForgeDocument,
     OpenDraftPrResult,
+    board_column_for_pin_status,
     merge_pin_and_handoff_forge,
 )
 from src.models.forge_types import ForgeActionType
@@ -51,6 +57,7 @@ class ForgeApplyResult(BaseModel):
     action: ForgeActionType
     pr_number: Optional[int] = Field(default=None)
     board: Optional[BoardTicketsSeedResult] = Field(default=None)
+    board_ticket: Optional[BoardTicketResource] = Field(default=None)
     effective: EffectiveForgePolicy
 
 
@@ -133,6 +140,7 @@ class ForgeActionService(BaseBusinessService):
                 base_ref=request.base,
                 project_number=request.project_number,
                 project_owner=request.project_owner,
+                ticket_ref=str(run.issue_number) if run.issue_number is not None else None,
             )
             payload: dict[str, object] = {
                 "event_type": "forge_executed",
@@ -148,6 +156,9 @@ class ForgeActionService(BaseBusinessService):
                 payload["wave_ticket_ids"] = applied.board.wave_ticket_ids
                 payload["created_count"] = applied.board.created_count
                 payload["replayed_count"] = applied.board.replayed_count
+            if applied.board_ticket is not None:
+                payload["ticket_id"] = applied.board_ticket.ticket_id
+                payload["column"] = applied.board_ticket.column
             await self._run_event_repository.append_event(
                 session,
                 RunEventCreate(
@@ -177,18 +188,21 @@ class ForgeActionService(BaseBusinessService):
         base_ref: Optional[str] = None,
         project_number: Optional[int] = None,
         project_owner: Optional[str] = None,
+        ticket_ref: Optional[str] = None,
     ) -> ForgeApplyResult:
-        """Merge pin ⋉ handoff (with run-context head/base) and execute forge.action."""
+        """Merge pin ⋉ handoff (with run-context head/base/ticket) and execute forge.action."""
         if node.forge.action is None:
             raise ValidationError(
                 message=f"node {node.node_id!r} missing forge.action",
                 field_errors={"action": "required"},
             )
         hf = handoff.forge or HandoffForgeDocument()
+        ticket_value = (ticket_ref or hf.ticket or "").strip() or None
         merged_hf = hf.model_copy(
             update={
                 "head_ref": (head_ref or hf.head_ref),
                 "base_ref": (base_ref or hf.base_ref),
+                "ticket": ticket_value,
                 "project_number": (
                     project_number if project_number is not None else hf.project_number
                 ),
@@ -230,6 +244,18 @@ class ForgeActionService(BaseBusinessService):
             return ForgeApplyResult(
                 action=effective.action,
                 board=board,
+                effective=effective,
+            )
+
+        if effective.action == ForgeActionType.UPDATE_BOARD_STATUS:
+            board_ticket = await self.execute_update_board_status(
+                org=org,
+                repo=repo,
+                effective=effective,
+            )
+            return ForgeApplyResult(
+                action=effective.action,
+                board_ticket=board_ticket,
                 effective=effective,
             )
 
@@ -455,6 +481,42 @@ class ForgeActionService(BaseBusinessService):
             created_count=created_count,
             replayed_count=replayed_count,
         )
+
+    async def execute_update_board_status(
+        self,
+        *,
+        org: str,
+        repo: str,
+        effective: EffectiveForgePolicy,
+    ) -> BoardTicketResource:
+        if effective.status is None:
+            raise ValidationError(
+                message="update_board_status requires pin forge.status",
+                field_errors={"status": "required"},
+            )
+        if not effective.ticket or not str(effective.ticket).strip():
+            raise ValidationError(
+                message="update_board_status requires ticket (run context or handoff.forge.ticket)",
+                field_errors={"ticket": "required"},
+            )
+        column = board_column_for_pin_status(effective.status)
+        ticket = await self._board_service.update_ticket_status(
+            str(effective.ticket).strip(),
+            BoardTicketStatusUpdateRequest(
+                org=org,
+                repo=repo,
+                column=column,
+            ),
+        )
+        self.logger.info(
+            "Forge update_board_status executed",
+            org=org,
+            repo=repo,
+            ticket_id=ticket.ticket_id,
+            status=effective.status.value,
+            column=column,
+        )
+        return ticket
 
 
 def get_forge_action_service() -> ForgeActionService:
