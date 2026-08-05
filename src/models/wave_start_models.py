@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from src.models.dispatch_plan_models import DispatchPlan, NodeDispatchSpec
 from src.models.pr_branch_naming import (
+    build_spec_head_branch,
     build_wave_head_branch,
     normalize_wave_token,
     validate_base_branch,
@@ -145,6 +146,10 @@ class SpecWaveStartRequest(WaveStartTargetingFields):
         if not self.meta_workspace_path.startswith("/"):
             raise ValueError("meta_workspace_path must be an absolute path")
         return self
+
+    def head_branch(self) -> str:
+        """Spec Draft PR head — initiative only; wave_id/branch_slug ignored for head."""
+        return build_spec_head_branch(self.initiative_id)
 
 
 class CloseoutWaveStartRequest(BaseModel):
@@ -307,10 +312,15 @@ class WaveStartJobPayload(BaseModel):
         default=None,
         description="Optional Pass-1 run id audit link (closeout only)",
     )
+    lane: Optional[str] = Field(
+        default=None,
+        description="Lane id: implement | spec | closeout (head naming / orch)",
+    )
     head_ref: Optional[str] = Field(
         default=None,
         description=(
-            "Resolved publish head (closeout: open wave PR head.ref). "
+            "Resolved publish head (closeout: open wave PR head.ref; "
+            "spec: feature/{INIT}-spec). "
             "When set, orchestrator must not invent head from branch_slug."
         ),
     )

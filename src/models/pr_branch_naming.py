@@ -71,6 +71,12 @@ def build_wave_head_branch(
     return f"feature/{initiative}-{wave_token}-{slug}"
 
 
+def build_spec_head_branch(initiative_id: str) -> str:
+    """Return Spec-lane head ``feature/{initiative_id}-spec`` (no wave token)."""
+    initiative = validate_initiative_id(initiative_id)
+    return f"feature/{initiative}-spec"
+
+
 def branch_slug_from_head_ref(
     head_ref: str,
     *,

@@ -43,6 +43,8 @@ features:
       # Skills leave the tree dirty; ForgeClient publishes after the hop (no skill git commit).
 
   # Spec lane: POST /api/v1/waves/spec/start (requires pin orchestrated start_node)
+  #   Head branch is always feature/{INIT}-spec (wave_id + branch_slug still required
+  #   on the API body but ignored for head naming).
   #   .venv/bin/python -m tests.verify.verify_spec_lane
   spec_lane:
     enabled: false

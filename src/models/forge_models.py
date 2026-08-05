@@ -4,7 +4,11 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.models.forge_types import CommitWorkspaceModeType, ForgeActionType
+from src.models.forge_types import (
+    BoardStatusType,
+    CommitWorkspaceModeType,
+    ForgeActionType,
+)
 
 
 class NodeForgePolicy(BaseModel):
@@ -19,6 +23,10 @@ class NodeForgePolicy(BaseModel):
     action: Optional[ForgeActionType] = Field(
         default=None,
         description="External-action forge.action when present",
+    )
+    status: Optional[BoardStatusType] = Field(
+        default=None,
+        description="Board column target when action is update_board_status",
     )
     draft: Optional[bool] = Field(default=None)
     apply_labels: list[str] = Field(default_factory=list)
@@ -239,9 +247,26 @@ def parse_node_forge(raw: Any) -> NodeForgePolicy:
     if draft is not None and not isinstance(draft, bool):
         raise ValueError("forge.draft must be a boolean when set")
 
+    status: Optional[BoardStatusType] = None
+    if "status" in raw and raw.get("status") is not None:
+        try:
+            status = BoardStatusType(str(raw["status"]))
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid forge.status {raw.get('status')!r}; "
+                f"expected {[s.value for s in BoardStatusType]}"
+            ) from exc
+
+    if action == ForgeActionType.UPDATE_BOARD_STATUS and status is None:
+        raise ValueError(
+            "forge.status is required when forge.action is update_board_status "
+            f"(expected {[s.value for s in BoardStatusType]})"
+        )
+
     return NodeForgePolicy(
         commit_workspace=commit_workspace,
         action=action,
+        status=status,
         draft=draft if isinstance(draft, bool) else None,
         apply_labels=[str(x) for x in apply_labels],
         remove_labels=[str(x) for x in remove_labels],

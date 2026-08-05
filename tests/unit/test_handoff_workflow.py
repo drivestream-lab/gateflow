@@ -141,7 +141,7 @@ def test_loop_spec_pass_resolves_to_wave_pr_action() -> None:
 
 
 def test_verify_is_manual_learning_extract_and_ground_are_orchestrated() -> None:
-    """Closeout pin: verify manual; learning-extract → ground-spec orchestrated."""
+    """Closeout pin: verify manual; learning-extract → ground → wave-done → signoff."""
     engine = WorkflowEngine()
     engine.load_pin()
     assert engine.get_node("verify").dispatch == "manual"
@@ -161,7 +161,10 @@ def test_verify_is_manual_learning_extract_and_ground_are_orchestrated() -> None
         stage="ground-spec",
         outcome="pass",
     )
-    assert engine.resolve_next(ground_pass).node_id == "wave-signoff"
+    done_hop = engine.resolve_next(ground_pass)
+    assert done_hop.node_id == "wave-done-action"
+    assert done_hop.node_type == "external-action"
+    assert done_hop.authorization == AuthorizationModeType.AUTOMATED
     assert engine.get_node("wave-signoff").node_type == "human-checkpoint"
 
 
