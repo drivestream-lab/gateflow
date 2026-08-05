@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0+W1 **human_approved**; W2 live-verify **human_approved** on PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `dd8412f` (Pass-2 learning/ground / merge may follow); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0+W1+W2 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -242,7 +242,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W2 ticket gates + create predicates | **Ground pass** (2026-08-05) — PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `be63705`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live-verify **human_approved**; [`Ground-Report-INIT-GATEFLOW-010-W2.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W2.md); pending `wave-signoff` merge |
+| W2 ticket gates + create predicates | **human_approved** — merge [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live-verify run `89b7b7d9-…`; [`Live-Verify-INIT-GATEFLOW-010-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W2.md); [`Ground-Report-INIT-GATEFLOW-010-W2.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W2.md); Project Status sync on tip |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
