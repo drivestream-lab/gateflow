@@ -215,7 +215,7 @@
 |-----|--------|
 | Product INIT | **Accepted** — [`product/INIT-GATEFLOW-010-gateflow.md`](../product/INIT-GATEFLOW-010-gateflow.md); PE package accept 2026-08-05 |
 | W0 pin parse + stop payload | **human_approved** — merge [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; Live-Verify skipped (P15 N/A); Learning/Ground backfill on `develop` |
-| APPLY_FORGE board-status apply | **deferred W1** — REQ-03; parse-only this wave; W1 reads `Ground-Report-INIT-GATEFLOW-010-W0.md` §Contracts produced |
+| APPLY_FORGE board-status apply | **W1 complete** — REQ-03 apply on `develop` tip via PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); Ground-Report W1 pending sign-off |
 
 ## Capability matrix (INIT-GATEFLOW-010 W1 — board-status apply + implement In Progress)
 
@@ -228,7 +228,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W1 board-status + implement In Progress | **human_approved** — live verify pass 2026-08-05; run `852a0a42-…` → PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); board [#139](https://github.com/drivestream-lab/gateflow/issues/139); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md) |
+| W1 board-status + implement In Progress | **pending human_approved** — live verify pass 2026-08-05; run `852a0a42-…` → PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); board [#139](https://github.com/drivestream-lab/gateflow/issues/139); Ground-Report W1 + merge at `wave-signoff`; [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md) |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
