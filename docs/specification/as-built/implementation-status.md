@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-07-30 |
-| Source | INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 W0 pending wave-signoff; pin `v0.5.0-rc.2` ≡ submodule `72ad383` |
+| Updated | 2026-08-05 |
+| Source | INIT-GATEFLOW-010 W0 unit-complete (Pass-1); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -201,6 +201,21 @@
 | Pin `workmanifest_contract` before board create | REQ-13, REQ-14 | `run_workmanifest_contract` + `execute_create_board_tickets` | `test_forge_action_service`, `test_forge_merge` | `verify_board` launchpad reject | Accept only `prayog/v1` |
 | Board create remains explicit authorize | REQ-15 | pin `board-tickets-action` + policy STOP | `test_board_tickets_action_remains_explicit_*` | — | Never APPLY_FORGE |
 | Feature map / as-built / REQ-17 | REQ-16, REQ-17 | as-built, `tests/README.md`, `docs/specification/README.md` | — | review | 007 dogfood after 008 on develop |
+
+## Capability matrix (INIT-GATEFLOW-010 W0 — pin parse + purpose/owner)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Harness pin ≡ submodule tip | REQ-01 | `.harness-pin.yaml` + `prayog-skills` submodule | inspect | N/A — P15 N/A | `v0.5.0-rc.2` @ `6561c7c`; `describe --exact-match --tags HEAD` green |
+| Board-status forge parse | REQ-02 | `parse_node_forge`, `WorkflowEngine.get_node` | `test_forge_policy` | N/A — P15 N/A | `update_board_status` action/status/requires; 0 BROKEN remounted nodes |
+| Pin purpose/owner on resolved node | REQ-10 | `ResolvedWorkflowNode`, `WorkflowEngine._to_resolved` | `test_pin_human_checkpoint_carries_purpose_and_owner` | N/A — P15 N/A | Optional fields; absent → None |
+| `run_stopped` carries pin purpose/owner | REQ-10 | `run_orchestrator._finalize_run` | `test_walker_continues_then_stops_at_gate` | N/A — P15 N/A | Stop at `live-verify` includes `purpose: live-verify` |
+
+| Gap | Status |
+|-----|--------|
+| Product INIT | **Accepted** — [`product/INIT-GATEFLOW-010-gateflow.md`](../product/INIT-GATEFLOW-010-gateflow.md); PE package accept 2026-08-05 |
+| W0 pin parse + stop payload | **unit-complete** — board [#138](https://github.com/drivestream-lab/gateflow/issues/138); Wave-Execution W0; live verify **N/A** (P15 N/A) |
+| APPLY_FORGE board-status apply | **deferred W1** — REQ-03; parse-only this wave |
 
 ## INIT-GATEFLOW-009 — both-lane factory prove-out (**human_approved** freeze)
 

@@ -705,6 +705,8 @@ async def test_walker_continues_then_stops_at_gate() -> None:
     )
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
     forge_action = MagicMock()
     forge_action.apply_external_action = AsyncMock(
         return_value=MagicMock(pr_number=88, action=MagicMock(value="open_draft_pr"))
@@ -717,6 +719,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         cursor_agent_runner=cursor_agent_runner,
         handoff_reader=handoff_reader,
         stage_repository=stage_repo,
+        run_event_repository=run_event_repo,
         forge_action_service=forge_action,
     )
     summary = await orchestrator.process_job(
@@ -735,6 +738,14 @@ async def test_walker_continues_then_stops_at_gate() -> None:
     assert cursor_agent_runner.run_skill.await_count == 2
     assert handoff_reader.read_path.call_count == 2
     forge_action.apply_external_action.assert_awaited_once()
+    stopped_events = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].payload.get("purpose") == "live-verify"
+    assert "owner" not in stopped_events[0].payload
 
 
 @pytest.mark.asyncio

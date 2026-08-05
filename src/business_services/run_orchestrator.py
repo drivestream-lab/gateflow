@@ -585,6 +585,7 @@ class RunOrchestrator(BaseBusinessService):
                     org=context.org,
                     repo=context.repo,
                     handoff=handoff,
+                    stop_node=decision.next_node,
                 )
 
     async def _run_orchestrated_stage(
@@ -1147,6 +1148,7 @@ class RunOrchestrator(BaseBusinessService):
         org: Optional[str] = None,
         repo: Optional[str] = None,
         handoff: Optional[HandoffEnvelope] = None,
+        stop_node: Optional[ResolvedWorkflowNode] = None,
     ) -> RunProcessSummary:
         if run.id is None:
             raise RuntimeError("Run missing id during finalize")
@@ -1159,6 +1161,11 @@ class RunOrchestrator(BaseBusinessService):
             "event_type": "run_stopped",
             "wave_duration_ms": wave_duration_ms,
         }
+        if stop_node is not None:
+            if stop_node.purpose is not None:
+                payload["purpose"] = stop_node.purpose
+            if stop_node.owner is not None:
+                payload["owner"] = stop_node.owner
         if handoff is not None:
             payload["handoff_context"] = {
                 "stage": handoff.stage,

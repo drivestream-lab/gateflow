@@ -186,3 +186,39 @@ def test_resolve_next_carries_forge_from_pin() -> None:
     resolved = engine.resolve_next(handoff)
     assert resolved.node_id == "loop-spec"
     assert resolved.forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
+
+
+def test_pin_board_status_nodes_require_ticket() -> None:
+    """REQ-02: update_board_status nodes must declare ticket in requires."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    for node_id in ("wave-in-progress-action", "wave-done-action"):
+        node = engine.get_node(node_id)
+        assert node.forge.action == ForgeActionType.UPDATE_BOARD_STATUS
+        assert "ticket" in node.forge.requires
+
+
+def test_pin_human_checkpoint_carries_purpose_and_owner() -> None:
+    """REQ-10: ResolvedWorkflowNode exposes pin purpose/owner when set."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    live_verify = engine.get_node("live-verify")
+    assert live_verify.node_type == "human-checkpoint"
+    assert live_verify.purpose == "live-verify"
+    assert live_verify.owner is None
+
+    wave_signoff = engine.get_node("wave-signoff")
+    assert wave_signoff.purpose == "wave-signoff"
+    assert wave_signoff.owner is None
+
+    prd_gate = engine.get_node("prd-impact-acceptance")
+    assert prd_gate.purpose == "prd-impact-acceptance"
+    assert prd_gate.owner == "engineering-gate"
+
+
+def test_pin_node_without_purpose_owner_defaults_none() -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("loop-spec")
+    assert node.purpose is None
+    assert node.owner is None
