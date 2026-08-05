@@ -71,9 +71,47 @@ def main() -> int:
                 print(f"[ERROR] missing run_id in wave-start response: {payload}")
                 return 1
             print(
-                f"[OK] POST /api/v1/waves/implement/start → "
+                "[OK] POST /api/v1/waves/implement/start → "
                 f"run_id={run_id} status={payload.get('status')}"
             )
+
+            bad_ticket = dict(body)
+            bad_ticket["ticket_id"] = "not-a-valid-ticket"
+            malformed = client.post(start_url, json=bad_ticket, headers=headers)
+            if malformed.status_code != 400:
+                print(
+                    f"[ERROR] expected 400 for malformed ticket_id, got "
+                    f"{malformed.status_code}: {malformed.text}"
+                )
+                return 1
+            print("[OK] POST implement/start malformed ticket_id → 400; 0 enqueue")
+
+            mismatch = dict(body)
+            mismatch["ticket_id"] = f"{initiative_id}:W9"
+            mismatch_resp = client.post(start_url, json=mismatch, headers=headers)
+            if mismatch_resp.status_code != 422:
+                print(
+                    f"[ERROR] expected 422 for dual-identity mismatch, got "
+                    f"{mismatch_resp.status_code}: {mismatch_resp.text}"
+                )
+                return 1
+            print("[OK] POST implement/start dual-identity mismatch → 422; 0 enqueue")
+
+            done_ticket = (cfg.features.implement_lane.wave_start.ticket_id or "").strip()
+            if done_ticket.isdigit():
+                done_body = dict(body)
+                done_body["ticket_id"] = done_ticket
+                done_resp = client.post(start_url, json=done_body, headers=headers)
+                if done_resp.status_code == 422:
+                    print("[OK] POST implement/start configured Done ticket → 422; 0 enqueue")
+                elif done_resp.status_code in {200, 201}:
+                    print("[INFO] configured ticket not Done on board — positive path still ok")
+                else:
+                    print(
+                        f"[ERROR] unexpected status for Done-ticket probe: "
+                        f"{done_resp.status_code}: {done_resp.text}"
+                    )
+                    return 1
 
             detail = client.get(f"{base_url}/api/v1/runs/{run_id}", headers=headers)
             if detail.status_code != 200:

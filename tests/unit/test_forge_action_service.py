@@ -12,7 +12,7 @@ import pytest
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.workflow_engine import WorkflowEngine
-from src.exceptions.app_exceptions import ValidationError
+from src.exceptions.app_exceptions import UnprocessableEntityError, ValidationError
 from src.models.board_models import BoardTicketCreateResponse, BoardTicketResource
 from src.models.forge_models import ForgeAuthorizeRequest, HandoffForgeDocument
 from src.models.forge_types import AuthorizationModeType, ForgeActionType
@@ -27,12 +27,20 @@ from tests._helpers.workmanifest_fixtures import (
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _PIN_CONTRACT_SCRIPT = _REPO_ROOT / "prayog-skills" / "scripts" / "workmanifest_contract.py"
+_CANONICAL_PLAN_REL = "docs/specification/reports/Implementation-Plan-INIT-TEST-001.md"
 
 
 def _install_pin_contract_script(workspace: Path) -> None:
     dest = workspace / "prayog-skills" / "scripts" / "workmanifest_contract.py"
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(_PIN_CONTRACT_SCRIPT, dest)
+
+
+def _write_canonical_plan(workspace: Path, content: str = PRAYOG_V1_BOARD_FIXTURE) -> Path:
+    plan = workspace / _CANONICAL_PLAN_REL
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text(content, encoding="utf-8")
+    return plan
 
 
 def _run(**kwargs: object) -> RunModel:
@@ -139,8 +147,7 @@ async def test_authorize_open_draft_pr(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_authorize_create_board_tickets_prayog_v1(tmp_path: Path) -> None:
     _install_pin_contract_script(tmp_path)
-    plan = tmp_path / "plan.md"
-    plan.write_text(PRAYOG_V1_BOARD_FIXTURE, encoding="utf-8")
+    _write_canonical_plan(tmp_path)
     board = MagicMock()
 
     async def _create(
@@ -166,7 +173,10 @@ async def test_authorize_create_board_tickets_prayog_v1(tmp_path: Path) -> None:
         contract="sdd-delivery/v2",
         stage="spec-implementation-plan",
         outcome="pass",
-        forge=HandoffForgeDocument(initiative="INIT-TEST-001", plan_path="plan.md"),
+        forge=HandoffForgeDocument(
+            initiative="INIT-TEST-001",
+            plan_path=_CANONICAL_PLAN_REL,
+        ),
     )
     run = _run(workflow_node="board-tickets-action")
     assert run.id is not None
@@ -193,15 +203,17 @@ async def test_authorize_create_board_tickets_prayog_v1(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_authorize_create_board_tickets_requires_project_number(tmp_path: Path) -> None:
     _install_pin_contract_script(tmp_path)
-    plan = tmp_path / "plan.md"
-    plan.write_text(PRAYOG_V1_BOARD_FIXTURE, encoding="utf-8")
+    _write_canonical_plan(tmp_path)
     board = MagicMock()
     board.create_ticket = AsyncMock()
     handoff = HandoffEnvelope(
         contract="sdd-delivery/v2",
         stage="spec-implementation-plan",
         outcome="pass",
-        forge=HandoffForgeDocument(initiative="INIT-TEST-001", plan_path="plan.md"),
+        forge=HandoffForgeDocument(
+            initiative="INIT-TEST-001",
+            plan_path=_CANONICAL_PLAN_REL,
+        ),
     )
     run = _run(workflow_node="board-tickets-action")
     assert run.id is not None
@@ -217,8 +229,37 @@ async def test_authorize_create_board_tickets_requires_project_number(tmp_path: 
 @pytest.mark.asyncio
 async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Path) -> None:
     _install_pin_contract_script(tmp_path)
-    plan = tmp_path / "plan.md"
-    plan.write_text(LAUNCHPAD_V1_BOARD_FIXTURE, encoding="utf-8")
+    _write_canonical_plan(tmp_path, LAUNCHPAD_V1_BOARD_FIXTURE)
+    board = MagicMock()
+    board.create_ticket = AsyncMock()
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="spec-implementation-plan",
+        outcome="pass",
+        forge=HandoffForgeDocument(
+            initiative="INIT-TEST-001",
+            plan_path=_CANONICAL_PLAN_REL,
+        ),
+    )
+    run = _run(workflow_node="board-tickets-action")
+    assert run.id is not None
+    svc = _service(run=run, handoff=handoff, board_service=board)
+    with pytest.raises(UnprocessableEntityError, match="WorkManifest contract failed"):
+        await svc.authorize_and_execute(
+            run.id,
+            ForgeAuthorizeRequest(
+                authorized=True,
+                workspace_path=str(tmp_path),
+                project_number=3,
+            ),
+        )
+    board.create_ticket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_authorize_create_board_tickets_rejects_non_canonical_plan(tmp_path: Path) -> None:
+    _install_pin_contract_script(tmp_path)
+    (tmp_path / "plan.md").write_text(PRAYOG_V1_BOARD_FIXTURE, encoding="utf-8")
     board = MagicMock()
     board.create_ticket = AsyncMock()
     handoff = HandoffEnvelope(
@@ -230,7 +271,7 @@ async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Pat
     run = _run(workflow_node="board-tickets-action")
     assert run.id is not None
     svc = _service(run=run, handoff=handoff, board_service=board)
-    with pytest.raises(ValidationError, match="WorkManifest contract failed"):
+    with pytest.raises(UnprocessableEntityError, match="plan_path"):
         await svc.authorize_and_execute(
             run.id,
             ForgeAuthorizeRequest(
@@ -240,6 +281,59 @@ async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Pat
             ),
         )
     board.create_ticket.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_authorize_create_board_tickets_success_requires_wave_ids(tmp_path: Path) -> None:
+    _install_pin_contract_script(tmp_path)
+    _write_canonical_plan(tmp_path)
+    board = MagicMock()
+
+    async def _create(
+        req: object, *, idempotency_key: str | None = None
+    ) -> BoardTicketCreateResponse:
+        ticket_type = getattr(req, "ticket_type")
+        if ticket_type.value == "EPIC":
+            return BoardTicketCreateResponse(
+                ticket=BoardTicketResource(
+                    ticket_id="1",
+                    number=1,
+                    title=getattr(req, "title"),
+                    state="open",
+                    org="acme",
+                    repo="widget",
+                ),
+                created=True,
+                idempotent_replay=False,
+            )
+        return BoardTicketCreateResponse(
+            ticket=None,
+            created=False,
+            idempotent_replay=False,
+        )
+
+    board.create_ticket = AsyncMock(side_effect=_create)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="spec-implementation-plan",
+        outcome="pass",
+        forge=HandoffForgeDocument(
+            initiative="INIT-TEST-001",
+            plan_path=_CANONICAL_PLAN_REL,
+        ),
+    )
+    run = _run(workflow_node="board-tickets-action")
+    assert run.id is not None
+    svc = _service(run=run, handoff=handoff, board_service=board)
+    with pytest.raises(UnprocessableEntityError, match="wave_ticket_ids"):
+        await svc.authorize_and_execute(
+            run.id,
+            ForgeAuthorizeRequest(
+                authorized=True,
+                workspace_path=str(tmp_path),
+                project_number=3,
+            ),
+        )
 
 
 @pytest.mark.asyncio

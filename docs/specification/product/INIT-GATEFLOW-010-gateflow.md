@@ -63,6 +63,12 @@ In Progress pre-hop (`WaveStartService`); REQ-11 policy guard blocks same-run re
 `board-tickets-action` pass; partial REQ-17 via `verify_implement_lane` board asserts
 (REQ-03, REQ-04, REQ-11). Live-Verify + Ground-Report W1 on tip.
 
+**W2 human_approved (live-verify 2026-08-05):** PR [#148](https://github.com/drivestream-lab/gateflow/pull/148)
+tip `dd8412f`. Create-tickets triple predicate gate; create success epic + wave ids;
+implement-start ticket gate; Project Status sync with column labels; live
+`verify_implement_lane` run `89b7b7d9-…` (REQ-06, REQ-07, REQ-08, REQ-17 partial).
+Pass-2 Learning/Ground before merge as programme requires.
+
 **Delivery waves (product-normative; PRD §5):**
 
 | Wave | Intent | Exit PRD REQs |

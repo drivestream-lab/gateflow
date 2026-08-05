@@ -85,7 +85,7 @@ class BoardService(BaseBusinessService):
         ticket_id: str,
         request: BoardTicketStatusUpdateRequest,
     ) -> BoardTicketResource:
-        """PATCH ticket state and/or column label."""
+        """PATCH ticket state and/or column (label + Project V2 Status)."""
         if request.state is None and request.column is None:
             raise ValidationError(
                 message="At least one of state or column is required",
@@ -102,6 +102,12 @@ class BoardService(BaseBusinessService):
             )
         except ValueError as exc:
             raise ValidationError(message=str(exc)) from exc
+        except RuntimeError as exc:
+            raise ServiceUnavailableError(
+                service_name="github",
+                message="Forge board status update failed",
+                details={"error": str(exc)},
+            ) from exc
         except httpx.HTTPError as exc:
             raise ServiceUnavailableError(
                 service_name="github",
@@ -111,9 +117,29 @@ class BoardService(BaseBusinessService):
         self.logger.info(
             "Board ticket status updated",
             ticket_id=ticket_id,
+            column=request.column,
             operation="update_ticket_status",
         )
         return self._to_ticket(data, request.org, request.repo)
+
+    async def get_ticket(
+        self,
+        ticket_id: str,
+        *,
+        org: str,
+        repo: str,
+    ) -> BoardTicketResource:
+        """Fetch one board ticket by numeric issue id (read-only)."""
+        issue_number = self._parse_ticket_id(ticket_id)
+        try:
+            document = await self._forge_client.get_issue(org, repo, issue_number)
+        except httpx.HTTPError as exc:
+            raise ServiceUnavailableError(
+                service_name="github",
+                message="Forge board ticket fetch failed",
+                details={"error": str(exc)},
+            ) from exc
+        return self._to_ticket(document.model_dump(mode="json"), org, repo)
 
     async def link_pull_request(
         self,

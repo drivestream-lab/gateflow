@@ -26,7 +26,10 @@ class BoardTicketStatusUpdateRequest(BaseModel):
     )
     column: Optional[str] = Field(
         default=None,
-        description="Optional board column label (Issues MVP; not GitHub Projects)",
+        description=(
+            "Board column: sets gateflow/column:* label and Project V2 Status "
+            "(exact option name, e.g. In Progress / Done / Todo)"
+        ),
     )
 
 

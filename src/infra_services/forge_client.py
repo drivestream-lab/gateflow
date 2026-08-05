@@ -2,7 +2,7 @@
 
 import base64
 from pathlib import Path, PurePosixPath
-from typing import Any, Optional, Sequence
+from typing import Any, NamedTuple, Optional, Sequence
 
 import httpx
 from injector import inject
@@ -36,6 +36,15 @@ BOARD_TYPE_LABEL_PREFIX = "gateflow/type:"
 BOARD_INITIATIVE_LABEL_PREFIX = "gateflow/initiative:"
 BOARD_COLUMN_LABEL_PREFIX = "gateflow/column:"
 BOARD_IDEMPOTENCY_LABEL_PREFIX = "gateflow/idem:"
+
+
+class ProjectStatusTarget(NamedTuple):
+    """Resolved Project V2 Status write target for one issue project item."""
+
+    project_id: str
+    item_id: str
+    status_field_id: str
+    option_id: str
 
 
 class ForgeClient(BaseInfraService):
@@ -442,6 +451,139 @@ class ForgeClient(BaseInfraService):
         )
         return document
 
+    async def resolve_issue_project_status_targets(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        column: str,
+    ) -> list[ProjectStatusTarget]:
+        """Resolve Project V2 Status write targets for an issue (fail closed).
+
+        Requires at least one project item with a Status single-select option whose
+        name exactly matches ``column`` (e.g. ``In Progress``, ``Done``, ``Todo``).
+        """
+        self.assert_no_gh_cli_transport()
+        if issue_number <= 0:
+            raise ValueError("issue_number must be a positive integer")
+        column_name = str(column).strip()
+        if not column_name:
+            raise ValueError("column is required for Project Status sync")
+
+        query = """
+        query($owner: String!, $repo: String!, $number: Int!) {
+          repository(owner: $owner, name: $repo) {
+            issue(number: $number) {
+              projectItems(first: 20) {
+                nodes {
+                  id
+                  project {
+                    id
+                    field(name: "Status") {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        name
+                        options {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+        body = await self.graphql(query, {"owner": owner, "repo": repo, "number": issue_number})
+        errors = body.get("errors")
+        if errors:
+            raise RuntimeError(f"GitHub GraphQL issue projectItems resolve failed: {errors}")
+        repo_data = (body.get("data") or {}).get("repository") or {}
+        issue = repo_data.get("issue") or {}
+        if not issue:
+            raise ValueError(f"Issue not found: {owner}/{repo}#{issue_number}")
+        nodes = ((issue.get("projectItems") or {}).get("nodes")) or []
+        targets: list[ProjectStatusTarget] = []
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            item_id = str(node.get("id") or "").strip()
+            project = node.get("project") or {}
+            if not isinstance(project, dict):
+                continue
+            project_id = str(project.get("id") or "").strip()
+            field = project.get("field") or {}
+            if not isinstance(field, dict):
+                continue
+            field_id = str(field.get("id") or "").strip()
+            options = field.get("options") or []
+            option_id = ""
+            for option in options:
+                if not isinstance(option, dict):
+                    continue
+                if str(option.get("name") or "") == column_name:
+                    option_id = str(option.get("id") or "").strip()
+                    break
+            if item_id and project_id and field_id and option_id:
+                targets.append(
+                    ProjectStatusTarget(
+                        project_id=project_id,
+                        item_id=item_id,
+                        status_field_id=field_id,
+                        option_id=option_id,
+                    )
+                )
+
+        if not nodes:
+            raise ValueError(
+                f"Issue {owner}/{repo}#{issue_number} is not on any Project V2 board; "
+                "cannot sync Status (column requires project membership)"
+            )
+        if not targets:
+            raise ValueError(
+                f"No Project Status option named {column_name!r} for "
+                f"{owner}/{repo}#{issue_number} (check board Status field options)"
+            )
+        return targets
+
+    async def set_project_item_status(self, target: ProjectStatusTarget) -> None:
+        """Set Project V2 Status single-select on one project item."""
+        self.assert_no_gh_cli_transport()
+        mutation = """
+        mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+          updateProjectV2ItemFieldValue(
+            input: {
+              projectId: $projectId
+              itemId: $itemId
+              fieldId: $fieldId
+              value: { singleSelectOptionId: $optionId }
+            }
+          ) {
+            projectV2Item { id }
+          }
+        }
+        """
+        body = await self.graphql(
+            mutation,
+            {
+                "projectId": target.project_id,
+                "itemId": target.item_id,
+                "fieldId": target.status_field_id,
+                "optionId": target.option_id,
+            },
+        )
+        errors = body.get("errors")
+        if errors:
+            raise RuntimeError(f"GitHub GraphQL updateProjectV2ItemFieldValue failed: {errors}")
+        item = ((body.get("data") or {}).get("updateProjectV2ItemFieldValue") or {}).get(
+            "projectV2Item"
+        ) or {}
+        if not str(item.get("id") or "").strip():
+            raise RuntimeError("updateProjectV2ItemFieldValue returned no item id")
+
     async def update_issue_status(
         self,
         owner: str,
@@ -451,9 +593,19 @@ class ForgeClient(BaseInfraService):
         state: Optional[str] = None,
         column: Optional[str] = None,
     ) -> dict[str, Any]:
-        """Update issue state and/or board column label (Issues MVP)."""
+        """Update issue state and/or board column (label + Project V2 Status).
+
+        When ``column`` is set: resolve Project Status targets first (fail closed),
+        then PATCH ``gateflow/column:*`` labels, then set Project Status on each item.
+        """
         self.assert_no_gh_cli_transport()
         client = self._require_client()
+        status_targets: list[ProjectStatusTarget] = []
+        if column is not None:
+            status_targets = await self.resolve_issue_project_status_targets(
+                owner, repo, issue_number, column=column
+            )
+
         current = await self.get_issue(owner, repo, issue_number)
         payload: dict[str, Any] = {}
         if state is not None:
@@ -476,6 +628,10 @@ class ForgeClient(BaseInfraService):
         )
         response.raise_for_status()
         data = response.json()
+
+        for target in status_targets:
+            await self.set_project_item_status(target)
+
         logger.info(
             "ForgeClient board issue status updated",
             owner=owner,
@@ -483,6 +639,7 @@ class ForgeClient(BaseInfraService):
             issue_number=issue_number,
             state=state,
             column=column,
+            project_status_synced=len(status_targets),
             operation="board_update_issue_status",
         )
         return data

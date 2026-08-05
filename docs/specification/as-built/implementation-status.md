@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0+W1 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0+W1 **human_approved**; W2 live-verify **human_approved** on PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `dd8412f` (Pass-2 learning/ground / merge may follow); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -66,7 +66,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues MVP + labels; idempotent EPIC/Feature; post-label list wait (GitHub index lag) |
+| Board APIs (status/link/create/list) | FR-24 | `board_routes.py`, `board_service.py`; ForgeClient `board_*` | `test_board_service`, `test_forge_client_board` | `verify_board` | Issues labels + Project V2 Status sync on column; idempotent EPIC/Feature; post-label list wait |
 | Worker isolation | FR-24 | orchestrator / notifier only PR+comment | `test_process_job_never_calls_board_forge_mutations` | — | Zero board mutations on job complete |
 | Production gh-free | FR-25/26a | ForgeClient httpx only | source guard test | checklist | `docs/runbooks/gh-free-production-path-checklist.md` |
 | Forge auth modes (`pat` \| `app`) | ADR-003 / TDD §3.5a | `GithubTokenProvider` via InfraModule; `GITHUB_AUTH_MODE` required | `test_github_token_provider`, forge init | verify_board (mode+creds) | Explicit mode; no auto; App discovers single installation |
@@ -221,14 +221,28 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| APPLY_FORGE `update_board_status` | REQ-03 | `ForgeActionService.execute_update_board_status` | `test_apply_update_board_status_*`, `test_forge_merge` | `verify_implement_lane` (board hop events) | Pin status → column via `board_column_for_pin_status`; missing ticket fail-closed |
-| Implement-start In Progress pre-hop | REQ-04 | `WaveStartService._apply_implement_in_progress` | `test_implement_wave_start_ok`, `test_implement_in_progress_idempotent_*` | `verify_implement_lane` (`assert_board_in_progress`) | Before enqueue; idempotent when column already In Progress |
+| APPLY_FORGE `update_board_status` | REQ-03 | `ForgeActionService.execute_update_board_status` | `test_apply_update_board_status_*`, `test_forge_merge` | `verify_implement_lane` (board hop events) | Pin status → column via `board_column_for_pin_status`; missing ticket fail-closed; label **+** Project V2 Status sync |
+| Implement-start In Progress pre-hop | REQ-04 | `WaveStartService._apply_implement_in_progress` | `test_implement_wave_start_ok`, `test_implement_in_progress_idempotent_*` | `verify_implement_lane` (`assert_board_in_progress`) | Before enqueue; idempotent when column already In Progress; Project Status synced with label |
 | No same-run resume after create-tickets | REQ-11 | `PolicyEngine.evaluate_dispatch` guard | `test_policy_create_tickets_pass_stops_same_run_resume` | secondary | `board-tickets-action` pass → STOP; implement via new API |
 | Live implement_lane board asserts | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | human at `live-verify` | In Progress column + optional `update_board_status` timeline evidence |
 
 | Gap | Status |
 |-----|--------|
 | W1 board-status + implement In Progress | **human_approved** — merge [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; live verify pass 2026-08-05 run `852a0a42-…`; board [#139](https://github.com/drivestream-lab/gateflow/issues/139); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md); [`Ground-Report-INIT-GATEFLOW-010-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W1.md) |
+
+## Capability matrix (INIT-GATEFLOW-010 W2 — ticket gates + create predicates)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Create triple predicate gate | REQ-06 | `create_board_tickets_gate.evaluate_*` + `execute_create_board_tickets` | `test_authorize_create_board_tickets_*` | `verify_board` / `verify_create_tickets` (authorize docs) | 422 + 0 creates on any predicate fail |
+| Create success epic + wave ids | REQ-07 | `BoardTicketsSeedResult` post-create contract | `test_authorize_create_board_tickets_prayog_v1`, `*_requires_wave_ids` | authorize positive path | Non-empty `epic_ticket_id` + `wave_ticket_ids[]` |
+| Implement-start ticket gate | REQ-08 | `implement_ticket_gate` + `WaveStartService.start_implement_wave` | `test_implement_malformed_*`, `test_implement_unresolvable_*`, `test_implement_rejects_done_*`, `test_implement_dual_identity_disagree` | `verify_wave_start` negative probes | 400 malformed; 422 unresolvable/mismatch/Done; 0 enqueue |
+| Board status label + Project Status | REQ-03/04 follow-on | `ForgeClient.update_issue_status` | `test_update_issue_status_*` Project Status | human board UI | Lifts INIT-002 Issues-MVP deferral for Status; fail closed if no project item / option |
+| Live verify co-ship | REQ-17 (partial) | `verify_wave_start.py`, `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W2.md) | run `89b7b7d9-…` → PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) |
+
+| Gap | Status |
+|-----|--------|
+| W2 ticket gates + create predicates | **Ground pass** (2026-08-05) — PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `be63705`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live-verify **human_approved**; [`Ground-Report-INIT-GATEFLOW-010-W2.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W2.md); pending `wave-signoff` merge |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
