@@ -41,9 +41,9 @@ Interactive execution (006):
 [`reports/Execution-Plan-INIT-GATEFLOW-006.md`](reports/Execution-Plan-INIT-GATEFLOW-006.md).
 Architecture:
 [`adr/adr-009-pin-forge-publish-mutate-authority.md`](adr/adr-009-pin-forge-publish-mutate-authority.md)
-(**Accepted** — dual authorization amendment under 008);
+(**Accepted** — dual authorization; hygiene strip under 010);
 [`adr/adr-010-lane-intake-and-dual-workspace-authority.md`](adr/adr-010-lane-intake-and-dual-workspace-authority.md)
-(**Accepted**).
+(**Accepted** — closeout §6; initiative closure §7; no ADR-011).
 Gate 1 / retrospective meta PRD still open for 006/007/008 (see INIT Spec questions).
 
 Verification matrices: [`as-built/implementation-status.md`](as-built/implementation-status.md).

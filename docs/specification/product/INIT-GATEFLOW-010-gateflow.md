@@ -12,10 +12,10 @@
 | Impact-map revision (H3) | `1` |
 | Repo scope digest (H2) | `sha256:09c89c143c14401c8812738c162c05a2f5e504cabafd1818ee72eb4e9b781532` |
 | Tech-lead approval | @0xbeefdead APPROVED 2026-08-05T09:32:32Z on `df0f5a5c09b6c4f951463bb42f277305310aaa80` — attestation: map_revision 1, prd_digest match, artifact `prd/reports/Impact-Map-INIT-GATEFLOW-010.md` |
-| Architecture | [`adr-009-pin-forge-publish-mutate-authority.md`](../adr/adr-009-pin-forge-publish-mutate-authority.md) (**Accepted**); [`adr-010-lane-intake-and-dual-workspace-authority.md`](../adr/adr-010-lane-intake-and-dual-workspace-authority.md) (**Accepted**); pin SSOT [`prayog-skills/workflow.yaml`](../../../prayog-skills/workflow.yaml), [`references/forge-side-effects.md`](../../../prayog-skills/references/forge-side-effects.md), [`delivery-contract.yaml`](../../../prayog-skills/delivery-contract.yaml) |
+| Architecture | [`adr-009-pin-forge-publish-mutate-authority.md`](../adr/adr-009-pin-forge-publish-mutate-authority.md) (**Accepted** — hygiene strip INIT-010); [`adr-010-lane-intake-and-dual-workspace-authority.md`](../adr/adr-010-lane-intake-and-dual-workspace-authority.md) (**Accepted** — closeout §6; **closure §7**, no ADR-011); pin SSOT [`prayog-skills/workflow.yaml`](../../../prayog-skills/workflow.yaml), [`references/forge-side-effects.md`](../../../prayog-skills/references/forge-side-effects.md), [`delivery-contract.yaml`](../../../prayog-skills/delivery-contract.yaml) |
 | Repo | drivestream-lab/gateflow |
 | Date | 2026-08-05 |
-| Status | Draft — dev review required before Forge publish |
+| Status | Accepted — PE package accept 2026-08-05 (proceed to implementation plan) |
 
 > **H4 citations:** H1–H3 and G1 rows above are the durable authority carrier for
 > mid-lane freshness. Feas / TDD / plan digests are walk-time only.
@@ -253,11 +253,11 @@ Requested reviewer: @drivestream-lab/prayog-pe-team
 
 ## Developer review
 
-- [ ] Scope matches the approved impact-map repo scope digest
-- [ ] REQs have condition/event, observable result, and evidence layer
-- [ ] Contracts are semantic (logical operation); no architecture decisions in REQs
-- [ ] No blocking question remains
-- [ ] Developer confirmed draft is ready for feasibility
+- [x] Scope matches the approved impact-map repo scope digest
+- [x] REQs have condition/event, observable result, and evidence layer
+- [x] Contracts are semantic (logical operation); no architecture decisions in REQs
+- [x] No blocking question remains
+- [x] Developer confirmed draft is ready for feasibility — PE accept 2026-08-05
 
 ## References
 

@@ -5,7 +5,7 @@
 | Initiative | INIT-GATEFLOW-010 |
 | Delivery wave (this ticket) | **W0** — pin parse parity |
 | Spec | `docs/specification/product/INIT-GATEFLOW-010-gateflow.md` |
-| Spec digest | `sha256:0016f090e69903f3e1624ac218b0c96ebb3ba37d9966cbcbf6da988012061843` |
+| Spec digest | `sha256:f98e101a508407dcebaa5fd0fc9033744dbed24a388c4e50c4303f687b4d91ea` |
 | PRD digest | `sha256:457f19617113171c973abdbc15d1afaa00df2f6947ab4567b57d8440bd88b206` |
 | Impact map / revision | `prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-010.md` / `1` |
 | Repo scope digest | `sha256:09c89c143c14401c8812738c162c05a2f5e504cabafd1818ee72eb4e9b781532` |
@@ -17,7 +17,7 @@
 | Date | 2026-08-05 |
 | Branch | `feature/INIT-GATEFLOW-010-w0-spec-lane` — Draft spec PR (Forge pending) |
 | Initiative segment | `INIT-GATEFLOW-010` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-08 |
 | Deciders | PM: programme · Domain SME: N/A (eng control plane) |
 
@@ -97,7 +97,7 @@ review remains required per pin (pass and findings both route there).
 | ADR | Domain matched | Status |
 |-----|----------------|--------|
 | ADR-009 | pin forge publish/mutate, dual `authorization`, APPLY_FORGE | **Accepted** — spec aligned; `update_board_status` apply is incremental W1 work |
-| ADR-010 | lane intake, dual workspace | **Accepted** — spec inherits; W4 closure Enter-at extends intake surface (TDD scope) |
+| ADR-010 | lane intake, dual workspace | **Accepted** — spec inherits; W4 closure Enter-at is ADR-010 §7 (no separate ADR) |
 | ADR-003 | ForgeClient transport | Accepted — aligned |
 | ADR-005 | programme token | Accepted — aligned |
 
@@ -107,7 +107,7 @@ review remains required per pin (pass and findings both route there).
 |-----------------|-----------------|--------|---------|
 | REQ-01–02, REQ-09, REQ-16 / W0 | ADR-009 | aligned | — |
 | REQ-04, REQ-08 / W1–W2 | ADR-010 | aligned | — |
-| REQ-12–15 / W4 | ADR-010 + **NEW-ADR?** | missing ADR for initiative-closure Enter-at authority | informational — route to `/spec-technical-review` (non-blocking W0) |
+| REQ-12–15 / W4 | ADR-010 §7 | aligned — distinct start contract; Done-gate / EPIC / path remain product REQs | — |
 
 ## MDC pass (pre-T2)
 
@@ -168,13 +168,13 @@ _None._
 |----|-------------------|------------|
 | R-1 | Pin tip retag mid-INIT breaks REQ-01 | A-3 frozen; programme decision required |
 | R-2 | REQ-10 purpose exposure needs API/DTO decision (field names) | Q-1 deferred; HTTP semantics normative; TDD resolves |
-| R-3 | W4 closure Enter-at may need ADR-010 amendment or NEW-ADR | Flag in TDD; non-blocking for W0 |
+| R-3 | W4 closure product rules (Done-gate, EPIC hygiene) mis-filed as ADR | ADR-010 §7 authority only; REQs stay product SSOT |
 | A-1…A-4 | Spec assumptions | confirmed per spec table; board vocab + two-API model match code |
 
 ## Recommended spec edits
 
 - None blocking. Optional: add as-built cross-link once INIT-010 section is opened during W0 implement.
-- After TDD: document closure Enter-at under ADR-010 amendment or NEW-ADR (W4).
+- Closure Enter-at: apply ADR-010 §7 in TDD; **no ADR-011** (product REQs remain SSOT).
 
 ---
 
@@ -185,7 +185,7 @@ _None._
 | Q-1 | PE | OpenAPI problem+json field names (PRD OQ-01 / IM-01) | no | prayog-pe-team | open | technical review | 400/422 semantics remain normative | spec Q-1; impact map IM-01 | pending OpenAPI pass |
 | Q-2 | PM | Parallel GATEFLOW meta PRs (#10–#23) sequencing | no | programme PM | open | Gate 1 scheduling | Proceed; distinct INIT ids | spec Q-2; impact map IM-02 | n/a |
 | Q-3 | PE | W0 unit-only vs REQ-17 verify claim | no | prayog-pe-team | resolved | feasibility | W0 exit = unit only per PRD §5 | spec Q-3 | PRD §5 W0 row |
-| PE-1 | PE | NEW-ADR or ADR-010 amend for initiative-closure Enter-at (W4) | no | prayog-pe-team | open | technical review | TDD §4 indexes decision | REQ-12–15; ADR-010 closeout-only today | `/spec-technical-review` |
+| PE-1 | PE | NEW-ADR vs ADR-010 amend for initiative-closure Enter-at (W4) | no | prayog-pe-team | resolved | technical review | Fold into ADR-010 §7; TDD_ONLY for route/validators; **no ADR-011** | REQ-12–15 product; ADR-010 Option B | ADR-010 §7 hygiene (INIT-010) |
 
 ### PM questions (product scope, UX, priority)
 
@@ -206,7 +206,10 @@ _None._
 #### Defer with default
 
 1. **Q-1** — Exact OpenAPI error body field names; HTTP 400/422 table remains normative.
-2. **PE-1** — Closure Enter-at ADR disposition for W4 (NEW-ADR vs ADR-010 amend).
+
+#### Resolved
+
+1. **PE-1** — Fold closure intake into ADR-010 §7; no ADR-011; product REQs remain SSOT for Done-gate / EPIC / path.
 
 ### Domain clarifications (business source-of-truth)
 
@@ -234,7 +237,7 @@ _None recorded._
 | F10 Assumptions | PASS | A-1…A-4 evidenced |
 | F11 Effort drivers | PASS | W0 low; W2–W4 incremental on existing walker/forge |
 | F12 PM questions | PASS | Q-1, Q-2 numbered non-blocking |
-| F13 ADR conformance | PASS | PE-1 informational NEW-ADR signal W4 |
+| F13 ADR conformance | PASS | PE-1 resolved — ADR-010 §7; no ADR-011 |
 | F14 MDC conformance | PASS | no conflicts |
 
 **Check PASS** = zero unresolved blocking findings (informational OK).
@@ -290,10 +293,10 @@ handoff:
     scope_digest: "sha256:09c89c143c14401c8812738c162c05a2f5e504cabafd1818ee72eb4e9b781532"
     ripple_action: continue
     new_adr: false
-    new_adr_w4_signal: true
+    new_adr_w4_signal: false
     lane_counts:
       pm: 1
-      pe: 2
+      pe: 1
       domain: 0
       auto_fix: 0
     findings_critical: 0

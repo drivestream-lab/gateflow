@@ -4,9 +4,9 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-010 |
 | Spec | `docs/specification/product/INIT-GATEFLOW-010-gateflow.md` |
-| Spec digest | `sha256:0016f090e69903f3e1624ac218b0c96ebb3ba37d9966cbcbf6da988012061843` |
+| Spec digest | `sha256:f98e101a508407dcebaa5fd0fc9033744dbed24a388c4e50c4303f687b4d91ea` |
 | Feasibility report | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-010.md` |
-| Feasibility digest | `sha256:5342afb01e0b1c9e6329d628e1689da25ed6abfc19f69b39ef68812fc46561af` |
+| Feasibility digest | `sha256:6324dde373d289ed18f9c4d6351ba08f4454d1492a8e5bf8e881d8146fe1d521` |
 | PRD digest | `sha256:457f19617113171c973abdbc15d1afaa00df2f6947ab4567b57d8440bd88b206` |
 | Impact map / revision | `prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-010.md` / `1` |
 | Repo scope digest | `sha256:09c89c143c14401c8812738c162c05a2f5e504cabafd1818ee72eb4e9b781532` |
@@ -16,9 +16,10 @@
 | Date | 2026-08-05 |
 | Branch | `feature/INIT-GATEFLOW-010-w0-spec-lane` (Draft spec PR — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-010` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-12 |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
+| Deciders | PE: @drivestream-lab/prayog-pe-team |
+| Approval evidence | Explicit PE acceptance via Cursor chat 2026-08-05 (INIT-GATEFLOW-010 — accept all package docs; proceed to `/spec-implementation-plan`); ADR-009/010 hygiene + ADR-011 withdrawn |
 
 ---
 
@@ -30,7 +31,8 @@ incrementally wire board-status apply, ticket gates, closeout Done hops, and
 initiative closure Enter-at (W1–W4). W0 closes the parse gap: remounted pin
 nodes including `update_board_status` must `get_node` without error, and stop
 timeline events must expose pin `purpose` / `owner` per **REQ-10**. Later waves
-inherit this TDD; W4 requires a documented closure intake authority (PE-1).
+inherit this TDD; W4 applies ADR-010 §7 (distinct closure start contract) with
+product REQs owning Done-gate / EPIC / path — **no ADR-011**.
 
 ---
 
@@ -45,11 +47,10 @@ inherit this TDD; W4 requires a documented closure intake authority (PE-1).
 | `src/business_services/forge_action_service.py` | apply for open_draft_pr, create_board_tickets; rejects update_board_status apply | **W1:** add `update_board_status` apply branch | Forge mutate orchestration |
 | `src/business_services/run_orchestrator.py` | `_finalize_run` emits `run_stopped` without purpose/owner | **W0:** include pin purpose/owner on stop payload when resolved stop node carries them | Run lifecycle / timeline |
 | `src/business_services/policy_engine.py` | Pin-driven STOP/CONTINUE | **W2:** create-tickets triple predicate gate; **W2:** implement-start ticket validation hooks | Dispatch policy |
-| `src/api/*_routes.py` (waves) | implement/spec/closeout starts exist | **W2:** ticket gate validators; **W4:** new closure start route module | HTTP edge validation |
+| `src/api/*_routes.py` (waves) | implement/spec/closeout starts exist | **W2:** ticket gate validators; **W4:** new closure start route module (ADR-010 §7) | HTTP edge validation |
 | `src/business_services/board_service.py` | Status update + resolve | **W1–W4:** board Done/In Progress hops; **W4:** Done-gate + EPIC Done | Board vocabulary (A-1) |
 | `tests/unit/test_forge_policy.py` | Remounted pin parse matrix | **W0:** extend REQ-10 stop-payload tests | Unit |
 | `tests/verify/*` | 10 scripts; no closure | **W2–W4:** incremental verify per REQ-17 | Live verify |
-| `docs/specification/adr/adr-011-…md` | — | **Draft** initiative closure intake (W4 authority) | Architecture |
 
 **Accepted ADR constraint set (full read — T2 Analyze):**
 
@@ -63,9 +64,8 @@ inherit this TDD; W4 requires a documented closure intake authority (PE-1).
 | ADR-006 | Accepted | Adapter registry — independent |
 | ADR-007 | Accepted | **Constrains:** bound workspace keys; dual bind for spec lane |
 | ADR-008 | Accepted | **Constrains:** handoff ingest after content hops |
-| ADR-009 | Accepted | **Constrains:** pin forge SSOT; dual authorization; no merge; update_board_status apply W1+ |
-| ADR-010 | Accepted | **Constrains:** separate lane start contracts; closeout ≠ closure |
-| ADR-011 | Draft | **Extends:** fourth start contract for REQ-12–15 (this INIT) |
+| ADR-009 | Accepted | **Constrains:** pin forge SSOT; dual authorization; no merge; update_board_status apply W1+ (hygiene strip: product catalogues deferred) |
+| ADR-010 | Accepted | **Constrains:** separate lane start contracts; closeout §6; **closure §7** (no ADR-011) |
 
 **Boundary diagram (text):**
 
@@ -78,7 +78,7 @@ RunOrchestrator walker → PolicyEngine → ForgeActionService (W1+ apply)
 _finalize_run → run_stopped { purpose?, owner?, handoff_context? }
 
 [W4 only]
-POST /api/v1/initiatives/closure/start → validator (Done-gate)
+POST …/initiatives/closure/start → validator (Done-gate per REQ-*)
   → EPIC Done (BoardService) → enqueue fixed Enter-at → walker
 ```
 
@@ -152,9 +152,9 @@ POST /api/v1/initiatives/closure/start → validator (Done-gate)
 
 **Invariants:** exact problem+json field names deferred (Q-1); HTTP semantics normative
 
-### 3.6 Initiative closure start (W4 — REQ-12–15; ADR-011)
+### 3.6 Initiative closure start (W4 — REQ-12–15; ADR-010 §7)
 
-**Method:** `POST /api/v1/initiatives/closure/start` (programme token)
+**Method:** `POST /api/v1/initiatives/closure/start` (programme token) — path owned by **REQ-12**
 
 **Arguments (engineering shapes):**
 - `initiative_id`: non-empty string
@@ -167,7 +167,9 @@ POST /api/v1/initiatives/closure/start → validator (Done-gate)
 
 **Errors:** malformed/empty → **400** 0 enqueue; Done-gate fail → **422** 0 enqueue no EPIC mutation
 
-**Invariants:** fixed Enter-at orchestrated node; new run; never purge-meta; EPIC Done before purge-app per REQ-14
+**Invariants (architecture from ADR-010 §7; product from REQ-*):**
+- Distinct start contract — not closeout mega-body; new run; fixed Enter-at (ADR-010)
+- Done-gate, EPIC Done before purge-app, purge walk, never purge-meta — **REQ-13–15 / REQ-20**
 
 ---
 
@@ -175,20 +177,20 @@ POST /api/v1/initiatives/closure/start → validator (Done-gate)
 
 | Finding | Classification | ADR file / TDD section | product_constraints | Product exclusions | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|---------------------|--------------------|--------------------------|--------|--------|
-| PE-1 (F13 NEW-ADR signal) | ADR_REQUIRED | `docs/specification/adr/adr-011-initiative-closure-intake-authority.md` | `[REQ-12, REQ-13, REQ-14, REQ-15, REQ-18, REQ-20]` | HTTP path, 400/422 table, EPIC timing — see REQ-* | Separate ADR-011 fourth start contract (Option B); relate to ADR-010 | Draft | `sha256:6dfba06835681d2245af67540d3368646fcc4ddf391c4a91aaf818226ba7f4ce` |
+| PE-1 (F13 NEW-ADR signal) | **TDD_ONLY** + fold into ADR-010 §7 | `docs/specification/adr/adr-010-lane-intake-and-dual-workspace-authority.md` §7 | `[REQ-12, REQ-13, REQ-14, REQ-15, REQ-18, REQ-20]` | Path, 400/422, Done-gate, EPIC timing — product REQs | Distinct start contract under ADR-010 Option B; **no ADR-011** | Accepted (hygiene amend) | N/A — ADR-010 file |
 | FF-03 / FF-01 (REQ-10 parse + stop payload) | TDD_ONLY | §3.1, §3.2, §9 PE-2 | `[REQ-10]` | No review_roles enforcement | Add optional `purpose`/`owner` on `ResolvedWorkflowNode`; emit on `run_stopped` | Resolved | N/A |
 | FF-04 (REQ-03 apply gap) | TDD_ONLY | §3.3, §9 PE-3 | `[REQ-03]` | Board column names — A-1 | W1 `ForgeActionService` apply branch; W0 parse-only unchanged | Resolved | N/A |
 | Q-1 (OpenAPI field names) | DEFERRED_WITH_DEFAULT | §9 PE-4 | `[REQ-06, REQ-08, REQ-12, REQ-13]` | PRD OQ-01 | Default: 400/422 semantics + side-effect table normative; timeline keys `purpose`/`owner` match pin; problem+json names in OpenAPI pass | Deferred | N/A |
 | FF-05 (verify inventory W2–W4) | DEFERRED_WITH_DEFAULT | §5, §9 PE-5 | `[REQ-17]` | Script naming | Default: add verify scripts per wave in plan W2–W4; W0 unit-only per Q-3 | Deferred | N/A |
-| FF-06 (closure route missing) | ADR_REQUIRED | adr-011 (same as PE-1) | `[REQ-12]` | Route path exact string — REQ-12 | Covered by ADR-011 + §3.6; implement W4 | Draft | (same file) |
+| FF-06 (closure route missing) | TDD_ONLY | §3.6 (same as PE-1) | `[REQ-12]` | Route path exact string — REQ-12 | Implement W4 under ADR-010 §7 + product REQs | Resolved | N/A |
 | FF-02 (as-built lag) | TDD_ONLY | §12 AF-1 | — | — | Update as-built INIT-010 row during W0 implement | Planned | N/A |
 
 **Derived counts:**
 
-- ADR_REQUIRED: 1 (PE-1 / FF-06 → single adr-011 file)
-- TDD_ONLY: 3
+- ADR_REQUIRED: **0** (PE-1 folded into ADR-010; no ADR-011)
+- TDD_ONLY: 4
 - DEFERRED_WITH_DEFAULT: 2
-- Draft ADR files created: 1
+- Draft ADR files created: 0
 - Missing/broken ADR files: 0
 
 ---
@@ -253,7 +255,7 @@ POST /api/v1/initiatives/closure/start → validator (Done-gate)
 | Finding ID | Owner | Status | Question | Resolution | Required by | Default if deferred | Evidence / reference |
 |------------|-------|--------|----------|------------|-------------|---------------------|----------------------|
 | Q-3 | PE | resolved | W0 unit-only vs REQ-17 verify | W0 exit = unit only per PRD §5 | feasibility | — | PRD §5 W0 row |
-| PE-1 | PE | resolved | NEW-ADR vs ADR-010 amend for closure Enter-at | **ADR-011 Draft** — fourth distinct start contract; Option B over ADR-010 inline amend for W0–W3 stability | W4 plan | Amend ADR-010 §7 mirror closeout | adr-011; ADR-010 §6 precedent |
+| PE-1 | PE | resolved | NEW-ADR vs ADR-010 amend for closure Enter-at | **Fold into ADR-010 §7**; TDD_ONLY for route/validators; **no ADR-011**; product REQs remain SSOT | W4 plan | — | ADR-010 §7; INIT-007 closeout precedent |
 | PE-2 | PE | resolved | How to satisfy REQ-10 purpose/owner | Parse optional fields on `ResolvedWorkflowNode`; project to `run_stopped` | W0 implement | Omit keys when pin omits | §3.1–3.2; FF-03, FF-01 |
 | PE-3 | PE | resolved | When/how `update_board_status` executes | W0 parse only; W1 `ForgeActionService.apply` with ticket from run/handoff | W1 implement | Continue reject at apply W0 | §3.3; FF-04; ADR-009 |
 | PE-4 | PE | deferred | Exact problem+json field names (Q-1) | Defer to OpenAPI pass; use pin-aligned timeline keys now | OpenAPI / W2 routes | 400/422 semantics + zero side-effect table remain normative | PRD OQ-01; spec Q-1 |
@@ -289,13 +291,13 @@ _None — eng control plane; no domain SME lane items._
 |------|--------|
 | All T1–T12 checks | **PASS** |
 | Engineering decisions resolved | 4 resolved, 2 deferred with defaults |
-| Draft ADR files written | 1 / 1 required |
-| Product-boundary integrity (T12) | **PASS** — all normative statements cite REQ-*; ADR-011 `changes_user_visible_behavior: false` |
+| Draft ADR files written | 0 / 0 required (ADR_REQUIRED=0) |
+| Product-boundary integrity (T12) | **PASS** — normative statements cite REQ-*; ADR-009/010 hygiene strips product catalogues |
 | PM questions outstanding | 1 non-blocking (Q-2) |
 | Domain questions outstanding | 0 |
-| Selected workflow outcome | `pass` — zero blocking PE items; W0 decisions resolved; W4 ADR Draft ready for PE review |
-| Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE approval required** |
+| Selected workflow outcome | `pass` — zero blocking PE items; W0 decisions resolved; closure under ADR-010 §7 |
+| Ready for PE review | **YES** — Accepted 2026-08-05 |
+| **Ready for /spec-implementation-plan** | **YES** |
 
 ---
 
@@ -305,16 +307,16 @@ _None — eng control plane; no domain SME lane items._
 |-------|--------|-------|
 | T1 Module boundaries | PASS | §2 table + diagram |
 | T2 Interface contracts | PASS | §3.1–3.6 shapes and invariants |
-| T3 NEW-ADR dispositions | PASS | PE-1 → adr-011; others TDD_ONLY/DEFERRED |
+| T3 NEW-ADR dispositions | PASS | PE-1 → TDD_ONLY + ADR-010 §7; ADR_REQUIRED=0; no ADR-011 |
 | T4 Test policy | PASS | §5 per wave |
 | T5 Error handling | PASS | §6 |
 | T6 Observability | PASS | §7 |
 | T7 Data contract ownership | PASS | §8 |
 | T8 Dependency graph | PASS | No new cycles; ADR-003 layering preserved |
 | T9 Engineering questions zero | PASS | PE-1–PE-3 resolved; PE-4/PE-5 deferred with defaults |
-| T10 PE review readiness | PASS | Draft TDD + adr-011 listed; `ready_for_pe_review: true`; not claiming Accepted |
-| T11 ADR artifact integrity | PASS | adr-011 exists, Draft, linked, full template sections |
-| T12 Product-boundary integrity | PASS | No invented UX; ADR binds REQ-12–15 only |
+| T10 PE review readiness | PASS | Draft TDD; ADR-010 §7 linked; `ready_for_pe_review: true`; not claiming plan-ready |
+| T11 ADR artifact integrity | PASS | ADR_REQUIRED=0; no Draft ADR-011; ADR-009/010 hygiene applied |
+| T12 Product-boundary integrity | PASS | No invented UX; product REQs sole SSOT for Done-gate / EPIC / paths |
 
 ---
 
@@ -333,13 +335,12 @@ Required reviewers: @drivestream-lab/prayog-pe-team
 PE review checklist:
   [ ] T1 Module boundaries — W0 vs W1–W4 touch surfaces clear?
   [ ] T2 Interface contracts — REQ-10 purpose/owner shapes acceptable?
-  [ ] T3 ADR-011 disposition — fourth start contract vs ADR-010 amend preference?
+  [ ] T3 ADR disposition — ADR-010 §7 fold (no ADR-011); ADR-009/010 hygiene OK?
   [ ] T4 W0 unit-only test policy acceptable?
-  [ ] T11 adr-011 Draft complete?
-  [ ] T12 Product-boundary — no scope invention?
+  [ ] T12 Product-boundary — ADRs do not restate product REQs?
 
 After PE acceptance:
-  → Update adr-011 + TDD Status → Accepted on spec branch
+  → Update TDD Status → Accepted on spec branch
   → /spec-implementation-plan on same branch
   → after plan on head: PE sets spec-lgtm + Approve
 ```
@@ -351,7 +352,7 @@ handoff:
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-010.md
-    digest: sha256:45432626d84bf70d39ee79fdd35665e467d67c1b04052a37cf7e70124cc19668
+    digest: sha256:pending-recompute-on-publish
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-010
@@ -365,14 +366,14 @@ handoff:
     pin_ref: v0.5.0-rc.2
     pin_sha: "6561c7c508539fbdb182159d3fdae5abef4b9b01"
     ready_for_pe_review: true
-    ready_for_plan: false
-    new_adr: true
-    adr_drafts:
-      - path: docs/specification/adr/adr-011-initiative-closure-intake-authority.md
-        digest: sha256:6dfba06835681d2245af67540d3368646fcc4ddf391c4a91aaf818226ba7f4ce
-    adr_required_count: 1
-    adr_tdd_only_count: 3
+    ready_for_plan: true
+    new_adr: false
+    adr_drafts: []
+    adr_required_count: 0
+    adr_tdd_only_count: 4
     adr_deferred_count: 2
+    tdd_status: Accepted
+    pe_acceptance: "2026-08-05 Cursor chat — accept package; proceed to plan"
     lane_counts:
       pm: 1
       pe: 0
