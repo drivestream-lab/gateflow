@@ -85,7 +85,7 @@ class BoardService(BaseBusinessService):
         ticket_id: str,
         request: BoardTicketStatusUpdateRequest,
     ) -> BoardTicketResource:
-        """PATCH ticket state and/or column label."""
+        """PATCH ticket state and/or column (label + Project V2 Status)."""
         if request.state is None and request.column is None:
             raise ValidationError(
                 message="At least one of state or column is required",
@@ -102,6 +102,12 @@ class BoardService(BaseBusinessService):
             )
         except ValueError as exc:
             raise ValidationError(message=str(exc)) from exc
+        except RuntimeError as exc:
+            raise ServiceUnavailableError(
+                service_name="github",
+                message="Forge board status update failed",
+                details={"error": str(exc)},
+            ) from exc
         except httpx.HTTPError as exc:
             raise ServiceUnavailableError(
                 service_name="github",
@@ -111,6 +117,7 @@ class BoardService(BaseBusinessService):
         self.logger.info(
             "Board ticket status updated",
             ticket_id=ticket_id,
+            column=request.column,
             operation="update_ticket_status",
         )
         return self._to_ticket(data, request.org, request.repo)

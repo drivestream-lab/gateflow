@@ -35,19 +35,64 @@ async def test_create_issue_posts_json() -> None:
 @pytest.mark.asyncio
 async def test_update_issue_status_patches_state_and_column() -> None:
     client = _forge_client()
-    http = MagicMock()
+    resolve_items = MagicMock()
+    resolve_items.raise_for_status = MagicMock()
+    resolve_items.json = MagicMock(
+        return_value={
+            "data": {
+                "repository": {
+                    "issue": {
+                        "projectItems": {
+                            "nodes": [
+                                {
+                                    "id": "PVTI_1",
+                                    "project": {
+                                        "id": "PVT_proj",
+                                        "field": {
+                                            "id": "PVTF_status",
+                                            "name": "Status",
+                                            "options": [
+                                                {"id": "opt_todo", "name": "Todo"},
+                                                {"id": "opt_done", "name": "Done"},
+                                            ],
+                                        },
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    )
     current = MagicMock()
     current.raise_for_status = MagicMock()
     current.json.return_value = {
         "number": 4,
+        "title": "t",
         "state": "open",
         "labels": [{"name": "gateflow/column:Todo"}, {"name": "keep"}],
     }
     patched = MagicMock()
     patched.raise_for_status = MagicMock()
-    patched.json.return_value = {"number": 4, "state": "closed", "labels": []}
+    patched.json.return_value = {
+        "number": 4,
+        "title": "t",
+        "state": "closed",
+        "labels": [{"name": "gateflow/column:Done"}, {"name": "keep"}],
+    }
+    set_status = MagicMock()
+    set_status.raise_for_status = MagicMock()
+    set_status.json = MagicMock(
+        return_value={
+            "data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "PVTI_1"}}}
+        }
+    )
+    http = MagicMock()
+    # resolve Status targets (graphql), get_issue (REST get), patch labels, set Status (graphql)
     http.get = AsyncMock(return_value=current)
     http.patch = AsyncMock(return_value=patched)
+    http.post = AsyncMock(side_effect=[resolve_items, set_status])
     client._client = http
     client._initialized = True
 
@@ -57,6 +102,106 @@ async def test_update_issue_status_patches_state_and_column() -> None:
     assert "gateflow/column:Done" in payload["labels"]
     assert "gateflow/column:Todo" not in payload["labels"]
     assert "keep" in payload["labels"]
+    assert http.post.await_count == 2
+    assert http.post.await_args_list[0].args[0] == "/graphql"
+    mutation_vars = http.post.await_args_list[1].kwargs["json"]["variables"]
+    assert mutation_vars["optionId"] == "opt_done"
+    assert mutation_vars["itemId"] == "PVTI_1"
+
+
+@pytest.mark.asyncio
+async def test_update_issue_status_fail_closed_before_label_when_no_project_item() -> None:
+    client = _forge_client()
+    resolve_items = MagicMock()
+    resolve_items.raise_for_status = MagicMock()
+    resolve_items.json = MagicMock(
+        return_value={
+            "data": {
+                "repository": {
+                    "issue": {"projectItems": {"nodes": []}},
+                }
+            }
+        }
+    )
+    http = MagicMock()
+    http.post = AsyncMock(return_value=resolve_items)
+    http.get = AsyncMock()
+    http.patch = AsyncMock()
+    client._client = http
+    client._initialized = True
+
+    with pytest.raises(ValueError, match="not on any Project V2"):
+        await client.update_issue_status("acme", "widget", 4, column="In Progress")
+    http.get.assert_not_awaited()
+    http.patch.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_issue_status_fail_closed_when_status_option_missing() -> None:
+    client = _forge_client()
+    resolve_items = MagicMock()
+    resolve_items.raise_for_status = MagicMock()
+    resolve_items.json = MagicMock(
+        return_value={
+            "data": {
+                "repository": {
+                    "issue": {
+                        "projectItems": {
+                            "nodes": [
+                                {
+                                    "id": "PVTI_1",
+                                    "project": {
+                                        "id": "PVT_proj",
+                                        "field": {
+                                            "id": "PVTF_status",
+                                            "name": "Status",
+                                            "options": [{"id": "opt_todo", "name": "Todo"}],
+                                        },
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    )
+    http = MagicMock()
+    http.post = AsyncMock(return_value=resolve_items)
+    http.get = AsyncMock()
+    http.patch = AsyncMock()
+    client._client = http
+    client._initialized = True
+
+    with pytest.raises(ValueError, match="No Project Status option named 'In Progress'"):
+        await client.update_issue_status("acme", "widget", 4, column="In Progress")
+    http.patch.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_update_issue_status_state_only_skips_project_sync() -> None:
+    client = _forge_client()
+    current = MagicMock()
+    current.raise_for_status = MagicMock()
+    current.json.return_value = {
+        "number": 4,
+        "title": "t",
+        "state": "open",
+        "labels": [],
+    }
+    patched = MagicMock()
+    patched.raise_for_status = MagicMock()
+    patched.json.return_value = {"number": 4, "title": "t", "state": "closed", "labels": []}
+    http = MagicMock()
+    http.get = AsyncMock(return_value=current)
+    http.patch = AsyncMock(return_value=patched)
+    http.post = AsyncMock()
+    client._client = http
+    client._initialized = True
+
+    await client.update_issue_status("acme", "widget", 4, state="closed")
+    http.post.assert_not_awaited()
+    assert http.patch.await_args.kwargs["json"] == {"state": "closed"}
 
 
 @pytest.mark.asyncio
