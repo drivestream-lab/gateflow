@@ -81,9 +81,7 @@ def _authorize_path(
     with httpx.Client(timeout=120.0) as client:
         resp = client.post(url, json=body, headers=headers)
     if resp.status_code not in {200, 201}:
-        print(
-            f"[ERROR] forge/authorize failed status={resp.status_code}: {resp.text}"
-        )
+        print(f"[ERROR] forge/authorize failed status={resp.status_code}: {resp.text}")
         return 1
     payload = resp.json()
     action = payload.get("action")
@@ -96,10 +94,7 @@ def _authorize_path(
     if not epic or not isinstance(wave_ids, list) or not wave_ids:
         print(f"[ERROR] authorize response missing epic/wave ticket ids: {payload}")
         return 1
-    print(
-        f"[OK] POST forge/authorize → epic_ticket_id={epic} "
-        f"wave_ticket_ids={wave_ids}"
-    )
+    print(f"[OK] POST forge/authorize → epic_ticket_id={epic} " f"wave_ticket_ids={wave_ids}")
     # Map wave_id → ticket by order when titles unknown; prefer first matching
     # wave index from printed list (caller should set wave_id=W0 → index 0).
     wave_ticket = str(wave_ids[0])
@@ -157,10 +152,7 @@ def _board_seed_path(
         )
         return 1
 
-    print(
-        f"[OK] parsed WorkManifest initiative={manifest.initiative} "
-        f"waves={wave_ids_in_plan}"
-    )
+    print(f"[OK] parsed WorkManifest initiative={manifest.initiative} " f"waves={wave_ids_in_plan}")
 
     if dry_run:
         print("[OK] dry_run=true — skipping board creates")
@@ -179,8 +171,7 @@ def _board_seed_path(
         epic_resp = client.post(create_url, json=epic_body, headers=headers)
         if epic_resp.status_code not in {200, 201}:
             print(
-                f"[ERROR] EPIC create failed status={epic_resp.status_code}: "
-                f"{epic_resp.text}"
+                f"[ERROR] EPIC create failed status={epic_resp.status_code}: " f"{epic_resp.text}"
             )
             return 1
         epic_payload = epic_resp.json()

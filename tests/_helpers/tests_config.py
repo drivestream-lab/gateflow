@@ -164,9 +164,7 @@ class FeaturesConfig(BaseModel):
     implement_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     spec_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     wave_closeout: WaveCloseoutFeatureConfig = Field(default_factory=WaveCloseoutFeatureConfig)
-    create_tickets: CreateTicketsFeatureConfig = Field(
-        default_factory=CreateTicketsFeatureConfig
-    )
+    create_tickets: CreateTicketsFeatureConfig = Field(default_factory=CreateTicketsFeatureConfig)
 
 
 class TestsConfig(BaseModel):
