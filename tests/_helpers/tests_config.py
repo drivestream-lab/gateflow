@@ -125,6 +125,37 @@ class WaveCloseoutFeatureConfig(BaseModel):
     wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
 
 
+class CreateTicketsFeatureConfig(BaseModel):
+    """Opt-in WorkManifest → board EPIC/wave seed (forge create_board_tickets projection)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=False)
+    workspace: str = Field(
+        default="",
+        description="Absolute app checkout (plan_path resolved under this root)",
+    )
+    plan_path: str = Field(
+        default="",
+        description="Repo-relative Implementation-Plan path containing §9 WorkManifest",
+    )
+    initiative: str = Field(
+        default="",
+        description="Must match WorkManifest.initiative (and handoff.forge.initiative)",
+    )
+    wave_id: str = Field(
+        default="W0",
+        description="Wave id whose ticket_id to print for implement_lane config",
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="When true: contract + parse only; no board creates",
+    )
+    # Optional: exercise POST /runs/{id}/forge/authorize when a run is already
+    # STOPPED at board-tickets-action (explicit). Empty → board API projection path.
+    authorize_run_id: str = Field(default="")
+
+
 class FeaturesConfig(BaseModel):
     """Gateflow capabilities that need verify knobs. Omit unused sections in yaml."""
 
@@ -133,6 +164,7 @@ class FeaturesConfig(BaseModel):
     implement_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     spec_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     wave_closeout: WaveCloseoutFeatureConfig = Field(default_factory=WaveCloseoutFeatureConfig)
+    create_tickets: CreateTicketsFeatureConfig = Field(default_factory=CreateTicketsFeatureConfig)
 
 
 class TestsConfig(BaseModel):
