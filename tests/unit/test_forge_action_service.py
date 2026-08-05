@@ -427,3 +427,45 @@ def test_board_tickets_action_remains_explicit_authorize_stop() -> None:
     assert decision.decision == PolicyDecisionType.STOP
     assert "authorization=explicit" in (decision.block_reason or "")
     assert decision.decision != PolicyDecisionType.APPLY_FORGE
+
+
+def test_forge_action_type_excludes_merge() -> None:
+    """REQ-09: ForgeActionType must not include merge actions."""
+    values = {action.value for action in ForgeActionType}
+    forbidden = {"merge", "merge_pull_request", "auto_merge", "enable_auto_merge"}
+    assert values.isdisjoint(forbidden)
+
+
+@pytest.mark.asyncio
+async def test_apply_external_action_rejects_lgtm_apply_labels() -> None:
+    """REQ-16: apply_external_action rejects *-lgtm on effective policy."""
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("wave-pr-action")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="loop-spec",
+        outcome="pass",
+        forge=HandoffForgeDocument(
+            title="draft",
+            body_path="docs/body.md",
+            head_ref="feature/x",
+            base_ref="develop",
+            apply_labels=["spec-lgtm"],
+        ),
+    )
+    svc = _service(
+        run=_run(workflow_node="wave-pr-action"),
+        handoff=handoff,
+        board_service=MagicMock(),
+    )
+    with pytest.raises(ValidationError, match="lgtm"):
+        await svc.apply_external_action(
+            org="acme",
+            repo="widget",
+            node=node,
+            handoff=handoff,
+            workspace=Path("."),
+            head_ref="feature/x",
+            base_ref="develop",
+        )

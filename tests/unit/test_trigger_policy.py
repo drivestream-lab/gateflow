@@ -204,6 +204,37 @@ def test_policy_create_tickets_pass_stops_same_run_resume() -> None:
     engine.resolve_next.assert_not_called()
 
 
+def test_policy_wave_signoff_pass_stops_no_auto_chain() -> None:
+    """REQ-19: wave-signoff pass must not dispatch pre-implement on same run."""
+    engine = MagicMock()
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="wave-signoff",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "REQ-19" in (decision.block_reason or "")
+    assert "implement/start" in (decision.block_reason or "")
+    engine.resolve_next.assert_not_called()
+
+
+def test_policy_wave_complete_pass_stops_no_auto_chain() -> None:
+    """REQ-19: wave-complete pass must not chain to pre-implement or closure."""
+    engine = MagicMock()
+    policy = PolicyEngine(workflow_engine=engine)
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="wave-complete",
+        outcome="pass",
+    )
+    decision = policy.evaluate_dispatch(handoff, MagicMock())
+    assert decision.decision == PolicyDecisionType.STOP
+    assert "REQ-19" in (decision.block_reason or "")
+    engine.resolve_next.assert_not_called()
+
+
 def test_policy_automated_external_action_apply_forge() -> None:
     from src.models.forge_types import AuthorizationModeType
     from src.models.handoff_models import ResolvedWorkflowNode

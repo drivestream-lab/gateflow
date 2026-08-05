@@ -274,6 +274,19 @@ Not in `verify_all`. Idempotent on `initiative_id` (+ wave suffix) like forge se
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_start` (+ `verify_board` / `verify_create_tickets` for create predicates when knobs set).
 
+## Feature map (INIT-GATEFLOW-010 W3 — closeout Done + no merge/lgtm/auto-chain)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Closeout Done hop after ground-spec.pass (REQ-05) | `verify_wave_closeout` dogfood asserts `wave-done-action` forge_executed | `test_closeout_walk_applies_done_then_stops_at_wave_signoff` |
+| Terminal purpose at wave-signoff (REQ-05) | `verify_wave_closeout` dogfood asserts `run_stopped.purpose` | `test_closeout_walk_applies_done_then_stops_at_wave_signoff`, `test_pin_human_checkpoint_carries_purpose_and_owner` |
+| No Forge merge action (REQ-09) | secondary (code guard) | `test_forge_action_type_excludes_merge`, `test_forge_client_forbids_auto_merge` |
+| Never auto-apply `*-lgtm` (REQ-16) | secondary | `test_apply_external_action_rejects_lgtm_apply_labels`, `test_parse_node_forge_forbids_lgtm_apply_labels` |
+| No auto-chain after wave-signoff (REQ-19) | `verify_wave_closeout` dogfood forbids pre-implement/closure stages | `test_policy_wave_signoff_pass_stops_no_auto_chain`, `test_policy_wave_complete_pass_stops_no_auto_chain` |
+| Live co-ship closeout slice (REQ-17 partial) | `verify_wave_closeout` (+ `verify_spec_lane` for spec Pass-1 when knobs set) | `test_wave_closeout`, orchestrator closeout tests |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (dogfood knobs + worker); optional `.venv/bin/python -m tests.verify.verify_spec_lane` for spec Pass-1 green.
+
 ### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 
 ```bash
@@ -297,7 +310,9 @@ set -a && source .env && set +a
 
 Without `enabled: true`, the script still asserts 401 + body validation (smoke).
 With `dogfood: true`, requires worker and asserts `learning-extract` + `ground-spec`
-success and terminal `stopped` at `wave-signoff` (Learning-Extract file when configured).
+success, automated `wave-done-action` Done hop, terminal `stopped` at `wave-signoff`
+with `purpose=wave-signoff`, and no auto-chain to pre-implement/closure (INIT-010 W3 /
+REQ-05, REQ-19). Learning-Extract file when configured.
 Postgres `learning_extracts` row evidence is human Live-Verify (no learning HTTP).
 
 See spec: `docs/specification/product/INIT-GATEFLOW-002-gateflow.md` /

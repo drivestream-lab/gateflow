@@ -71,6 +71,28 @@ class PolicyEngine(BaseBusinessService):
                 retry_counter=retry_counter,
             )
 
+        if handoff.stage == "wave-signoff" and handoff.outcome == "pass":
+            return PolicyDecision(
+                decision=PolicyDecisionType.STOP,
+                block_reason=(
+                    "Wave signoff complete; terminal stop (REQ-19). "
+                    "Start the next wave via POST /api/v1/waves/implement/start "
+                    "or closure via POST /api/v1/initiatives/closure/start — "
+                    "no same-run auto-chain."
+                ),
+                retry_counter=retry_counter,
+            )
+
+        if handoff.stage == "wave-complete" and handoff.outcome == "pass":
+            return PolicyDecision(
+                decision=PolicyDecisionType.STOP,
+                block_reason=(
+                    "Wave complete; no auto-chain to pre-implement or "
+                    "initiative-closure on this run (REQ-19)."
+                ),
+                retry_counter=retry_counter,
+            )
+
         try:
             next_node = self._workflow_engine.resolve_next(handoff)
         except FileNotFoundError as exc:

@@ -49,6 +49,11 @@ from src.models.run_store_models import RunEventCreate, RunModel
 from src.models.run_store_types import RunStatusType
 from src.models.work_manifest_models import parse_work_manifest_from_plan
 
+# REQ-09 — merge stays human-only; fail closed if a future pin ever declares it.
+_FORBIDDEN_FORGE_ACTION_VALUES = frozenset(
+    {"merge", "merge_pull_request", "auto_merge", "enable_auto_merge"}
+)
+
 
 class ForgeApplyResult(BaseModel):
     """Result of shared apply_external_action."""
@@ -219,6 +224,18 @@ class ForgeActionService(BaseBusinessService):
                 message=str(exc),
                 field_errors={"forge": "incomplete_requires"},
             ) from exc
+
+        if effective.action.value in _FORBIDDEN_FORGE_ACTION_VALUES:
+            raise ValidationError(
+                message=f"Forge merge actions are forbidden (REQ-09): {effective.action.value!r}",
+                field_errors={"action": "merge_forbidden"},
+            )
+        for label in effective.apply_labels:
+            if label.endswith("-lgtm"):
+                raise ValidationError(
+                    message=f"Forge forbids approval labels (REQ-16): {label!r}",
+                    field_errors={"apply_labels": "lgtm_forbidden"},
+                )
 
         if effective.action == ForgeActionType.OPEN_DRAFT_PR:
             result = await self.execute_open_draft_pr(

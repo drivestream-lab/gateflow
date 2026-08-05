@@ -69,6 +69,12 @@ implement-start ticket gate; Project Status sync with column labels; live
 `verify_implement_lane` run `89b7b7d9-…`; Learning + Ground on tip
 (REQ-06, REQ-07, REQ-08, REQ-17 partial). W3 `/pre-implement` may proceed.
 
+**W3 loop-spec (2026-08-05):** closeout walk applies automated `wave-done-action`
+Done hop after `ground-spec.pass`; terminal stop exposes `wave-signoff` purpose;
+forge guards refuse merge/`*-lgtm`; policy blocks same-run auto-chain after
+wave-signoff/wave-complete (REQ-05, REQ-09, REQ-16, REQ-19). Live verify co-shipped
+in `verify_wave_closeout` — human prove-it at `live-verify`.
+
 **Delivery waves (product-normative; PRD §5):**
 
 | Wave | Intent | Exit PRD REQs |
