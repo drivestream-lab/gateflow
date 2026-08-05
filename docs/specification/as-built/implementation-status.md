@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0 **human_approved** (PR [#144](https://github.com/drivestream-lab/gateflow/pull/144) merge `0ca2376`; Pass-2 Learning/Ground backfill); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0+W1 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -215,7 +215,7 @@
 |-----|--------|
 | Product INIT | **Accepted** — [`product/INIT-GATEFLOW-010-gateflow.md`](../product/INIT-GATEFLOW-010-gateflow.md); PE package accept 2026-08-05 |
 | W0 pin parse + stop payload | **human_approved** — merge [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; Live-Verify skipped (P15 N/A); Learning/Ground backfill on `develop` |
-| APPLY_FORGE board-status apply | **W1 complete** — REQ-03 apply on `develop` tip via PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); Ground-Report W1 pending sign-off |
+| APPLY_FORGE board-status apply | **human_approved** — REQ-03 on `develop` via [#146](https://github.com/drivestream-lab/gateflow/pull/146) merge `34e5813`; Ground-Report W1 |
 
 ## Capability matrix (INIT-GATEFLOW-010 W1 — board-status apply + implement In Progress)
 
@@ -228,7 +228,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W1 board-status + implement In Progress | **pending human_approved** — live verify pass 2026-08-05; run `852a0a42-…` → PR [#146](https://github.com/drivestream-lab/gateflow/pull/146); board [#139](https://github.com/drivestream-lab/gateflow/issues/139); Ground-Report W1 + merge at `wave-signoff`; [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md) |
+| W1 board-status + implement In Progress | **human_approved** — merge [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; live verify pass 2026-08-05 run `852a0a42-…`; board [#139](https://github.com/drivestream-lab/gateflow/issues/139); [`Live-Verify-INIT-GATEFLOW-010-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W1.md); [`Ground-Report-INIT-GATEFLOW-010-W1.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W1.md) |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
