@@ -70,7 +70,8 @@ def main() -> int:
             if not run_id:
                 print(f"[ERROR] missing run_id in wave-start response: {payload}")
                 return 1
-            print("[OK] POST /api/v1/waves/implement/start → "
+            print(
+                "[OK] POST /api/v1/waves/implement/start → "
                 f"run_id={run_id} status={payload.get('status')}"
             )
 
@@ -102,13 +103,9 @@ def main() -> int:
                 done_body["ticket_id"] = done_ticket
                 done_resp = client.post(start_url, json=done_body, headers=headers)
                 if done_resp.status_code == 422:
-                    print(
-                        "[OK] POST implement/start configured Done ticket → 422; 0 enqueue"
-                    )
+                    print("[OK] POST implement/start configured Done ticket → 422; 0 enqueue")
                 elif done_resp.status_code in {200, 201}:
-                    print(
-                        "[INFO] configured ticket not Done on board — positive path still ok"
-                    )
+                    print("[INFO] configured ticket not Done on board — positive path still ok")
                 else:
                     print(
                         f"[ERROR] unexpected status for Done-ticket probe: "

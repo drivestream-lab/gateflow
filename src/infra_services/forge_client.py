@@ -497,14 +497,10 @@ class ForgeClient(BaseInfraService):
           }
         }
         """
-        body = await self.graphql(
-            query, {"owner": owner, "repo": repo, "number": issue_number}
-        )
+        body = await self.graphql(query, {"owner": owner, "repo": repo, "number": issue_number})
         errors = body.get("errors")
         if errors:
-            raise RuntimeError(
-                f"GitHub GraphQL issue projectItems resolve failed: {errors}"
-            )
+            raise RuntimeError(f"GitHub GraphQL issue projectItems resolve failed: {errors}")
         repo_data = (body.get("data") or {}).get("repository") or {}
         issue = repo_data.get("issue") or {}
         if not issue:
@@ -581,15 +577,10 @@ class ForgeClient(BaseInfraService):
         )
         errors = body.get("errors")
         if errors:
-            raise RuntimeError(
-                f"GitHub GraphQL updateProjectV2ItemFieldValue failed: {errors}"
-            )
-        item = (
-            ((body.get("data") or {}).get("updateProjectV2ItemFieldValue") or {}).get(
-                "projectV2Item"
-            )
-            or {}
-        )
+            raise RuntimeError(f"GitHub GraphQL updateProjectV2ItemFieldValue failed: {errors}")
+        item = ((body.get("data") or {}).get("updateProjectV2ItemFieldValue") or {}).get(
+            "projectV2Item"
+        ) or {}
         if not str(item.get("id") or "").strip():
             raise RuntimeError("updateProjectV2ItemFieldValue returned no item id")
 
