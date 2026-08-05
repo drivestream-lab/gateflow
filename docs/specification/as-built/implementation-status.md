@@ -242,7 +242,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W2 ticket gates + create predicates | **human_approved** (live-verify) — PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `dd8412f`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); [`Live-Verify-INIT-GATEFLOW-010-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W2.md); Pass-2 Learning/Ground + merge still programme steps |
+| W2 ticket gates + create predicates | **Ground pass** (2026-08-05) — PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) tip `be63705`; board [#140](https://github.com/drivestream-lab/gateflow/issues/140); live-verify **human_approved**; [`Ground-Report-INIT-GATEFLOW-010-W2.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W2.md); pending `wave-signoff` merge |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
