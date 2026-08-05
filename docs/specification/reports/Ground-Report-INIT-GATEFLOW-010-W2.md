@@ -6,13 +6,13 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-010-gateflow.md` |
 | Initiative | INIT-GATEFLOW-010 |
 | Date | 2026-08-05 |
-| Wave head (exact) | `feature/INIT-GATEFLOW-010-w2-implement-lane` @ `be637054c78572847166a4ddc3d2df3afff85020` — reviewed head for sign-off |
-| PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/148 — **Draft** (open for Pass-2 closeout) |
+| Wave head (exact) | `develop` @ `ba6d804e02f79d3eea51b4f950594230e18e5c02` — merge of [#148](https://github.com/drivestream-lab/gateflow/pull/148) |
+| PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/148 — **MERGED** 2026-08-05 |
 | Board | https://github.com/drivestream-lab/gateflow/issues/140 |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-08-07 |
-| Deciders | Tech lead / reviewer — explicit LGTM required at `wave-signoff` |
-| Outcome | **pass** |
+| Deciders | Tech lead / reviewer — human_approved backfill after merge (wave-signoff) |
+| Outcome | **pass** → **human_approved** |
 | Outcome reason | Wave-assigned REQs verified on tip + unit re-proof + human live-verify; human fix `dd8412f` captured; §Contracts produced complete for W3; no Blocking GF-*; exact-head sign-off package ready |
 | Assigned REQs | REQ-06, REQ-07, REQ-08, REQ-17 (partial) — from WorkManifest TASK-W2-01…05 `implements` |
 
@@ -99,28 +99,29 @@ Manual re-proof at ground time (2026-08-05):
 
 > Write the Ground Report and as-built updates **locally**. Emit Forge readiness for publication. Do **not** commit, push, merge, or apply labels from this skill. Human reviews the **exact wave head**, records approval, and merges manually at `wave-signoff`.
 
-- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/148 @ `be637054c78572847166a4ddc3d2df3afff85020` — **expected reviewed head SHA** (publish closeout docs onto tip before merge so reviewed SHA may advance)
+- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/148 @ `ba6d804e02f79d3eea51b4f950594230e18e5c02` — **merge commit SHA**
+- Reviewed feature tip before merge: `72ce22b0e74e8edee729d518f0c090ab6b79b20b` (ground publish + black CI fix)
 - Pass-1 product tip: `3795ab7c20495e2af01f927e5d05c00c31b55e3f`
 - Human fix tip: `dd8412f59e40cb71c9cb7244f096dd391ab42b68`
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-010-W2.md`
 - Live evidence path: `docs/specification/reports/Live-Verify-INIT-GATEFLOW-010-W2.md`
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-010-W2.md`
 - Learning-Extract path: `docs/specification/reports/Learning-Extract-INIT-GATEFLOW-010-W2.md`
-- As-built row: INIT-GATEFLOW-010 W2 → pending `human_approved` at `wave-signoff`
-- Required checkpoint evidence fields (human fills at `wave-signoff`; not `handoff.forge`): `reviewed_head_sha`, `merge_commit_sha`
+- As-built row: INIT-GATEFLOW-010 W2 → **human_approved** (backfill after merge `ba6d804`)
+- Checkpoint evidence: `reviewed_head_sha` = `72ce22b…`; `merge_commit_sha` = `ba6d804…`
 
 ### Human sign-off / merge checklist
 
-- [ ] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate and complete for W3 `/pre-implement`
-- [ ] Confirm reviewed head SHA matches the package above
-- [ ] Mark as-built: INIT-GATEFLOW-010 W2 = human_approved (human only)
-- [ ] Merge the wave PR manually (human only) — record merge commit SHA
-- [ ] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
+- [x] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
+- [x] Review §Contracts produced — accurate and complete for W3 `/pre-implement`
+- [x] Confirm reviewed head / merge SHA recorded (feature tip `72ce22b`; merge `ba6d804`)
+- [x] Mark as-built: INIT-GATEFLOW-010 W2 = human_approved (backfill chore)
+- [x] Merge PR [#148](https://github.com/drivestream-lab/gateflow/pull/148) — done 2026-08-05
+- [x] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
 
 ## Ready for human checkpoint?
 
-**yes** — Ground pass; exact-head package ready. Next: `wave-done-action` (board #140 → Done) then human `wave-signoff` merge.
+**yes — human_approved** (2026-08-05). Wave PR merged; as-built + Ground Report status backfilled. W3 `/pre-implement` may consume §Contracts produced.
 
 ## Checks G1–G10
 
@@ -155,8 +156,10 @@ handoff:
     pr_url: "https://github.com/drivestream-lab/gateflow/pull/148"
     pass1_tip_sha: "3795ab7c20495e2af01f927e5d05c00c31b55e3f"
     human_fix_sha: "dd8412f59e40cb71c9cb7244f096dd391ab42b68"
-    tip_sha: "be637054c78572847166a4ddc3d2df3afff85020"
-    reviewed_head_sha_expected: "be637054c78572847166a4ddc3d2df3afff85020"
+    tip_sha: "ba6d804e02f79d3eea51b4f950594230e18e5c02"
+    reviewed_head_sha_expected: "72ce22b0e74e8edee729d518f0c090ab6b79b20b"
+    merge_commit_sha: "ba6d804e02f79d3eea51b4f950594230e18e5c02"
+    human_approved: true
     human_fix_detected: true
     contracts_produced: 5
     assigned_reqs:
