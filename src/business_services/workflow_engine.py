@@ -141,6 +141,8 @@ class WorkflowEngine(BaseBusinessService):
         )
         forge: NodeForgePolicy = parse_node_forge(raw.get("forge"))
         authorization = WorkflowEngine._parse_authorization(node_id, node_type, raw)
+        purpose_raw = raw.get("purpose")
+        owner_raw = raw.get("owner")
         return ResolvedWorkflowNode(
             node_id=node_id,
             node_type=node_type,
@@ -148,6 +150,8 @@ class WorkflowEngine(BaseBusinessService):
             outcomes=outcomes_map,
             forge=forge,
             authorization=authorization,
+            purpose=str(purpose_raw) if purpose_raw is not None else None,
+            owner=str(owner_raw) if owner_raw is not None else None,
         )
 
     @staticmethod

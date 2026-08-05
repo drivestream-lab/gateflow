@@ -50,3 +50,11 @@ class ResolvedWorkflowNode(BaseModel):
             "Required on type=external-action (explicit|automated); " "absent on other node types"
         ),
     )
+    purpose: Optional[str] = Field(
+        default=None,
+        description="Pin purpose when declared on human-checkpoint or gate nodes",
+    )
+    owner: Optional[str] = Field(
+        default=None,
+        description="Pin owner when declared on the node",
+    )
