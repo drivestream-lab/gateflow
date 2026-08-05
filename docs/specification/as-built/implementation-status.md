@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0 unit-complete (Pass-1); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0 **human_approved** (PR [#144](https://github.com/drivestream-lab/gateflow/pull/144) merge `0ca2376`; Pass-2 Learning/Ground backfill); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -214,8 +214,8 @@
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Accepted** — [`product/INIT-GATEFLOW-010-gateflow.md`](../product/INIT-GATEFLOW-010-gateflow.md); PE package accept 2026-08-05 |
-| W0 pin parse + stop payload | **unit-complete** — board [#138](https://github.com/drivestream-lab/gateflow/issues/138); Wave-Execution W0; live verify **N/A** (P15 N/A) |
-| APPLY_FORGE board-status apply | **deferred W1** — REQ-03; parse-only this wave |
+| W0 pin parse + stop payload | **human_approved** — merge [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; Live-Verify skipped (P15 N/A); Learning/Ground backfill on `develop` |
+| APPLY_FORGE board-status apply | **deferred W1** — REQ-03; parse-only this wave; W1 reads `Ground-Report-INIT-GATEFLOW-010-W0.md` §Contracts produced |
 
 ## INIT-GATEFLOW-009 — both-lane factory prove-out (**human_approved** freeze)
 
