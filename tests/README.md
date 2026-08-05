@@ -238,6 +238,8 @@ After spec merge (plan §9 on `develop`), seed EPIC + wave tickets before implem
 # features.create_tickets.plan_path: docs/specification/reports/Implementation-Plan-INIT-GATEFLOW-010.md
 # features.create_tickets.initiative: INIT-GATEFLOW-010
 # features.create_tickets.wave_id: W0
+# features.create_tickets.project_number: 3   # org Project v2 number (deterministic)
+# features.create_tickets.project_owner: drivestream-lab  # optional; defaults to gateflow.org
 # optional dry_run: true  → contract + parse only
 # optional authorize_run_id: <uuid>  → forge/authorize when run STOPPED at board-tickets-action
 

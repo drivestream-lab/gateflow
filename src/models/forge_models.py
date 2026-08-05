@@ -47,6 +47,14 @@ class HandoffForgeDocument(BaseModel):
     body_path: Optional[str] = Field(default=None)
     initiative: Optional[str] = Field(default=None)
     plan_path: Optional[str] = Field(default=None)
+    project_number: Optional[int] = Field(
+        default=None,
+        description="Org Project v2 number for create_board_tickets (caller-supplied)",
+    )
+    project_owner: Optional[str] = Field(
+        default=None,
+        description="Project owner org; defaults to run org when omitted",
+    )
     head_ref: Optional[str] = Field(
         default=None,
         description="PR head branch when listed in pin forge.requires",
@@ -81,6 +89,8 @@ class EffectiveForgePolicy(BaseModel):
     body_path: Optional[str] = Field(default=None)
     initiative: Optional[str] = Field(default=None)
     plan_path: Optional[str] = Field(default=None)
+    project_number: Optional[int] = Field(default=None)
+    project_owner: Optional[str] = Field(default=None)
     head_ref: Optional[str] = Field(default=None)
     base_ref: Optional[str] = Field(default=None)
 
@@ -122,6 +132,18 @@ class ForgeAuthorizeRequest(BaseModel):
     base: Optional[str] = Field(
         default=None,
         description="PR base branch for open_draft_pr (required for that action)",
+    )
+    project_number: Optional[int] = Field(
+        default=None,
+        description=(
+            "Org Project v2 number for create_board_tickets "
+            "(overrides handoff.forge.project_number when set)"
+        ),
+        gt=0,
+    )
+    project_owner: Optional[str] = Field(
+        default=None,
+        description="Project owner org for create_board_tickets (defaults to run org)",
     )
 
 
@@ -195,6 +217,8 @@ def merge_pin_and_handoff_forge(
         body_path=hf.body_path.strip() if hf.body_path else None,
         initiative=hf.initiative.strip() if hf.initiative else None,
         plan_path=hf.plan_path.strip() if hf.plan_path else None,
+        project_number=hf.project_number if hf.project_number and hf.project_number > 0 else None,
+        project_owner=hf.project_owner.strip() if hf.project_owner else None,
         head_ref=hf.head_ref.strip() if hf.head_ref else None,
         base_ref=hf.base_ref.strip() if hf.base_ref else None,
     )

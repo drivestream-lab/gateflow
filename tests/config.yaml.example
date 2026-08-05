@@ -101,6 +101,10 @@ features:
     initiative: INIT-GATEFLOW-010
     wave_id: W0
     dry_run: false
+    # Deterministic org Project v2 number (gh project list --owner <org>).
+    # drivestream-lab Board → 3
+    project_number: 3
+    project_owner: ""
     authorize_run_id: ""
 
 

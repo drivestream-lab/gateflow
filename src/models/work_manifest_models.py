@@ -121,10 +121,19 @@ def parse_work_manifest_from_plan(plan_text: str) -> WorkManifestDocument:
 
 
 def _extract_work_manifest_mapping(plan_text: str) -> dict[str, Any]:
-    """Prefer fenced YAML containing kind: WorkManifest; else first YAML with that kind."""
-    fences = _iter_yaml_fences(plan_text)
-    for block in fences:
-        loaded = yaml.safe_load(block)
+    """Prefer fenced YAML containing kind: WorkManifest; else first YAML with that kind.
+
+    Matches pin ``extract_workmanifest_yaml`` discipline: only ``yaml``/``yml`` fences,
+    and only attempt ``safe_load`` on bodies that look like a WorkManifest so earlier
+    plain fences (e.g. Forge PR instructions with ``@`` mentions) cannot crash parse.
+    """
+    for block in _iter_yaml_fences(plan_text):
+        if not _looks_like_work_manifest(block):
+            continue
+        try:
+            loaded = yaml.safe_load(block)
+        except yaml.YAMLError:
+            continue
         if isinstance(loaded, dict) and str(loaded.get("kind", "")) == "WorkManifest":
             return loaded
 
@@ -138,15 +147,26 @@ def _extract_work_manifest_mapping(plan_text: str) -> dict[str, Any]:
     end = plan_text.find("```", idx)
     if start >= 0 and end > start:
         inner = plan_text[start + 3 : end]
-        if inner.startswith("yaml"):
-            inner = inner[4:]
-        loaded = yaml.safe_load(inner)
+        if inner.startswith("yaml") or inner.startswith("yml"):
+            nl = inner.find("\n")
+            inner = inner[nl + 1 :] if nl >= 0 else ""
+        if not _looks_like_work_manifest(inner):
+            raise ValueError("Failed to parse WorkManifest YAML from plan")
+        try:
+            loaded = yaml.safe_load(inner)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Failed to parse WorkManifest YAML from plan: {exc}") from exc
         if isinstance(loaded, dict) and str(loaded.get("kind", "")) == "WorkManifest":
             return loaded
     raise ValueError("Failed to parse WorkManifest YAML from plan")
 
 
+def _looks_like_work_manifest(block: str) -> bool:
+    return "kind: WorkManifest" in block or "kind:WorkManifest" in block
+
+
 def _iter_yaml_fences(text: str) -> list[str]:
+    """Yield bodies of ```yaml / ```yml fences only (not bare ``` — pin parity)."""
     chunks: list[str] = []
     cursor = 0
     while True:
@@ -161,7 +181,7 @@ def _iter_yaml_fences(text: str) -> list[str]:
         if end < 0:
             break
         body = text[after + 1 : end]
-        if lang in {"", "yaml", "yml"}:
+        if lang in {"yaml", "yml"}:
             chunks.append(body)
         cursor = end + 3
     return chunks

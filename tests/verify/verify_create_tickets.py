@@ -65,6 +65,8 @@ def _authorize_path(
     run_id: str,
     workspace: Path,
     wave_id: str,
+    project_number: int,
+    project_owner: str,
 ) -> int:
     try:
         UUID(run_id)
@@ -76,6 +78,8 @@ def _authorize_path(
     body = {
         "authorized": True,
         "workspace_path": str(workspace),
+        "project_number": project_number,
+        "project_owner": project_owner,
     }
     with httpx.Client(timeout=120.0) as client:
         resp = client.post(url, json=body, headers=headers)
@@ -122,6 +126,8 @@ def _board_seed_path(
     initiative: str,
     wave_id: str,
     dry_run: bool,
+    project_number: int,
+    project_owner: str,
 ) -> int:
     try:
         run_workmanifest_contract(workspace=workspace, plan_file=plan_file)
@@ -166,6 +172,8 @@ def _board_seed_path(
             "body": manifest.epic.body,
             "ticket_type": BoardTicketType.EPIC.value,
             "initiative_id": manifest.initiative,
+            "project_number": project_number,
+            "project_owner": project_owner,
         }
         epic_resp = client.post(create_url, json=epic_body, headers=headers)
         if epic_resp.status_code not in {200, 201}:
@@ -174,6 +182,9 @@ def _board_seed_path(
             )
             return 1
         epic_payload = epic_resp.json()
+        if epic_payload.get("partial"):
+            print(f"[ERROR] EPIC create partial failure: {epic_payload}")
+            return 1
         epic_ticket = (epic_payload.get("ticket") or {}).get("ticket_id")
         if not epic_ticket:
             print(f"[ERROR] EPIC response missing ticket_id: {epic_payload}")
@@ -181,7 +192,8 @@ def _board_seed_path(
         print(
             f"[OK] EPIC ticket_id={epic_ticket} "
             f"created={epic_payload.get('created')} "
-            f"replay={epic_payload.get('idempotent_replay')}"
+            f"replay={epic_payload.get('idempotent_replay')} "
+            f"resources={epic_payload.get('created_resources')}"
         )
 
         wave_ticket_by_id: dict[str, str] = {}
@@ -196,6 +208,9 @@ def _board_seed_path(
                 "body": body or None,
                 "ticket_type": BoardTicketType.FEATURE.value,
                 "initiative_id": f"{manifest.initiative}:{wave.id}",
+                "project_number": project_number,
+                "project_owner": project_owner,
+                "parent_ticket_id": str(epic_ticket),
             }
             wave_resp = client.post(create_url, json=wave_body, headers=headers)
             if wave_resp.status_code not in {200, 201}:
@@ -205,6 +220,9 @@ def _board_seed_path(
                 )
                 return 1
             wave_payload = wave_resp.json()
+            if wave_payload.get("partial"):
+                print(f"[ERROR] wave {wave.id} partial failure: {wave_payload}")
+                return 1
             tid = (wave_payload.get("ticket") or {}).get("ticket_id")
             if not tid:
                 print(f"[ERROR] wave {wave.id} missing ticket_id: {wave_payload}")
@@ -213,7 +231,8 @@ def _board_seed_path(
             print(
                 f"[OK] wave {wave.id} ticket_id={tid} "
                 f"created={wave_payload.get('created')} "
-                f"replay={wave_payload.get('idempotent_replay')}"
+                f"replay={wave_payload.get('idempotent_replay')} "
+                f"resources={wave_payload.get('created_resources')}"
             )
 
     _print_implement_snippet(
@@ -260,6 +279,14 @@ def main() -> int:
     org = cfg.gateflow.org
     repo = cfg.gateflow.repo
     wave_id = feature.wave_id.strip() or "W0"
+    project_number = int(feature.project_number)
+    if project_number <= 0:
+        print(
+            "[ERROR] features.create_tickets.project_number is required "
+            "(org Project v2 number, e.g. 3 for drivestream-lab Board)"
+        )
+        return 1
+    project_owner = feature.project_owner.strip() or org
 
     authorize_run_id = feature.authorize_run_id.strip()
     if authorize_run_id:
@@ -273,6 +300,8 @@ def main() -> int:
             run_id=authorize_run_id,
             workspace=workspace,
             wave_id=wave_id,
+            project_number=project_number,
+            project_owner=project_owner,
         )
 
     plan_rel = feature.plan_path.strip()
@@ -294,6 +323,9 @@ def main() -> int:
         print(f"[ERROR] plan_path not found: {plan_file}")
         return 1
 
+    print(
+        f"[INFO] project binding project_owner={project_owner} " f"project_number={project_number}"
+    )
     return _board_seed_path(
         base_url=base_url,
         headers=headers,
@@ -304,6 +336,8 @@ def main() -> int:
         initiative=initiative,
         wave_id=wave_id,
         dry_run=feature.dry_run,
+        project_number=project_number,
+        project_owner=project_owner,
     )
 
 

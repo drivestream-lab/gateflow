@@ -80,6 +80,7 @@ async def test_create_ticket_idempotent_on_initiative_and_type() -> None:
             }
         ]
     )
+    forge.ensure_issue_on_project = AsyncMock(return_value="already_on_project")
     result = await service.create_ticket(
         BoardTicketCreateRequest(
             org="acme",
@@ -87,6 +88,7 @@ async def test_create_ticket_idempotent_on_initiative_and_type() -> None:
             title="Existing epic",
             ticket_type=BoardTicketType.EPIC,
             initiative_id="INIT-X",
+            project_number=3,
         )
     )
     assert result.idempotent_replay is True
@@ -94,6 +96,8 @@ async def test_create_ticket_idempotent_on_initiative_and_type() -> None:
     assert result.ticket is not None
     assert result.ticket.number == 11
     forge.create_issue.assert_not_called()
+    forge.ensure_issue_on_project.assert_awaited_once()
+    assert any(r.startswith("project_item:") for r in result.created_resources)
 
 
 @pytest.mark.asyncio
@@ -104,6 +108,7 @@ async def test_create_ticket_partial_when_labels_fail() -> None:
         return_value={"number": 22, "title": "New", "state": "open", "labels": []}
     )
     forge.apply_issue_labels = AsyncMock(side_effect=httpx.HTTPError("label boom"))
+    forge.ensure_issue_on_project = AsyncMock(return_value="added")
     result = await service.create_ticket(
         BoardTicketCreateRequest(
             org="acme",
@@ -111,6 +116,7 @@ async def test_create_ticket_partial_when_labels_fail() -> None:
             title="New",
             ticket_type=BoardTicketType.FEATURE,
             initiative_id="INIT-Y",
+            project_number=3,
         )
     )
     assert result.created is True
@@ -119,6 +125,46 @@ async def test_create_ticket_partial_when_labels_fail() -> None:
     assert result.failed_resources[0].resource == "labels"
     assert result.ticket is not None
     assert result.ticket.number == 22
+    forge.ensure_issue_on_project.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_partial_when_project_add_fails() -> None:
+    service, forge = _service()
+    labeled = {
+        "number": 5,
+        "title": "Epic",
+        "state": "open",
+        "labels": [
+            {"name": "gateflow/type:EPIC"},
+            {"name": "gateflow/initiative:INIT-Z"},
+        ],
+    }
+
+    async def _find(*_a: object, **_k: object) -> list[dict[str, object]]:
+        if forge.apply_issue_labels.await_count:
+            return [labeled]
+        return []
+
+    forge.find_issues_by_labels = AsyncMock(side_effect=_find)
+    forge.create_issue = AsyncMock(
+        return_value={"number": 5, "title": "Epic", "state": "open", "labels": []}
+    )
+    forge.apply_issue_labels = AsyncMock(return_value=labeled)
+    forge.ensure_issue_on_project = AsyncMock(side_effect=RuntimeError("no project scope"))
+    result = await service.create_ticket(
+        BoardTicketCreateRequest(
+            org="acme",
+            repo="widget",
+            title="Epic",
+            ticket_type=BoardTicketType.EPIC,
+            initiative_id="INIT-Z",
+            project_number=3,
+        )
+    )
+    assert result.created is True
+    assert result.partial is True
+    assert any(f.resource == "project_item" for f in result.failed_resources)
 
 
 @pytest.mark.asyncio
@@ -145,6 +191,7 @@ async def test_create_ticket_success() -> None:
         return_value={"number": 5, "title": "Epic", "state": "open", "labels": []}
     )
     forge.apply_issue_labels = AsyncMock(return_value=labeled)
+    forge.ensure_issue_on_project = AsyncMock(return_value="added")
     result = await service.create_ticket(
         BoardTicketCreateRequest(
             org="acme",
@@ -152,6 +199,7 @@ async def test_create_ticket_success() -> None:
             title="Epic",
             ticket_type=BoardTicketType.EPIC,
             initiative_id="INIT-Z",
+            project_number=3,
         ),
         idempotency_key="k-1",
     )
@@ -161,6 +209,7 @@ async def test_create_ticket_success() -> None:
     assert result.ticket.ticket_type == "EPIC"
     assert result.ticket.initiative_id == "INIT-Z"
     assert forge.find_issues_by_labels.await_count >= 3
+    forge.ensure_issue_on_project.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -192,7 +241,8 @@ async def test_create_ticket_waits_for_label_index(monkeypatch: pytest.MonkeyPat
         return_value={"number": 9, "title": "Feature", "state": "open", "labels": []}
     )
     forge.apply_issue_labels = AsyncMock(return_value=labeled)
-
+    forge.ensure_issue_on_project = AsyncMock(return_value="added")
+    forge.ensure_sub_issue = AsyncMock(return_value="linked")
     result = await service.create_ticket(
         BoardTicketCreateRequest(
             org="acme",
@@ -200,9 +250,14 @@ async def test_create_ticket_waits_for_label_index(monkeypatch: pytest.MonkeyPat
             title="Feature",
             ticket_type=BoardTicketType.FEATURE,
             initiative_id="INIT-LAG",
+            project_number=3,
+            parent_ticket_id="1",
         )
     )
     assert result.created is True
     assert result.partial is False
     assert post_label_finds["n"] >= 2
     assert forge.find_issues_by_labels.await_count >= 3
+    forge.ensure_issue_on_project.assert_awaited_once()
+    forge.ensure_sub_issue.assert_awaited_once()
+    assert any(r.startswith("parent_link:") for r in result.created_resources)

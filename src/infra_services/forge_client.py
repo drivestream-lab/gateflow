@@ -31,7 +31,7 @@ _FORBIDDEN_LABEL_EXACT = frozenset(
     }
 )
 
-# Board ticket labels (Issues MVP — not GitHub Projects; Q-4 narrow default).
+# Board ticket labels + Projects membership (project_number on create API).
 BOARD_TYPE_LABEL_PREFIX = "gateflow/type:"
 BOARD_INITIATIVE_LABEL_PREFIX = "gateflow/initiative:"
 BOARD_COLUMN_LABEL_PREFIX = "gateflow/column:"
@@ -606,6 +606,196 @@ class ForgeClient(BaseInfraService):
             operation="board_apply_issue_labels",
         )
         return data
+
+    async def get_issue_parent(
+        self, owner: str, repo: str, issue_number: int
+    ) -> Optional[dict[str, Any]]:
+        """GET parent issue of a sub-issue; None when no parent (404)."""
+        self.assert_no_gh_cli_transport()
+        if issue_number <= 0:
+            raise ValueError("issue_number must be a positive integer")
+        client = self._require_client()
+        response = await client.get(f"/repos/{owner}/{repo}/issues/{issue_number}/parent")
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        data = response.json()
+        return data if isinstance(data, dict) else None
+
+    async def ensure_sub_issue(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        parent_number: int,
+        child_number: int,
+    ) -> str:
+        """Link ``child_number`` under ``parent_number`` via REST sub-issues API.
+
+        Returns ``linked``, ``already_linked``, or raises on failure.
+        ``sub_issue_id`` must be the issue database id (not the issue number).
+        """
+        self.assert_no_gh_cli_transport()
+        if parent_number <= 0 or child_number <= 0:
+            raise ValueError("parent_number and child_number must be positive")
+        if parent_number == child_number:
+            raise ValueError("parent_number and child_number must differ")
+
+        existing = await self.get_issue_parent(owner, repo, child_number)
+        if existing is not None and int(existing.get("number", -1)) == parent_number:
+            logger.info(
+                "ForgeClient sub-issue already linked",
+                owner=owner,
+                repo=repo,
+                parent_number=parent_number,
+                child_number=child_number,
+                operation="board_ensure_sub_issue",
+            )
+            return "already_linked"
+
+        child = await self.get_issue(owner, repo, child_number)
+        if child.id is None:
+            raise RuntimeError(
+                f"Issue {owner}/{repo}#{child_number} missing database id for sub-issue link"
+            )
+        client = self._require_client()
+        response = await client.post(
+            f"/repos/{owner}/{repo}/issues/{parent_number}/sub_issues",
+            json={"sub_issue_id": int(child.id), "replace_parent": True},
+        )
+        response.raise_for_status()
+        logger.info(
+            "ForgeClient sub-issue linked",
+            owner=owner,
+            repo=repo,
+            parent_number=parent_number,
+            child_number=child_number,
+            operation="board_ensure_sub_issue",
+        )
+        return "linked"
+
+    async def graphql(
+        self,
+        query: str,
+        variables: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """POST GitHub GraphQL; fail closed on top-level errors (except caller-handled)."""
+        self.assert_no_gh_cli_transport()
+        client = self._require_client()
+        payload: dict[str, Any] = {"query": query}
+        if variables is not None:
+            payload["variables"] = variables
+        response = await client.post("/graphql", json=payload)
+        response.raise_for_status()
+        body = response.json()
+        if not isinstance(body, dict):
+            raise RuntimeError("GitHub GraphQL returned non-object body")
+        return body
+
+    async def resolve_org_project_node_id(self, owner: str, project_number: int) -> str:
+        """Resolve org Project v2 node id from deterministic project number."""
+        if project_number <= 0:
+            raise ValueError("project_number must be a positive integer")
+        query = """
+        query($owner: String!, $number: Int!) {
+          organization(login: $owner) {
+            projectV2(number: $number) {
+              id
+            }
+          }
+        }
+        """
+        body = await self.graphql(query, {"owner": owner, "number": project_number})
+        errors = body.get("errors")
+        if errors:
+            raise RuntimeError(f"GitHub GraphQL project resolve failed: {errors}")
+        org = (body.get("data") or {}).get("organization") or {}
+        project = org.get("projectV2") or {}
+        node_id = str(project.get("id") or "").strip()
+        if not node_id:
+            raise ValueError(
+                f"Org project not found: owner={owner!r} project_number={project_number}"
+            )
+        return node_id
+
+    async def resolve_issue_node_id(self, owner: str, repo: str, issue_number: int) -> str:
+        """Resolve issue node id for Projects mutations."""
+        if issue_number <= 0:
+            raise ValueError("issue_number must be a positive integer")
+        query = """
+        query($owner: String!, $repo: String!, $number: Int!) {
+          repository(owner: $owner, name: $repo) {
+            issue(number: $number) {
+              id
+            }
+          }
+        }
+        """
+        body = await self.graphql(query, {"owner": owner, "repo": repo, "number": issue_number})
+        errors = body.get("errors")
+        if errors:
+            raise RuntimeError(f"GitHub GraphQL issue resolve failed: {errors}")
+        repo_data = (body.get("data") or {}).get("repository") or {}
+        issue = repo_data.get("issue") or {}
+        node_id = str(issue.get("id") or "").strip()
+        if not node_id:
+            raise ValueError(f"Issue not found: {owner}/{repo}#{issue_number}")
+        return node_id
+
+    async def ensure_issue_on_project(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        *,
+        project_owner: str,
+        project_number: int,
+    ) -> str:
+        """Add issue to org Project v2; treat already-present as success.
+
+        Returns ``added`` or ``already_on_project``.
+        """
+        self.assert_no_gh_cli_transport()
+        project_id = await self.resolve_org_project_node_id(project_owner, project_number)
+        content_id = await self.resolve_issue_node_id(owner, repo, issue_number)
+        mutation = """
+        mutation($projectId: ID!, $contentId: ID!) {
+          addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
+            item { id }
+          }
+        }
+        """
+        body = await self.graphql(mutation, {"projectId": project_id, "contentId": content_id})
+        errors = body.get("errors") or []
+        if errors:
+            messages = " ".join(str(err.get("message") or err) for err in errors)
+            lowered = messages.lower()
+            if "already" in lowered:
+                logger.info(
+                    "ForgeClient issue already on project",
+                    owner=owner,
+                    repo=repo,
+                    issue_number=issue_number,
+                    project_owner=project_owner,
+                    project_number=project_number,
+                    operation="board_ensure_issue_on_project",
+                )
+                return "already_on_project"
+            raise RuntimeError(f"GitHub GraphQL addProjectV2ItemById failed: {errors}")
+
+        item = ((body.get("data") or {}).get("addProjectV2ItemById") or {}).get("item") or {}
+        if not str(item.get("id") or "").strip():
+            raise RuntimeError("addProjectV2ItemById returned no item id")
+        logger.info(
+            "ForgeClient issue added to project",
+            owner=owner,
+            repo=repo,
+            issue_number=issue_number,
+            project_owner=project_owner,
+            project_number=project_number,
+            operation="board_ensure_issue_on_project",
+        )
+        return "added"
 
     async def get_branch_tip_sha(self, owner: str, repo: str, *, branch: str) -> str:
         """Return the commit SHA at ``refs/heads/{branch}`` (fail closed on missing)."""

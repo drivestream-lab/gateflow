@@ -173,13 +173,45 @@ async def test_authorize_create_board_tickets_prayog_v1(tmp_path: Path) -> None:
     svc = _service(run=run, handoff=handoff, board_service=board)
     resp = await svc.authorize_and_execute(
         run.id,
-        ForgeAuthorizeRequest(authorized=True, workspace_path=str(tmp_path)),
+        ForgeAuthorizeRequest(
+            authorized=True,
+            workspace_path=str(tmp_path),
+            project_number=3,
+        ),
     )
     assert resp.action == ForgeActionType.CREATE_BOARD_TICKETS
     assert resp.board is not None
     assert resp.board.epic_ticket_id == "1"
     assert resp.board.wave_ticket_ids == ["2"]
     assert board.create_ticket.await_count == 2
+    first_req = board.create_ticket.await_args_list[0].args[0]
+    assert first_req.project_number == 3
+    second_req = board.create_ticket.await_args_list[1].args[0]
+    assert second_req.parent_ticket_id == "1"
+
+
+@pytest.mark.asyncio
+async def test_authorize_create_board_tickets_requires_project_number(tmp_path: Path) -> None:
+    _install_pin_contract_script(tmp_path)
+    plan = tmp_path / "plan.md"
+    plan.write_text(PRAYOG_V1_BOARD_FIXTURE, encoding="utf-8")
+    board = MagicMock()
+    board.create_ticket = AsyncMock()
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="spec-implementation-plan",
+        outcome="pass",
+        forge=HandoffForgeDocument(initiative="INIT-TEST-001", plan_path="plan.md"),
+    )
+    run = _run(workflow_node="board-tickets-action")
+    assert run.id is not None
+    svc = _service(run=run, handoff=handoff, board_service=board)
+    with pytest.raises(ValidationError, match="project_number"):
+        await svc.authorize_and_execute(
+            run.id,
+            ForgeAuthorizeRequest(authorized=True, workspace_path=str(tmp_path)),
+        )
+    board.create_ticket.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -201,7 +233,11 @@ async def test_authorize_create_board_tickets_rejects_launchpad_v1(tmp_path: Pat
     with pytest.raises(ValidationError, match="WorkManifest contract failed"):
         await svc.authorize_and_execute(
             run.id,
-            ForgeAuthorizeRequest(authorized=True, workspace_path=str(tmp_path)),
+            ForgeAuthorizeRequest(
+                authorized=True,
+                workspace_path=str(tmp_path),
+                project_number=3,
+            ),
         )
     board.create_ticket.assert_not_awaited()
 

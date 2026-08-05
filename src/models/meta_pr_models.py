@@ -56,6 +56,10 @@ class GithubIssueDocument(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    id: Optional[int] = Field(
+        default=None,
+        description="GitHub database id (required for sub-issue linking)",
+    )
     number: int
     title: str = Field(default="")
     state: str = Field(default="open")

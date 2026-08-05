@@ -151,6 +151,17 @@ class CreateTicketsFeatureConfig(BaseModel):
         default=False,
         description="When true: contract + parse only; no board creates",
     )
+    project_number: int = Field(
+        default=0,
+        description=(
+            "Org Project v2 number (required when enabled; deterministic — "
+            "same class as wave_start.ticket_id)"
+        ),
+    )
+    project_owner: str = Field(
+        default="",
+        description="Project owner org (defaults to gateflow.org when empty)",
+    )
     # Optional: exercise POST /runs/{id}/forge/authorize when a run is already
     # STOPPED at board-tickets-action (explicit). Empty → board API projection path.
     authorize_run_id: str = Field(default="")
