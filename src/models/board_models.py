@@ -41,7 +41,11 @@ class BoardTicketLinkRequest(BaseModel):
 
 
 class BoardTicketCreateRequest(BaseModel):
-    """POST /api/v1/board/tickets body."""
+    """POST /api/v1/board/tickets body.
+
+    ``project_number`` is caller-supplied (wave-start precedent): Gateflow does
+    not derive the programme board from AGENTS.md or governance.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -51,6 +55,24 @@ class BoardTicketCreateRequest(BaseModel):
     body: Optional[str] = Field(default=None)
     ticket_type: BoardTicketType = Field(description="EPIC or Feature")
     initiative_id: str = Field(description="Initiative id for EPIC/Feature idempotency")
+    project_number: int = Field(
+        description=(
+            "Org Project v2 number (deterministic). Issue is added to this project "
+            "after create; idempotent replay also ensures membership."
+        ),
+        gt=0,
+    )
+    project_owner: Optional[str] = Field(
+        default=None,
+        description="Org that owns the Project (defaults to request.org when omitted)",
+    )
+    parent_ticket_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Parent EPIC issue number for Feature tickets (GitHub sub-issue link; "
+            "skill --parent parity). Ignored for EPIC."
+        ),
+    )
 
 
 class BoardTicketResource(BaseModel):

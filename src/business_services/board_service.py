@@ -158,7 +158,11 @@ class BoardService(BaseBusinessService):
         *,
         idempotency_key: Optional[str] = None,
     ) -> BoardTicketCreateResponse:
-        """Create EPIC/Feature ticket with initiative_id idempotency + optional Idempotency-Key."""
+        """Create EPIC/Feature ticket with initiative_id idempotency + project membership.
+
+        ``project_number`` is required on the request (caller-supplied). After
+        create (and on idempotent replay), the issue is ensured on that Project.
+        """
         if not request.initiative_id.strip():
             raise ValidationError(
                 message="initiative_id is required",
@@ -168,6 +172,17 @@ class BoardService(BaseBusinessService):
             raise ValidationError(
                 message="title is required",
                 field_errors={"title": "required"},
+            )
+        if request.project_number <= 0:
+            raise ValidationError(
+                message="project_number must be a positive integer",
+                field_errors={"project_number": "must_be_positive"},
+            )
+        project_owner = (request.project_owner or request.org).strip()
+        if not project_owner:
+            raise ValidationError(
+                message="project_owner is required when org is empty",
+                field_errors={"project_owner": "required"},
             )
 
         type_label = ForgeClient.type_label(request.ticket_type.value)
@@ -186,13 +201,15 @@ class BoardService(BaseBusinessService):
                 )
                 if existing_by_key:
                     ticket = self._to_ticket(existing_by_key[0], request.org, request.repo)
-                    return BoardTicketCreateResponse(
+                    return await self._finalize_with_project(
+                        request=request,
                         ticket=ticket,
+                        project_owner=project_owner,
                         created=False,
-                        partial=False,
+                        idempotent_replay=True,
                         created_resources=[],
                         failed_resources=[],
-                        idempotent_replay=True,
+                        partial=False,
                     )
 
             existing = await self._forge_client.find_issues_by_labels(
@@ -209,13 +226,15 @@ class BoardService(BaseBusinessService):
                     initiative_id=request.initiative_id,
                     operation="create_ticket",
                 )
-                return BoardTicketCreateResponse(
+                return await self._finalize_with_project(
+                    request=request,
                     ticket=ticket,
+                    project_owner=project_owner,
                     created=False,
-                    partial=False,
+                    idempotent_replay=True,
                     created_resources=[],
                     failed_resources=[],
-                    idempotent_replay=True,
+                    partial=False,
                 )
 
             # Multi-step: create issue body first, then apply labels (partial-failure surface).
@@ -260,20 +279,15 @@ class BoardService(BaseBusinessService):
                 ticket = self._to_ticket(created, request.org, request.repo)
                 partial = True
 
-            self.logger.info(
-                "Board ticket create completed",
-                ticket_id=ticket.ticket_id if ticket else None,
-                initiative_id=request.initiative_id,
-                partial=partial,
-                operation="create_ticket",
-            )
-            return BoardTicketCreateResponse(
+            return await self._finalize_with_project(
+                request=request,
                 ticket=ticket,
+                project_owner=project_owner,
                 created=True,
-                partial=partial,
+                idempotent_replay=False,
                 created_resources=created_resources,
                 failed_resources=failed_resources,
-                idempotent_replay=False,
+                partial=partial,
             )
         except httpx.HTTPError as exc:
             raise ServiceUnavailableError(
@@ -281,6 +295,87 @@ class BoardService(BaseBusinessService):
                 message="Forge board create failed",
                 details={"error": str(exc)},
             ) from exc
+
+    async def _finalize_with_project(
+        self,
+        *,
+        request: BoardTicketCreateRequest,
+        ticket: BoardTicketResource,
+        project_owner: str,
+        created: bool,
+        idempotent_replay: bool,
+        created_resources: list[str],
+        failed_resources: list[BoardFailedResource],
+        partial: bool,
+    ) -> BoardTicketCreateResponse:
+        """Ensure Project membership + optional EPIC parent link."""
+        resources = list(created_resources)
+        failures = list(failed_resources)
+        is_partial = partial
+        try:
+            outcome = await self._forge_client.ensure_issue_on_project(
+                request.org,
+                request.repo,
+                ticket.number,
+                project_owner=project_owner,
+                project_number=request.project_number,
+            )
+            resources.append(f"project_item:{outcome}")
+        except (httpx.HTTPError, RuntimeError, ValueError) as project_exc:
+            failures.append(BoardFailedResource(resource="project_item", reason=str(project_exc)))
+            is_partial = True
+            self.logger.error(
+                "Board project membership failed",
+                ticket_id=ticket.ticket_id,
+                project_owner=project_owner,
+                project_number=request.project_number,
+                error=str(project_exc),
+                operation="create_ticket",
+            )
+
+        parent_raw = (request.parent_ticket_id or "").strip()
+        if request.ticket_type == BoardTicketType.FEATURE and parent_raw and ticket is not None:
+            try:
+                parent_number = int(parent_raw)
+                if parent_number <= 0:
+                    raise ValueError("parent_ticket_id must be a positive integer")
+                link_outcome = await self._forge_client.ensure_sub_issue(
+                    request.org,
+                    request.repo,
+                    parent_number=parent_number,
+                    child_number=ticket.number,
+                )
+                resources.append(f"parent_link:{link_outcome}")
+            except (httpx.HTTPError, RuntimeError, ValueError) as link_exc:
+                failures.append(BoardFailedResource(resource="parent_link", reason=str(link_exc)))
+                is_partial = True
+                self.logger.error(
+                    "Board parent sub-issue link failed",
+                    ticket_id=ticket.ticket_id,
+                    parent_ticket_id=parent_raw,
+                    error=str(link_exc),
+                    operation="create_ticket",
+                )
+
+        self.logger.info(
+            "Board ticket create completed",
+            ticket_id=ticket.ticket_id,
+            initiative_id=request.initiative_id,
+            project_number=request.project_number,
+            parent_ticket_id=parent_raw or None,
+            partial=is_partial,
+            created=created,
+            idempotent_replay=idempotent_replay,
+            operation="create_ticket",
+        )
+        return BoardTicketCreateResponse(
+            ticket=ticket,
+            created=created,
+            partial=is_partial,
+            created_resources=resources,
+            failed_resources=failures,
+            idempotent_replay=idempotent_replay,
+        )
 
     async def list_tickets(
         self,

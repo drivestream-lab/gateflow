@@ -129,6 +129,40 @@ work:
     assert [w.id for w in manifest.work] == ["W0", "W1"]
 
 
+def test_parse_work_manifest_skips_plain_fence_with_at_mention() -> None:
+    """§8 Forge instructions use bare ``` with @reviewers; must not crash YAML extract."""
+    plan = """
+## 8. Forge / PR instructions
+
+```
+Branch:   feature/INIT-TEST-001-spec
+Required reviewers: @drivestream-lab/prayog-pe-team
+```
+
+## 9. WorkManifest seed
+
+```yaml
+apiVersion: prayog/v1
+kind: WorkManifest
+initiative: INIT-TEST-001
+epic:
+  id: EPIC
+  title: "[feature] INIT-TEST-001"
+work:
+  - id: W0
+    title: "[INIT-TEST-001 W0] first"
+```
+
+```yaml
+handoff:
+  stage: spec-implementation-plan
+```
+"""
+    manifest = parse_work_manifest_from_plan(plan)
+    assert manifest.initiative == "INIT-TEST-001"
+    assert [w.id for w in manifest.work] == ["W0"]
+
+
 def test_parse_work_manifest_missing_fails(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="WorkManifest"):
         parse_work_manifest_from_plan("# no yaml\n")

@@ -131,6 +131,8 @@ class ForgeActionService(BaseBusinessService):
                 workspace=workspace,
                 head_ref=request.head,
                 base_ref=request.base,
+                project_number=request.project_number,
+                project_owner=request.project_owner,
             )
             payload: dict[str, object] = {
                 "event_type": "forge_executed",
@@ -173,6 +175,8 @@ class ForgeActionService(BaseBusinessService):
         workspace: Path,
         head_ref: Optional[str] = None,
         base_ref: Optional[str] = None,
+        project_number: Optional[int] = None,
+        project_owner: Optional[str] = None,
     ) -> ForgeApplyResult:
         """Merge pin ⋉ handoff (with run-context head/base) and execute forge.action."""
         if node.forge.action is None:
@@ -185,6 +189,12 @@ class ForgeActionService(BaseBusinessService):
             update={
                 "head_ref": (head_ref or hf.head_ref),
                 "base_ref": (base_ref or hf.base_ref),
+                "project_number": (
+                    project_number if project_number is not None else hf.project_number
+                ),
+                "project_owner": (
+                    (project_owner.strip() if project_owner else None) or hf.project_owner
+                ),
             }
         )
         try:
@@ -325,6 +335,16 @@ class ForgeActionService(BaseBusinessService):
                 message="create_board_tickets requires handoff.forge.plan_path",
                 field_errors={"plan_path": "required"},
             )
+        if effective.project_number is None or effective.project_number <= 0:
+            raise ValidationError(
+                message=(
+                    "create_board_tickets requires project_number "
+                    "(authorize body or handoff.forge.project_number)"
+                ),
+                field_errors={"project_number": "required"},
+            )
+        project_owner = (effective.project_owner or org).strip() or org
+        project_number = effective.project_number
 
         plan_file = (workspace / effective.plan_path).resolve()
         try:
@@ -381,6 +401,8 @@ class ForgeActionService(BaseBusinessService):
                 body=manifest.epic.body,
                 ticket_type=BoardTicketType.EPIC,
                 initiative_id=manifest.initiative,
+                project_number=project_number,
+                project_owner=project_owner,
             ),
             idempotency_key=f"{manifest.initiative}:EPIC",
         )
@@ -403,6 +425,9 @@ class ForgeActionService(BaseBusinessService):
                     body=body or None,
                     ticket_type=BoardTicketType.FEATURE,
                     initiative_id=f"{manifest.initiative}:{wave.id}",
+                    project_number=project_number,
+                    project_owner=project_owner,
+                    parent_ticket_id=epic_id,
                 ),
                 idempotency_key=f"{manifest.initiative}:{wave.id}",
             )
