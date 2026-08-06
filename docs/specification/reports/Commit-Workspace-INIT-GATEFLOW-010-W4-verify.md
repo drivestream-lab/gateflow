@@ -6,7 +6,7 @@
 | Pin policy | `forge.commit_workspace: optional` |
 | Bound head | `feature/INIT-GATEFLOW-010-w4-implement-lane` |
 | PR | https://github.com/drivestream-lab/gateflow/pull/152 |
-| Published SHA | `(pending)` |
+| Published SHA | `19a190816ec41d27b452d96c89942a92f970fed6` |
 | Remote | `origin/feature/INIT-GATEFLOW-010-w4-implement-lane` |
 | Outcome | **pass** |
 | Date | 2026-08-06 |
@@ -32,7 +32,7 @@ handoff:
     commit_workspace: optional
     head_ref: feature/INIT-GATEFLOW-010-w4-implement-lane
     base_ref: develop
-    published_sha: "(pending)"
+    published_sha: "19a190816ec41d27b452d96c89942a92f970fed6"
     pr: "152"
     board_issue: "142"
     paths:
