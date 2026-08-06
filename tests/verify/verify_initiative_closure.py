@@ -1,4 +1,4 @@
-"""Live verify: initiative-closure Enter-at + Done-gate (INIT-GATEFLOW-010 W4).
+"""Live verify: initiative-closure Enter-at + optional walk dogfood (INIT-GATEFLOW-010 W4).
 
 W4 smoke (always when script runs):
 
@@ -7,10 +7,19 @@ W4 smoke (always when script runs):
   - Optional Done-gate negative → 422 when not_done_wave_ticket_id configured
   - Happy enqueue → 202 + run_id (when features.initiative_closure.enabled)
 
+Dogfood (opt-in ``features.initiative_closure.dogfood: true`` + worker):
+
+  - Poll run until terminal
+  - Cursor stage ``purge-initiative-artifacts-app`` success
+  - ``forge_executed`` ``open_draft_pr`` at ``initiative-closure-pr-action-app``
+  - Terminal ``stopped`` at ``initiative-closure-signoff-app``
+  - No meta purge stages (REQ-15)
+
 Requires:
   - Running API + migrated Postgres
   - PROGRAMME_SERVICE_TOKEN in .env
   - tests/config.yaml with features.initiative_closure when asserting happy path
+  - Dogfood: gateflow.require_worker: true + worker/Cursor for purge hop
 
 Usage:
   set -a && source .env && set +a
@@ -22,14 +31,21 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.run_timeline import evaluate_lane_poll
 from tests._helpers.tests_config import load_tests_config
 
+_PURGE_NODE = "purge-initiative-artifacts-app"
+_PR_ACTION_NODE = "initiative-closure-pr-action-app"
+_STOP_NODE = "initiative-closure-signoff-app"
+_EXPECTED_CURSOR_CHAIN = (_PURGE_NODE,)
+_LANE_NODES = frozenset(_EXPECTED_CURSOR_CHAIN)
 _CLOSURE_FORBIDDEN_STAGES = frozenset(
     {
         "purge-initiative-artifacts-meta",
@@ -54,6 +70,142 @@ def _closure_body(cfg: Any, *, workspace: Path) -> dict[str, Any]:
         "model_id": closure.model_id or "cursor/auto",
         "workspace": workspace_path,
     }
+
+
+def _assert_no_meta_stages(detail_body: dict[str, Any]) -> int:
+    stages = detail_body.get("stages") or []
+    bad = [
+        str(s.get("workflow_node"))
+        for s in stages
+        if s.get("workflow_node") in _CLOSURE_FORBIDDEN_STAGES
+    ]
+    if bad:
+        print(f"[ERROR] REQ-15: closure run must not include meta purge stages {bad}")
+        return 1
+    print("[OK] run detail has no meta purge stages (REQ-15)")
+    return 0
+
+
+def _assert_closure_timeline(detail_body: dict[str, Any]) -> int:
+    """REQ-15 — purge → open_draft_pr → stop at signoff-app; never meta."""
+    events = detail_body.get("events") or []
+    pr_hops = [
+        e
+        for e in events
+        if e.get("event_type") == "forge_executed"
+        and e.get("workflow_node") == _PR_ACTION_NODE
+        and (e.get("payload") or {}).get("action") == "open_draft_pr"
+    ]
+    if not pr_hops:
+        print(
+            "[ERROR] expected forge_executed open_draft_pr at "
+            f"{_PR_ACTION_NODE!r} after purge-app"
+        )
+        return 1
+    print(
+        f"[OK] initiative-closure-pr-action-app: {len(pr_hops)} "
+        "forge_executed open_draft_pr event(s)"
+    )
+
+    stopped = [e for e in events if e.get("event_type") == "run_stopped"]
+    if not stopped:
+        print("[ERROR] expected run_stopped event on terminal closure run")
+        return 1
+    print(f"[OK] terminal run_stopped present ({len(stopped)} event(s))")
+
+    return _assert_no_meta_stages(detail_body)
+
+
+def _run_dogfood(
+    client: httpx.Client,
+    *,
+    base_url: str,
+    headers: dict[str, str],
+    run_id: str,
+    timeout_s: float,
+) -> int:
+    """Poll purge → PR action → signoff-app; return 0 on success."""
+    deadline = time.time() + timeout_s
+    detail_body: dict[str, Any] = {}
+    last_status = ""
+    last_node = ""
+    while time.time() < deadline:
+        detail = client.get(f"{base_url}/api/v1/runs/{run_id}", headers=headers)
+        if detail.status_code != 200:
+            print(f"[ERROR] run detail {detail.status_code}: {detail.text}")
+            return 1
+        detail_body = detail.json()
+        status = str(detail_body.get("status_type") or "")
+        node = str(detail_body.get("workflow_node") or "")
+        if status != last_status or node != last_node:
+            print(f"[INFO] poll status={status!r} workflow_node={node!r}")
+            last_status = status
+            last_node = node
+
+        decision = evaluate_lane_poll(
+            detail_body,
+            expected_chain=_EXPECTED_CURSOR_CHAIN,
+            lane_nodes=_LANE_NODES,
+        )
+        if decision == "continue":
+            time.sleep(5.0)
+            continue
+        if decision == "failed":
+            stages = detail_body.get("stages") or []
+            events = detail_body.get("events") or []
+            stop_reasons = [
+                (e.get("payload") or {}).get("stop_reason")
+                for e in events
+                if e.get("event_type") == "run_stopped"
+            ]
+            print(
+                "[ERROR] run reached terminal before closure dogfood completed; "
+                f"status={status!r} workflow_node={node!r} "
+                f"outcome_type={detail_body.get('outcome_type')!r} "
+                f"stop_reason={stop_reasons[-1] if stop_reasons else None!r} "
+                f"stages="
+                f"{[(s.get('workflow_node'), s.get('outcome_type'), s.get('runner')) for s in stages]}"
+            )
+            return 1
+        break
+    else:
+        stages = detail_body.get("stages") or []
+        print(
+            f"[ERROR] timed out after {timeout_s}s waiting for closure dogfood; "
+            f"last status={detail_body.get('status_type')} "
+            f"workflow_node={detail_body.get('workflow_node')!r} "
+            f"stages={[(s.get('workflow_node'), s.get('outcome_type')) for s in stages]}"
+        )
+        return 1
+
+    status = detail_body.get("status_type")
+    stages = detail_body.get("stages") or []
+    purge_ok = any(
+        s.get("workflow_node") == _PURGE_NODE
+        and s.get("runner") == "cursor"
+        and s.get("outcome_type") == "success"
+        for s in stages
+    )
+    if not purge_ok:
+        print(f"[ERROR] expected cursor success stage for {_PURGE_NODE!r}")
+        return 1
+    print(f"[OK] stage node={_PURGE_NODE} outcome=success")
+
+    if status != "stopped":
+        print(f"[ERROR] expected terminal status stopped at {_STOP_NODE}, got {status!r}")
+        return 1
+    stop_node = detail_body.get("workflow_node")
+    if stop_node != _STOP_NODE:
+        print(f"[ERROR] expected workflow_node={_STOP_NODE!r}, got {stop_node!r}")
+        return 1
+    print(f"[OK] terminal status={status} workflow_node={stop_node}")
+
+    timeline_rc = _assert_closure_timeline(detail_body)
+    if timeline_rc != 0:
+        return timeline_rc
+
+    print(f"[OK] closure dogfood complete for run_id={run_id}")
+    return 0
 
 
 def main() -> int:
@@ -167,28 +319,30 @@ def main() -> int:
             if detail.status_code != 200:
                 print(f"[ERROR] run detail {detail.status_code}: {detail.text}")
                 return 1
-            run = detail.json()
-            status = run.get("status") or run.get("status_type")
-            stop_reason = run.get("stop_reason")
-            workflow_node = run.get("workflow_node")
-            if status in {"failed", "FAILED"} or stop_reason:
+            if _assert_no_meta_stages(detail.json()) != 0:
+                return 1
+
+            if not closure.dogfood:
                 print(
-                    f"[WARNING] run status={status!r} workflow_node={workflow_node!r} "
-                    f"stop_reason={stop_reason!r}"
+                    "[INFO] smoke enqueue complete — set features.initiative_closure.dogfood: true "
+                    "(and gateflow.require_worker: true) to poll purge → Draft PR → signoff-app"
                 )
-            stages = run.get("stages") or []
-            bad_stages = [
-                str(s.get("workflow_node"))
-                for s in stages
-                if s.get("workflow_node") in _CLOSURE_FORBIDDEN_STAGES
-            ]
-            if bad_stages:
+                return 0
+
+            if not cfg.gateflow.require_worker:
                 print(
-                    f"[ERROR] REQ-15: closure run must not include meta purge stages {bad_stages}"
+                    "[ERROR] dogfood requires gateflow.require_worker: true "
+                    "(worker must claim the closure job)"
                 )
                 return 1
-            print("[OK] run detail has no meta purge stages (REQ-15)")
-            return 0
+
+            return _run_dogfood(
+                client,
+                base_url=base_url,
+                headers=headers,
+                run_id=str(run_id),
+                timeout_s=float(closure.timeout_s),
+            )
     except httpx.HTTPError as exc:
         print(f"[ERROR] HTTP failure: {exc}")
         return 1
