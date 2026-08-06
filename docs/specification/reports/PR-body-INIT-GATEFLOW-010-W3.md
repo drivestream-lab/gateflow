@@ -18,7 +18,8 @@
 
 - [x] `make check`
 - [x] `make test` (256 unit)
-- [ ] Human live verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (+ `verify_spec_lane` as needed)
+- [x] Human live verify (Pass-1): `.venv/bin/python -m tests.verify.verify_implement_lane` — run `5385e416-…` → PR #150; `human_approved: true`
+- [ ] Human live verify (Pass-2): `.venv/bin/python -m tests.verify.verify_wave_closeout` (+ `verify_spec_lane` as needed)
 - [ ] Ground / learning-extract — Pass-2 closeout after live-verify + merge
 
 ## Checklist
@@ -26,4 +27,4 @@
 - [x] **App / service** (feature branch → `develop`)
 - [x] Board fields: Initiative, Spec path, Verify command
 - [x] As-built updated for W3 closeout Done + guards + no auto-chain
-- [ ] Live-Verify W3 — human at `live-verify` checkpoint
+- [x] Live-Verify W3 — human at `live-verify` checkpoint (`human_approved: true`)
