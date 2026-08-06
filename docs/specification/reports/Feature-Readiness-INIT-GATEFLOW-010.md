@@ -15,7 +15,7 @@
 | Board-status apply + implement In Progress | **proven** | W1 unit + live verify |
 | Create triple predicate + ticket gates | **proven** | W2 unit + live verify |
 | Closeout Done hop + no merge/lgtm/auto-chain | **proven** | W3 unit + live verify + ground |
-| Closure Enter-at + Done-gate + EPIC hygiene | **proven (unit)** / **live pending** | W4 unit + `verify_closure` smoke; human live-verify at Draft PR |
+| Closure Enter-at + Done-gate + EPIC hygiene | **proven (unit)** / **live pending** | W4 unit + `verify_initiative_closure` smoke; human live-verify at Draft PR |
 | Closure purge walk → signoff-app (no meta) | **proven (unit)** | W4 orchestrator timeline test |
 | Partial failure after EPIC Done (REQ-20) | **proven (unit)** | W4 orchestrator failure payload test |
 | Verify suite (spec/tickets/implement/closeout/closure) | **partial live** | W2–W4 scripts co-shipped; closure happy path human-run |
@@ -28,7 +28,7 @@
 
 ## Human checkpoints remaining
 
-- Live-verify W4: `.venv/bin/python -m tests.verify.verify_closure` on running stack
+- Live-verify W4: `.venv/bin/python -m tests.verify.verify_initiative_closure` on running stack
 - Draft PR merge at `initiative-closure-signoff-app` (after purge-app walk)
 - Pass-2 learning-extract / ground-spec for W4 wave (separate closeout lane if applicable)
 

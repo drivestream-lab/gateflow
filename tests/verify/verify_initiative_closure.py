@@ -15,7 +15,7 @@ Requires:
 Usage:
   set -a && source .env && set +a
   make run   # separate terminal
-  .venv/bin/python -m tests.verify.verify_closure
+  .venv/bin/python -m tests.verify.verify_initiative_closure
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ def main() -> int:
     base_url = require_base_url()
     token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
     if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_closure")
+        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_initiative_closure")
         return 1
 
     closure = cfg.features.initiative_closure
@@ -168,6 +168,14 @@ def main() -> int:
                 print(f"[ERROR] run detail {detail.status_code}: {detail.text}")
                 return 1
             run = detail.json()
+            status = run.get("status") or run.get("status_type")
+            stop_reason = run.get("stop_reason")
+            workflow_node = run.get("workflow_node")
+            if status in {"failed", "FAILED"} or stop_reason:
+                print(
+                    f"[WARNING] run status={status!r} workflow_node={workflow_node!r} "
+                    f"stop_reason={stop_reason!r}"
+                )
             stages = run.get("stages") or []
             bad_stages = [
                 str(s.get("workflow_node"))

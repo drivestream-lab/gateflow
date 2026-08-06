@@ -82,7 +82,7 @@ run `5385e416-…`; Pass-2 `verify_wave_closeout` dogfood run `75dd6b42-…`; bo
 (REQ-12); Done-gate on `wave_ticket_ids[]` (REQ-13); EPIC → Done before
 `purge-initiative-artifacts-app` dispatch (REQ-14); closure walk stops at
 `initiative-closure-signoff-app` without meta purge (REQ-15); partial failure
-hygiene after EPIC Done (REQ-20); co-ship `verify_closure.py` (REQ-17);
+hygiene after EPIC Done (REQ-20); co-ship `verify_initiative_closure.py` (REQ-17);
 Feature-Readiness freeze (REQ-18). Pass-1 live-verify human_approved on Draft PR
 [#152](https://github.com/drivestream-lab/gateflow/pull/152); Pass-2 closeout
 complete; human `wave-signoff` merge pending.

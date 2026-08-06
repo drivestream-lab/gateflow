@@ -54,6 +54,9 @@ _FORBIDDEN_FORGE_ACTION_VALUES = frozenset(
     {"merge", "merge_pull_request", "auto_merge", "enable_auto_merge"}
 )
 
+# Ephemeral body for open_draft_pr when handoff is signals-only (purge-app skill).
+_EPHEMERAL_PR_BODY_REL = ".gateflow/initiative-closure-pr-body.md"
+
 
 class ForgeApplyResult(BaseModel):
     """Result of shared apply_external_action."""
@@ -217,6 +220,12 @@ class ForgeActionService(BaseBusinessService):
                 ),
             }
         )
+        if node.forge.action == ForgeActionType.OPEN_DRAFT_PR:
+            merged_hf = self._materialize_open_draft_pr_slots(
+                handoff=handoff,
+                workspace=workspace,
+                hf=merged_hf,
+            )
         try:
             effective = merge_pin_and_handoff_forge(node.forge, merged_hf)
         except ValueError as exc:
@@ -289,6 +298,58 @@ class ForgeActionService(BaseBusinessService):
                 field_errors={"handoff_path": "required"},
             )
         return self._handoff_reader.read_path(str(run.handoff_path).strip())
+
+    def _materialize_open_draft_pr_slots(
+        self,
+        *,
+        handoff: HandoffEnvelope,
+        workspace: Path,
+        hf: HandoffForgeDocument,
+    ) -> HandoffForgeDocument:
+        """Fill title/body_path from signals when purge-app omits on-disk forge slots.
+
+        Pin ``requires: [title, body_path]``; purge skill may set ``signals.pr_body``
+        with ``artifact.path: null`` instead of writing ``Purge-*.md``.
+        """
+        updates: dict[str, str] = {}
+        workspace_resolved = workspace.resolve()
+        body_path = (hf.body_path or "").strip()
+        body_ok = False
+        if body_path:
+            candidate = (workspace_resolved / body_path).resolve()
+            try:
+                candidate.relative_to(workspace_resolved)
+                body_ok = candidate.is_file()
+            except ValueError:
+                body_ok = False
+
+        if not body_ok:
+            pr_body = handoff.signals.get("pr_body")
+            if isinstance(pr_body, str) and pr_body.strip():
+                out = workspace_resolved / _EPHEMERAL_PR_BODY_REL
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(pr_body.strip() + "\n", encoding="utf-8")
+                updates["body_path"] = _EPHEMERAL_PR_BODY_REL
+                self.logger.info(
+                    "Materialized open_draft_pr body from signals.pr_body",
+                    body_path=_EPHEMERAL_PR_BODY_REL,
+                    stage=handoff.stage,
+                )
+
+        title = (hf.title or "").strip()
+        if not title:
+            initiative_raw = handoff.signals.get("initiative")
+            initiative = (
+                initiative_raw.strip()
+                if isinstance(initiative_raw, str) and initiative_raw.strip()
+                else (hf.initiative.strip() if hf.initiative else "")
+            )
+            if initiative:
+                updates["title"] = f"Initiative closure (app): {initiative}"
+
+        if updates:
+            return hf.model_copy(update=updates)
+        return hf
 
     async def execute_open_draft_pr(
         self,
