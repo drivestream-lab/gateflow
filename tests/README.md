@@ -310,12 +310,22 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` 
 #   features.initiative_closure.epic_ticket_id: <EPIC>
 #   features.initiative_closure.wave_ticket_ids: [<all Done>]
 #   features.initiative_closure.workspace: /absolute/path
+#
+# Dogfood (poll purge → Draft PR → signoff-app):
+#   gateflow.require_worker: true
+#   features.initiative_closure.dogfood: true
+#   features.initiative_closure.timeout_s: 3600
+# Note: purge deletes allowlisted docs under workspace; restore with
+#   git restore docs/specification/reports/   before a re-run on develop.
 
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_initiative_closure
 ```
 
 Without `enabled: true`, the script still asserts 401 + 400 validation (smoke).
+With `dogfood: true`, requires worker and asserts purge-app success, automated
+`open_draft_pr`, terminal `stopped` at `initiative-closure-signoff-app`, and no
+meta purge stages (REQ-15).
 
 ### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 
