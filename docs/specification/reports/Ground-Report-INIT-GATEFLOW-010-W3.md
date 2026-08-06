@@ -6,14 +6,14 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-010-gateflow.md` |
 | Initiative | INIT-GATEFLOW-010 |
 | Date | 2026-08-06 |
-| Wave head (exact) | `feature/INIT-GATEFLOW-010-w3-implement-lane` @ `c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d` — reviewed head for sign-off |
-| PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/150 — Draft; open for Pass-2 closeout |
+| Wave head (exact) | `develop` @ `85c2ec54208070f07e0ed96152926460151cb171` — merge of [#150](https://github.com/drivestream-lab/gateflow/pull/150) |
+| PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/150 — **MERGED** 2026-08-06 |
 | Board | https://github.com/drivestream-lab/gateflow/issues/141 |
-| Status | Draft |
+| Status | **human_approved** |
 | Review deadline | 2026-08-08 |
-| Deciders | Tech lead / reviewer — explicit LGTM required |
-| Outcome | **pass** |
-| Outcome reason | Wave-assigned REQs verified on tip + unit re-proof + Pass-1 human live-verify; §Contracts produced complete for W4; no Blocking GF-*; exact-head sign-off package ready |
+| Deciders | Tech lead / reviewer — human_approved backfill after merge (wave-signoff) |
+| Outcome | **pass** → **human_approved** |
+| Outcome reason | Wave-assigned REQs verified on tip + unit re-proof + Pass-1 human live-verify + Pass-2 closeout dogfood; §Contracts produced complete for W4; no Blocking GF-*; merge recorded |
 | Assigned REQs | REQ-05, REQ-09, REQ-16, REQ-17 (partial), REQ-19 — from WorkManifest TASK-W3-01…05 `implements` |
 
 ## Evidence sources (separate layers)
@@ -30,12 +30,12 @@
 
 Manual re-proof at ground time (2026-08-06):
 
-- Tip SHA `c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d` on `feature/INIT-GATEFLOW-010-w3-implement-lane`
-- Pass-1 tip `1d324c98b7b127b621cb4f9014637a981a9c1035`; post-tip docs-only commits (`5f38c49`, `c4d4cdc`); no product-code human fix
+- Tip SHA `c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d` on `feature/INIT-GATEFLOW-010-w3-implement-lane` (pre–Pass-2 publish); reviewed feature tip before merge `e787cde8eeb63f17d15dd67decfb196d3687b913`
+- Pass-1 tip `1d324c98b7b127b621cb4f9014637a981a9c1035`; post-tip docs-only commits then learning/ground publish; no product-code human fix
 - `make test` → **256 passed**
 - W3 subset: `.venv/bin/pytest tests/unit/test_run_orchestrator.py::test_closeout_walk_applies_done_then_stops_at_wave_signoff tests/unit/test_forge_action_service.py::test_forge_action_type_excludes_merge tests/unit/test_forge_action_service.py::test_apply_external_action_rejects_lgtm_apply_labels tests/unit/test_trigger_policy.py::test_policy_wave_signoff_pass_stops_no_auto_chain tests/unit/test_trigger_policy.py::test_policy_wave_complete_pass_stops_no_auto_chain tests/unit/test_forge_client.py::test_forge_client_forbids_auto_merge -q` → **6 passed**
-- `verify_wave_closeout` smoke (API up): 401 + missing-pr_number 4xx **OK**; happy-path enqueue **409** (active run `75dd6b42-4994-48aa-8106-bf10a084922b` — orchestrator context); dogfood not executed at ground time
-- Draft PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) open; human live-verify `human_approved: true`
+- Pass-2 closeout dogfood (human, 2026-08-06): `.venv/bin/python -m tests.verify.verify_wave_closeout` → exit 0; run `75dd6b42-4994-48aa-8106-bf10a084922b` stopped @ `wave-signoff`; Done hop + REQ-19 asserts; Learning-Extract W3 present (GF-01 closed)
+- PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) **merged** 2026-08-06 @ `85c2ec5`; board [#141](https://github.com/drivestream-lab/gateflow/issues/141) Done; human live-verify `human_approved: true`
 
 ## REQ checklist (wave-assigned only)
 
@@ -75,8 +75,8 @@ Manual re-proof at ground time (2026-08-06):
 
 | ID | REQ | Finding | Severity |
 |----|-----|---------|----------|
-| GF-01 | REQ-17 | Pass-2 closeout dogfood (`verify_wave_closeout` with `dogfood: true`) not executed at ground time — smoke auth probes pass; active-run 409 blocked happy enqueue; unit orchestrator test + co-shipped `_assert_w3_closeout_timeline` cover REQ-05/19 | Should fix (harness) — recommend human run dogfood at `wave-signoff` before merge |
-| GF-02 | — | W0 L-01 applies: keep PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) open until Pass-2 closeout published + human `wave-signoff` merge — do not merge before sign-off | Verify (process) |
+| GF-01 | REQ-17 | Pass-2 closeout dogfood — **closed** 2026-08-06: run `75dd6b42-…` exit 0; Done hop + purpose + no auto-chain | Closed |
+| GF-02 | — | W0 L-01 — **closed**: PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) merged at wave-signoff | Closed |
 
 ## Learning cited
 
@@ -100,29 +100,30 @@ Manual re-proof at ground time (2026-08-06):
 
 > Write the Ground Report and as-built updates **locally**. Emit Forge readiness for publication. Do **not** commit, push, merge, or apply labels from this skill. Human reviews the **exact wave head**, records approval, and merges manually at `wave-signoff`.
 
-- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/150 @ `c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d` — **expected reviewed head SHA**
+- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/150 @ `85c2ec54208070f07e0ed96152926460151cb171` — **merge commit SHA**
+- Reviewed feature tip before merge: `e787cde8eeb63f17d15dd67decfb196d3687b913` (ground-spec workspace publish)
 - Pass-1 product tip: `1d324c98b7b127b621cb4f9014637a981a9c1035`
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-010-W3.md`
 - Live evidence path: `docs/specification/reports/Live-Verify-INIT-GATEFLOW-010-W3.md`
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-010-W3.md`
 - Learning-Extract path: `docs/specification/reports/Learning-Extract-INIT-GATEFLOW-010-W3.md`
-- As-built row prepared locally: W3 → pending human_approved
-- Required checkpoint evidence fields (human fills at `wave-signoff`; not `handoff.forge`): `reviewed_head_sha`, `merge_commit_sha`
-- Optional before merge: `.venv/bin/python -m tests.verify.verify_wave_closeout` with `dogfood: true` (GF-01)
+- As-built row: INIT-GATEFLOW-010 W3 → **human_approved** (backfill after merge `85c2ec5`)
+- Checkpoint evidence: `reviewed_head_sha` = `e787cde…`; `merge_commit_sha` = `85c2ec5…`
+- Pass-2 closeout dogfood: run `75dd6b42-…` (GF-01 closed)
 
 ### Human sign-off / merge checklist
 
-- [ ] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
-- [ ] Review §Contracts produced — accurate and complete for W4 `/pre-implement`
-- [ ] Confirm reviewed head SHA matches the package above
-- [ ] Optional: run closeout dogfood verify (GF-01)
-- [ ] Mark as-built: INIT-GATEFLOW-010 W3 = human_approved (human only)
-- [ ] Merge the wave PR manually (human only) — record merge commit SHA
-- [ ] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
+- [x] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
+- [x] Review §Contracts produced — accurate and complete for W4 `/pre-implement`
+- [x] Confirm reviewed head / merge SHA recorded (feature tip `e787cde`; merge `85c2ec5`)
+- [x] Optional: run closeout dogfood verify (GF-01) — done run `75dd6b42-…`
+- [x] Mark as-built: INIT-GATEFLOW-010 W3 = human_approved (backfill chore)
+- [x] Merge PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) — done 2026-08-06
+- [x] Do not ask Gateflow/Forge to merge; no approval-label auto-merge
 
 ## Ready for human checkpoint?
 
-**yes** — G1–G10 satisfied; no Blocking GF-*; exact-head package ready for `wave-done-action` then `wave-signoff`.
+**yes — human_approved** (2026-08-06). Wave PR merged; as-built + Ground Report status backfilled. W4 `/pre-implement` may consume §Contracts produced.
 
 ## Checks G1–G10
 
@@ -136,8 +137,8 @@ Manual re-proof at ground time (2026-08-06):
 | G6 | **pass** — fail-fast / architecture / testing-verify |
 | G7 | **pass** — W2 contracts match; §Contracts produced complete for W4 |
 | G8 | **pass** — Learning-Extract W3 present; empty items cited with rationale |
-| G9 | **pass** — GF-01/02 Should fix / Verify only; stable GF-* ids |
-| G10 | **pass** — report + as-built updated locally; envelope below; no commit/merge by this skill |
+| G9 | **pass** — GF-01/02 closed after dogfood + merge |
+| G10 | **pass** — report + as-built human_approved backfill; envelope below |
 
 ```yaml
 handoff:
@@ -156,8 +157,10 @@ handoff:
     pr_number: 150
     pr_url: "https://github.com/drivestream-lab/gateflow/pull/150"
     pass1_tip_sha: "1d324c98b7b127b621cb4f9014637a981a9c1035"
-    tip_sha: "c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d"
-    reviewed_head_sha_expected: "c4d4cdc2a42ab443a16897a9dcb92e3ba0c05d8d"
+    tip_sha: "85c2ec54208070f07e0ed96152926460151cb171"
+    reviewed_head_sha_expected: "e787cde8eeb63f17d15dd67decfb196d3687b913"
+    merge_commit_sha: "85c2ec54208070f07e0ed96152926460151cb171"
+    human_approved: true
     human_fix_detected: false
     contracts_produced: 5
     assigned_reqs:
@@ -168,20 +171,13 @@ handoff:
       - REQ-19
     learning_item_count: 0
     live_verify_run_id: "5385e416-305b-4069-9461-2bb450037db6"
+    closeout_dogfood_run_id: "75dd6b42-4994-48aa-8106-bf10a084922b"
     verify_command: ".venv/bin/python -m tests.verify.verify_implement_lane"
     closeout_verify_command: ".venv/bin/python -m tests.verify.verify_wave_closeout"
     gf_open_blocking: 0
     unit_test_count: 256
   next_candidates:
-    - wave-done-action
+    - wave-signoff
   human_checkpoint: false
-  external_action: true
-  forge:
-    action: update_board_status
-    ticket: "141"
-    status: done
-    head_ref: feature/INIT-GATEFLOW-010-w3-implement-lane
-    paths:
-      - docs/specification/reports/Ground-Report-INIT-GATEFLOW-010-W3.md
-      - docs/specification/as-built/implementation-status.md
+  external_action: false
 ```
