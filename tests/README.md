@@ -287,6 +287,36 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_start` (+ `veri
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (dogfood knobs + worker); optional `.venv/bin/python -m tests.verify.verify_spec_lane` for spec Pass-1 green.
 
+## Feature map (INIT-GATEFLOW-010 W4 — closure Enter-at + Done-gate + EPIC hygiene + freeze)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Closure route 400/202 matrix (REQ-12) | `verify_closure` smoke | `test_closure_start` |
+| Done-gate 422 + EPIC untouched (REQ-13) | `verify_closure` optional not_done probe | `test_closure_done_gate_*` |
+| EPIC Done before purge-app (REQ-14) | `verify_closure` happy enqueue timeline | `test_closure_start_ok` (board update before enqueue) |
+| Purge walk stops at signoff-app; no meta (REQ-15) | `verify_closure` run detail stage guard | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` |
+| Partial failure after EPIC Done (REQ-20) | human Live-Verify | `test_closure_partial_failure_after_epic_done_records_req20` |
+| Live co-ship closure slice (REQ-17) | `verify_closure` | unit matrix above |
+| Feature-readiness freeze (REQ-18) | inspection | `Feature-Readiness-INIT-GATEFLOW-010.md` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_closure` with API + programme token + board tickets for Done-gate positives/negatives per knobs below.
+
+### Initiative-closure start (INIT-GATEFLOW-010 W4)
+
+```bash
+# Smoke (always): auth/validation; optional Done-gate 422 when not_done_wave_ticket_id set
+# Happy enqueue when:
+#   features.initiative_closure.enabled: true
+#   features.initiative_closure.epic_ticket_id: <EPIC>
+#   features.initiative_closure.wave_ticket_ids: [<all Done>]
+#   features.initiative_closure.workspace: /absolute/path
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_closure
+```
+
+Without `enabled: true`, the script still asserts 401 + 400 validation (smoke).
+
 ### Closeout start + Pass-2 dogfood (INIT-GATEFLOW-007)
 
 ```bash
