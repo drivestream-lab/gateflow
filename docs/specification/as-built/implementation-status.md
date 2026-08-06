@@ -260,6 +260,30 @@
 |-----|--------|
 | W3 closeout Done + guards + no auto-chain | **human_approved** — merge [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`; board [#141](https://github.com/drivestream-lab/gateflow/issues/141) Done; Pass-1 run `5385e416-…`; Pass-2 closeout `75dd6b42-…`; [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md); [`Ground-Report-INIT-GATEFLOW-010-W3.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W3.md) |
 
+## Capability matrix (INIT-GATEFLOW-010 W4 — closure Enter-at + freeze)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Closure start API (REQ-12) | REQ-12 | `POST /api/v1/initiatives/closure/start` | `test_closure_start` | `verify_closure` smoke | Programme token; 202 + run_id; malformed → 4xx |
+| Done-gate (REQ-13) | REQ-13 | `closure_done_gate.assert_closure_done_gate` | `test_closure_done_gate_*` | `verify_closure` optional probe | 422; 0 enqueue; EPIC untouched on fail |
+| EPIC Done before purge (REQ-14) | REQ-14 | `ClosureStartService.start_closure` | `test_closure_start_ok` | human @ live-verify | Board hygiene before purge-app Enter-at |
+| Closure purge walk (REQ-15) | REQ-15 | `RunOrchestrator` closure lane guards | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` | `verify_closure` stage guard | purge-app → closure PR → STOP signoff-app; never meta |
+| Partial failure hygiene (REQ-20) | REQ-20 | `RunOrchestrator._partial_closure_failure_payload` | `test_closure_partial_failure_after_epic_done_records_req20` | human negative path | `partial_closure_failure`; no closure-complete claim |
+| Live closure co-ship (REQ-17) | REQ-17 | `verify_closure.py`, `tests/README.md` | unit matrix | Pass-1 implement_lane **human_approved** | [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); `verify_closure` happy 202 needs all waves Done |
+| Feature-readiness freeze (REQ-18) | REQ-18 | [`Feature-Readiness-INIT-GATEFLOW-010.md`](../reports/Feature-Readiness-INIT-GATEFLOW-010.md) | review | inspection | Proven vs deferred eng capabilities |
+
+| Gap | Status |
+|-----|--------|
+| W4 closure Enter-at + freeze | **ground-spec pass (pending signoff)** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) Done; Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) open; Pass-1 run `6f14f48f-…`; Pass-2 closeout `6b917688-…`; [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); [`Ground-Report-INIT-GATEFLOW-010-W4.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W4.md); human `wave-signoff` merge pending |
+
+## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
+
+| Capability | Status |
+|------------|--------|
+| Eng lane tip parity (spec → tickets → implement → closeout → eng closure) | **W4 code green** — human `wave-signoff` merge pending |
+| PM Enter-at / meta purge | **deferred** — out of repo scope |
+| ops UI / C2 / authorize→resume | **deferred** — see Feature-Readiness |
+
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

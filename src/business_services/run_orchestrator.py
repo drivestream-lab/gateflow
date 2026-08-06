@@ -42,6 +42,7 @@ from src.models.forge_types import CommitWorkspaceModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import (
+    build_closure_head_branch,
     build_spec_head_branch,
     build_wave_head_branch,
     validate_base_branch,
@@ -56,6 +57,15 @@ from src.models.run_store_models import (
     StageCreate,
 )
 from src.models.run_store_types import RunOutcomeType, RunStatusType
+
+# REQ-15 — eng closure walk must never dispatch PM/meta purge nodes.
+_CLOSURE_META_FORBIDDEN_NODES = frozenset(
+    {
+        "purge-initiative-artifacts-meta",
+        "initiative-closure-pr-action-meta",
+        "initiative-closure-signoff-meta",
+    }
+)
 
 
 class RunOrchestrator(BaseBusinessService):
@@ -412,6 +422,25 @@ class RunOrchestrator(BaseBusinessService):
                 )
 
                 if decision.decision == PolicyDecisionType.DISPATCH and decision.next_node:
+                    if self._closure_forbids_node(payload, decision.next_node.node_id):
+                        return await self._finalize_run(
+                            session,
+                            run,
+                            status_type=RunStatusType.FAILED,
+                            outcome_type=RunOutcomeType.FAILED,
+                            stop_reason=(
+                                f"Closure walk must not dispatch meta purge node "
+                                f"{decision.next_node.node_id!r} (REQ-15)"
+                            ),
+                            workflow_node=decision.next_node.node_id,
+                            dispatched=True,
+                            notify_pending=notify_pending,
+                            issue_ref=issue_ref,
+                            org=context.org,
+                            repo=context.repo,
+                            handoff=handoff,
+                            job_payload=payload,
+                        )
                     next_node = decision.next_node
                     self.logger.info(
                         "Walker continuing to next orchestrated node",
@@ -444,6 +473,7 @@ class RunOrchestrator(BaseBusinessService):
                             org=context.org,
                             repo=context.repo,
                             handoff=handoff,
+                            job_payload=payload,
                         )
                     if apply_result.get("pr_number") is not None:
                         refreshed = await self._run_repository.update_run(
@@ -477,6 +507,25 @@ class RunOrchestrator(BaseBusinessService):
                         retry_counter=retry_counter,
                     )
                     if decision.decision == PolicyDecisionType.DISPATCH and decision.next_node:
+                        if self._closure_forbids_node(payload, decision.next_node.node_id):
+                            return await self._finalize_run(
+                                session,
+                                run,
+                                status_type=RunStatusType.FAILED,
+                                outcome_type=RunOutcomeType.FAILED,
+                                stop_reason=(
+                                    f"Closure walk must not dispatch meta purge node "
+                                    f"{decision.next_node.node_id!r} (REQ-15)"
+                                ),
+                                workflow_node=decision.next_node.node_id,
+                                dispatched=True,
+                                notify_pending=notify_pending,
+                                issue_ref=issue_ref,
+                                org=context.org,
+                                repo=context.repo,
+                                handoff=handoff,
+                                job_payload=payload,
+                            )
                         next_node = decision.next_node
                         self.logger.info(
                             "Walker continuing to next orchestrated node",
@@ -963,6 +1012,18 @@ class RunOrchestrator(BaseBusinessService):
                     "payload for spec-lane head (or head_ref)"
                 )
             return build_spec_head_branch(str(initiative_id))
+        if lane == "closure":
+            if not initiative_id:
+                raise ValueError(
+                    "Stage forge commit requires initiative_id on the run/job "
+                    "payload for closure-lane head (or head_ref)"
+                )
+            branch_slug = payload.get("branch_slug")
+            if not branch_slug:
+                raise ValueError(
+                    "closure-lane head requires branch_slug on the job payload (or head_ref)"
+                )
+            return build_closure_head_branch(str(initiative_id), str(branch_slug))
 
         wave_id = run.wave_id or payload.get("wave_id")
         branch_slug = payload.get("branch_slug")
@@ -1150,6 +1211,7 @@ class RunOrchestrator(BaseBusinessService):
         repo: Optional[str] = None,
         handoff: Optional[HandoffEnvelope] = None,
         stop_node: Optional[ResolvedWorkflowNode] = None,
+        job_payload: Optional[dict[str, Any]] = None,
     ) -> RunProcessSummary:
         if run.id is None:
             raise RuntimeError("Run missing id during finalize")
@@ -1176,6 +1238,18 @@ class RunOrchestrator(BaseBusinessService):
                 "next_candidates": list(handoff.next_candidates),
                 "human_checkpoint": handoff.human_checkpoint,
             }
+        partial = self._partial_closure_failure_payload(
+            job_payload=job_payload,
+            status_type=status_type,
+        )
+        if partial:
+            payload.update(partial)
+            self.logger.warning(
+                "Partial closure failure after EPIC Done (REQ-20)",
+                run_id=str(run.id),
+                workflow_node=workflow_node,
+                stop_reason=stop_reason,
+            )
 
         await self._run_event_repository.append_event(
             session,
@@ -1231,6 +1305,32 @@ class RunOrchestrator(BaseBusinessService):
             stop_reason=stop_reason,
             dispatched=dispatched,
         )
+
+    @staticmethod
+    def _closure_forbids_node(payload: dict[str, Any], node_id: str) -> bool:
+        """True when closure lane must not dispatch PM/meta purge nodes (REQ-15)."""
+        if str(payload.get("lane") or "").strip() != "closure":
+            return False
+        return node_id in _CLOSURE_META_FORBIDDEN_NODES
+
+    @staticmethod
+    def _partial_closure_failure_payload(
+        *,
+        job_payload: Optional[dict[str, Any]],
+        status_type: RunStatusType,
+    ) -> dict[str, Any]:
+        """REQ-20 — record partial failure after EPIC Done; no closure-complete claim."""
+        if job_payload is None or status_type != RunStatusType.FAILED:
+            return {}
+        if not job_payload.get("epic_done_applied"):
+            return {}
+        if str(job_payload.get("lane") or "").strip() != "closure":
+            return {}
+        return {
+            "partial_closure_failure": True,
+            "closure_complete_claim": False,
+            "epic_done_applied": True,
+        }
 
 
 def get_run_orchestrator() -> RunOrchestrator:

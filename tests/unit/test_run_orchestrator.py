@@ -1076,6 +1076,188 @@ async def test_closeout_walk_applies_done_then_stops_at_wave_signoff() -> None:
     assert stopped_events[0].payload.get("purpose") == "wave-signoff"
 
 
+@pytest.mark.asyncio
+async def test_closure_walk_purge_then_pr_action_stops_at_signoff_app() -> None:
+    """REQ-15: purge-app → automated closure PR → STOP initiative-closure-signoff-app."""
+    from src.models.forge_models import HandoffForgeDocument
+    from src.models.forge_types import ForgeActionType
+    from src.models.handoff_models import HandoffEnvelope
+
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="api",
+            model_id="cursor/auto",
+            model_provider="cursor",
+        )
+    )
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="purge-initiative-artifacts-app",
+            outcome="pass",
+            blockers=[],
+            human_checkpoint=False,
+            forge=HandoffForgeDocument(
+                action="open_draft_pr",
+                title="Closure: INIT-GATEFLOW-010",
+                body_path="docs/specification/reports/Purge-App-INIT-GATEFLOW-010.md",
+                head_ref="feature/INIT-GATEFLOW-010-w4-closure",
+                base_ref="develop",
+            ),
+        )
+    )
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    forge_action = MagicMock()
+    forge_action.apply_external_action = AsyncMock(
+        return_value=MagicMock(
+            pr_number=160,
+            action=ForgeActionType.OPEN_DRAFT_PR,
+            board_ticket=None,
+        )
+    )
+    raw = _job_payload(event_type="api_trigger").model_dump()
+    raw.pop("handoff", None)
+    raw.update(_dispatch_plan(start_node="purge-initiative-artifacts-app", model_id="cursor/auto"))
+    raw.update(
+        {
+            "lane": "closure",
+            "head_ref": "feature/INIT-GATEFLOW-010-w4-closure",
+            "branch_slug": "w4-closure",
+            "initiative_id": "INIT-GATEFLOW-010",
+            "ticket_id": "137",
+            "epic_ticket_id": "137",
+            "epic_done_applied": True,
+            "wave_ticket_ids": ["138", "139", "140", "141", "142"],
+        }
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=_authorized_api_trigger(),
+        cursor_agent_runner=cursor_agent_runner,
+        handoff_reader=handoff_reader,
+        stage_repository=stage_repo,
+        run_event_repository=run_event_repo,
+        forge_action_service=forge_action,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-closure",
+        )
+    )
+    assert summary.dispatched is True
+    assert summary.terminal_status == RunStatusType.STOPPED.value
+    assert cursor_agent_runner.run_skill.await_count == 1
+    forge_action.apply_external_action.assert_awaited_once()
+    apply_kwargs = forge_action.apply_external_action.await_args.kwargs
+    assert apply_kwargs["node"].node_id == "initiative-closure-pr-action-app"
+
+    stopped_events = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].workflow_node == "initiative-closure-signoff-app"
+    assert stopped_events[0].payload.get("purpose") == "initiative-closure-signoff-app"
+
+    stages = [
+        call.args[1].workflow_node
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "stage_started"
+    ]
+    assert "purge-initiative-artifacts-meta" not in stages
+
+
+@pytest.mark.asyncio
+async def test_closure_partial_failure_after_epic_done_records_req20() -> None:
+    """REQ-20: forge failure after EPIC Done — partial_closure_failure, no complete claim."""
+    from src.models.forge_models import HandoffForgeDocument
+    from src.models.handoff_models import HandoffEnvelope
+
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="api",
+            model_id="cursor/auto",
+            model_provider="cursor",
+        )
+    )
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="purge-initiative-artifacts-app",
+            outcome="pass",
+            blockers=[],
+            human_checkpoint=False,
+            forge=HandoffForgeDocument(
+                action="open_draft_pr",
+                title="Closure",
+                body_path="docs/specification/reports/Purge-App-INIT-GATEFLOW-010.md",
+                head_ref="feature/INIT-GATEFLOW-010-w4-closure",
+                base_ref="develop",
+            ),
+        )
+    )
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    forge_action = MagicMock()
+    forge_action.apply_external_action = AsyncMock(side_effect=RuntimeError("draft PR failed"))
+    raw = _job_payload(event_type="api_trigger").model_dump()
+    raw.pop("handoff", None)
+    raw.update(_dispatch_plan(start_node="purge-initiative-artifacts-app", model_id="cursor/auto"))
+    raw.update(
+        {
+            "lane": "closure",
+            "head_ref": "feature/INIT-GATEFLOW-010-w4-closure",
+            "branch_slug": "w4-closure",
+            "initiative_id": "INIT-GATEFLOW-010",
+            "ticket_id": "137",
+            "epic_done_applied": True,
+        }
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=_authorized_api_trigger(),
+        cursor_agent_runner=cursor_agent_runner,
+        handoff_reader=handoff_reader,
+        stage_repository=stage_repo,
+        run_event_repository=run_event_repo,
+        forge_action_service=forge_action,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-closure-fail",
+        )
+    )
+    assert summary.terminal_status == RunStatusType.FAILED.value
+    stopped_events = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(stopped_events) == 1
+    payload = stopped_events[0].payload
+    assert payload.get("partial_closure_failure") is True
+    assert payload.get("closure_complete_claim") is False
+    assert payload.get("epic_done_applied") is True
+
+
 def test_src_has_no_retired_checkpoint_transition_ids() -> None:
     """REQ-16 — runtime src must not hardcode retired pin checkpoint ids."""
     retired = ("gate-1", "gate-2", "wave-human-decision")

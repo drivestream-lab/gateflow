@@ -129,6 +129,28 @@ class WaveCloseoutFeatureConfig(BaseModel):
     wave_start: WaveStartApiConfig = Field(default_factory=WaveStartApiConfig)
 
 
+class InitiativeClosureFeatureConfig(BaseModel):
+    """Opt-in initiative-closure start smoke (INIT-GATEFLOW-010 W4)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(default=False)
+    initiative_id: str = Field(default="INIT-GATEFLOW-010")
+    epic_ticket_id: str = Field(default="137")
+    wave_ticket_ids: list[str] = Field(default_factory=lambda: ["138", "139", "140", "141", "142"])
+    branch_slug: str = Field(default="w4-closure")
+    workspace: str = Field(
+        default="",
+        description="Absolute app workspace path (defaults to cwd when empty)",
+    )
+    runner: str = Field(default="cursor")
+    model_id: str = Field(default="cursor/auto")
+    not_done_wave_ticket_id: str = Field(
+        default="",
+        description="Optional wave ticket still In Progress for Done-gate 422 probe",
+    )
+
+
 class CreateTicketsFeatureConfig(BaseModel):
     """Opt-in WorkManifest → board EPIC/wave seed (forge create_board_tickets projection)."""
 
@@ -179,6 +201,9 @@ class FeaturesConfig(BaseModel):
     implement_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     spec_lane: LaneFeatureConfig = Field(default_factory=LaneFeatureConfig)
     wave_closeout: WaveCloseoutFeatureConfig = Field(default_factory=WaveCloseoutFeatureConfig)
+    initiative_closure: InitiativeClosureFeatureConfig = Field(
+        default_factory=InitiativeClosureFeatureConfig
+    )
     create_tickets: CreateTicketsFeatureConfig = Field(default_factory=CreateTicketsFeatureConfig)
 
 
