@@ -1103,11 +1103,13 @@ async def test_closure_walk_purge_then_pr_action_stops_at_signoff_app() -> None:
             human_checkpoint=False,
             forge=HandoffForgeDocument(
                 action="open_draft_pr",
-                title="Closure: INIT-GATEFLOW-010",
-                body_path="docs/specification/reports/Purge-App-INIT-GATEFLOW-010.md",
                 head_ref="feature/INIT-GATEFLOW-010-w4-closure",
                 base_ref="develop",
             ),
+            signals={
+                "pr_body": "## Initiative closure\n\nApp purge complete.",
+                "initiative": "INIT-GATEFLOW-010",
+            },
         )
     )
     run_event_repo = MagicMock()

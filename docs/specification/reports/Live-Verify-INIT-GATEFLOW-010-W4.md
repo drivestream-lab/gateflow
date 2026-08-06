@@ -14,7 +14,7 @@
 
 ### Unit scope
 - Covered by Wave-Execution W4 + unit gates (REQ-12…15, REQ-18, REQ-20) — not re-claimed as live proof
-- Plan P15 product live `verify_closure` remains for closure Enter-at / Done-gate smoke after Pass-1; not required to pass this Pass-1 live-verify gate
+- Plan P15 product live `verify_initiative_closure` remains for closure Enter-at / Done-gate smoke after Pass-1; not required to pass this Pass-1 live-verify gate
 
 ### Verify script
 - Path: `tests/verify/verify_implement_lane.py` (W4 knobs / ticket_id 142)
@@ -29,7 +29,7 @@
   - Wave Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) opened via automated `wave-pr-action` (title: closure Enter-at + Done-gate + freeze)
   - Human: verify passed; `human_approved: true`
 - Pass criteria: script exit 0 + human approve
-- Cleanup / stop conditions: leave PR **open** for Pass-2 (`learning-extract` / `ground-spec` / optional `verify_closure` dogfood) before merge
+- Cleanup / stop conditions: leave PR **open** for Pass-2 (`learning-extract` / `ground-spec` / optional `verify_initiative_closure` dogfood) before merge
 
 ### Evidence
 | Expected | Observed | Match? |
@@ -44,7 +44,7 @@
 
 ### Forge readiness
 - Publish this Live-Verify on wave head via `/commit-workspace`; Pass-2 learning/ground still required before merge
-- Optional co-ship: `.venv/bin/python -m tests.verify.verify_closure` when knobs set (plan P15)
+- Optional co-ship: `.venv/bin/python -m tests.verify.verify_initiative_closure` when knobs set (plan P15)
 
 ```yaml
 handoff:
