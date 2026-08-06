@@ -1,4 +1,4 @@
-"""Unit tests for live-verify run timeline poll helper."""
+"""Unit tests for wave-acceptance run timeline poll helper."""
 
 from tests._helpers.run_timeline import evaluate_lane_poll, is_terminal_status
 
@@ -53,7 +53,7 @@ def test_failed_status_fails_even_if_partial_chain() -> None:
 
 def test_stopped_with_full_chain_succeeds() -> None:
     stages = [{"workflow_node": n, "runner": "cursor", "outcome_type": "success"} for n in _CHAIN]
-    detail = {"status_type": "stopped", "workflow_node": "live-verify", "stages": stages}
+    detail = {"status_type": "stopped", "workflow_node": "wave-acceptance", "stages": stages}
     assert evaluate_lane_poll(detail, expected_chain=_CHAIN, lane_nodes=_LANE) == "success"
 
 

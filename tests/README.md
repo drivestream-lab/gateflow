@@ -5,7 +5,7 @@
 | Name | Legacy name | Pin skills (today) | Verify |
 |------|-------------|--------------------|--------|
 | **spec lane** | Scenario A | `spec-draft` … `technical-review-approval` STOP | `verify_spec_lane` — **INIT-009 W1 live proven** |
-| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → automated `wave-pr-action` → `live-verify` STOP | `verify_implement_lane` — **INIT-009 W0 live proven** |
+| **implement lane** | Scenario B | `pre-implement` → `loop-spec` → automated `wave-pr-action` → `wave-acceptance` STOP | `verify_implement_lane` — **INIT-009 W0 live proven** |
 
 Both are wave-shaped Gateflow features.
 
@@ -198,8 +198,8 @@ Packaged-skill automate ingest SSOT is the stored baton path under that root
 ### Implement-lane live verify prereqs
 
 Pin chain (Enter-at `pre-implement`; Pass 1):  
-`pre-implement` → `loop-spec` → STOP at `live-verify`  
-(`verify` is `dispatch: manual`; closeout Enter-at `learning-extract` → `ground-spec`
+`pre-implement` → `loop-spec` → automated `wave-pr-action` → STOP at `wave-acceptance`  
+(no `/verify` content skill; closeout Enter-at `learning-extract` → `ground-spec`
 is INIT-GATEFLOW-007).
 
 App secrets in `.env`; verify flags in `tests/config.yaml`. Shared Postgres/Redis via

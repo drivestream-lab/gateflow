@@ -551,7 +551,7 @@ class RunOrchestrator(BaseBusinessService):
                             repo=context.repo,
                             handoff=handoff,
                         )
-                    # Fall through to STOP handling (e.g. live-verify)
+                    # Fall through to STOP handling (e.g. wave-acceptance)
 
                 if decision.decision == PolicyDecisionType.BLOCK:
                     return await self._finalize_run(

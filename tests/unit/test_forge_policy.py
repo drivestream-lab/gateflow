@@ -127,7 +127,8 @@ def test_pin_matrix_implement_lane_commit_workspace() -> None:
         engine.get_node("pre-implement").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
     )
     assert engine.get_node("loop-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
-    assert engine.get_node("verify").forge.commit_workspace == CommitWorkspaceModeType.OPTIONAL
+    # No /verify content skill on pin tip (wave-acceptance is the human prove checkpoint).
+    assert engine.get_node("learning-extract").forge.commit_workspace == CommitWorkspaceModeType.OPTIONAL
     assert engine.get_node("ground-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
 
 
@@ -202,10 +203,10 @@ def test_pin_human_checkpoint_carries_purpose_and_owner() -> None:
     """REQ-10: ResolvedWorkflowNode exposes pin purpose/owner when set."""
     engine = WorkflowEngine()
     engine.load_pin()
-    live_verify = engine.get_node("live-verify")
-    assert live_verify.node_type == "human-checkpoint"
-    assert live_verify.purpose == "live-verify"
-    assert live_verify.owner is None
+    wave_acceptance = engine.get_node("wave-acceptance")
+    assert wave_acceptance.node_type == "human-checkpoint"
+    assert wave_acceptance.purpose == "wave-acceptance"
+    assert wave_acceptance.owner is None
 
     wave_signoff = engine.get_node("wave-signoff")
     assert wave_signoff.purpose == "wave-signoff"
@@ -216,9 +217,15 @@ def test_pin_human_checkpoint_carries_purpose_and_owner() -> None:
     assert prd_gate.owner == "engineering-gate"
 
 
-def test_pin_node_without_purpose_owner_defaults_none() -> None:
+def test_wave_acceptance_pass_parks_at_awaiting_closeout() -> None:
+    """Pass-1 human approve parks; Pass-2 is a separate Enter-at."""
     engine = WorkflowEngine()
     engine.load_pin()
-    node = engine.get_node("loop-spec")
-    assert node.purpose is None
-    assert node.owner is None
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="wave-acceptance",
+        outcome="pass",
+    )
+    parked = engine.resolve_next(handoff)
+    assert parked.node_id == "wave-awaiting-closeout"
+    assert parked.node_type == "terminal"

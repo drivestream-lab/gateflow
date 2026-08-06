@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-06 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -90,7 +90,7 @@
 | Docker cursor-sdk bridge spike | REQ-27 / TDD §3.3 | spike report | inspection | — | `Spike-Cursor-Docker-INIT-GATEFLOW-003-W1.md` **pass** |
 | Failure-path stage + duration | REQ-29/30 | `run_orchestrator.py`, `metrics_emitter.py` | `test_run_orchestrator`, `test_metrics_emitter` | — | FF-05 |
 | `runs.wave_duration_ms` | REQ-30 | ORM/DTO/API + finalize | `test_run_orchestrator` | `verify_implement_lane` **pass** | Alembic `7e79269bd50b`; live `492608` ms |
-| Implement-lane live prove-it | REQ-27/31 | `verify_implement_lane.py` | — | **pass** 2026-07-25; harness retarget 2026-07-29 | Pass-1 stop at `live-verify` (was `wave-human-decision`); D-W1-L1 closed |
+| Implement-lane live prove-it | REQ-27/31 | `verify_implement_lane.py` | — | **pass** 2026-07-25; harness retarget 2026-07-29; remount hygiene 2026-08-06 | Pass-1 stop at `wave-acceptance` (was `live-verify` / earlier `wave-human-decision`); D-W1-L1 closed |
 | Pin walker (env + API + pin) | inherit FR-15 | `run_orchestrator.py` + pin outcomes | multi-hop + hop-cap unit | implement-lane | Enter-at `pre-implement`; lane handoffs `human_checkpoint: false` |
 
 ## Wave status
@@ -190,7 +190,7 @@
 |------------|------|------|------|-------------|-------|
 | EA policy: explicit STOP / automated APPLY_FORGE | REQ-6, REQ-7 | `policy_engine.py` | `test_trigger_policy` | — | Missing auth → BLOCK |
 | Shared `apply_external_action` + head/base | REQ-7…9, REQ-12 | `forge_action_service.py`, `forge_models.py` | forge / orchestrator tests | — | Authorize reuses apply |
-| Walker automated apply → live-verify STOP | REQ-5, REQ-8, REQ-11 | `run_orchestrator._apply_automated_forge` | `test_walker_*` / Pass-1 hop test | **pass** 2026-07-30 | No authorize for automated |
+| Walker automated apply → wave-acceptance STOP | REQ-5, REQ-8, REQ-11 | `run_orchestrator._apply_automated_forge` | `test_walker_*` / Pass-1 hop test | **pass** 2026-07-30; retarget 2026-08-06 | No authorize for automated; pin tip stop id `wave-acceptance` |
 | Job start ensure_branch only | REQ-9, REQ-10 | `_ensure_run_branch` | `test_ensure_branch_before_stage_*` | **pass** (verify_implement_lane) | No PR-at-start create |
 | Feature map Pass-1 PR timing | REQ-16 | `tests/README.md`, `verify_implement_lane.py` | — | **pass** | PR-at-start superseded note |
 
@@ -206,10 +206,10 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Harness pin ≡ submodule tip | REQ-01 | `.harness-pin.yaml` + `prayog-skills` submodule | inspect | N/A — P15 N/A | `v0.5.0-rc.2` @ `6561c7c`; `describe --exact-match --tags HEAD` green |
+| Harness pin ≡ submodule tip | REQ-01 | `.harness-pin.yaml` + `prayog-skills` submodule | inspect | N/A — P15 N/A | Pin ref `v0.5.0-rc.2` (launchpad-applied tip family); consume tip graph (`wave-acceptance`, no `/verify`) |
 | Board-status forge parse | REQ-02 | `parse_node_forge`, `WorkflowEngine.get_node` | `test_forge_policy` | N/A — P15 N/A | `update_board_status` action/status/requires; 0 BROKEN remounted nodes |
 | Pin purpose/owner on resolved node | REQ-10 | `ResolvedWorkflowNode`, `WorkflowEngine._to_resolved` | `test_pin_human_checkpoint_carries_purpose_and_owner` | N/A — P15 N/A | Optional fields; absent → None |
-| `run_stopped` carries pin purpose/owner | REQ-10 | `run_orchestrator._finalize_run` | `test_walker_continues_then_stops_at_gate` | N/A — P15 N/A | Stop at `live-verify` includes `purpose: live-verify` |
+| `run_stopped` carries pin purpose/owner | REQ-10 | `run_orchestrator._finalize_run` | `test_walker_continues_then_stops_at_gate` | N/A — P15 N/A | Stop at `wave-acceptance` includes `purpose: wave-acceptance` |
 
 | Gap | Status |
 |-----|--------|
@@ -224,7 +224,7 @@
 | APPLY_FORGE `update_board_status` | REQ-03 | `ForgeActionService.execute_update_board_status` | `test_apply_update_board_status_*`, `test_forge_merge` | `verify_implement_lane` (board hop events) | Pin status → column via `board_column_for_pin_status`; missing ticket fail-closed; label **+** Project V2 Status sync |
 | Implement-start In Progress pre-hop | REQ-04 | `WaveStartService._apply_implement_in_progress` | `test_implement_wave_start_ok`, `test_implement_in_progress_idempotent_*` | `verify_implement_lane` (`assert_board_in_progress`) | Before enqueue; idempotent when column already In Progress; Project Status synced with label |
 | No same-run resume after create-tickets | REQ-11 | `PolicyEngine.evaluate_dispatch` guard | `test_policy_create_tickets_pass_stops_same_run_resume` | secondary | `board-tickets-action` pass → STOP; implement via new API |
-| Live implement_lane board asserts | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | human at `live-verify` | In Progress column + optional `update_board_status` timeline evidence |
+| Live implement_lane board asserts | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | human at `wave-acceptance` | In Progress column + optional `update_board_status` timeline evidence |
 
 | Gap | Status |
 |-----|--------|
@@ -254,7 +254,7 @@
 | Never auto-apply `*-lgtm` | REQ-16 | `parse_node_forge`, `merge_pin_and_handoff_forge`, apply guard | `test_apply_external_action_rejects_lgtm_apply_labels` | secondary | Fail closed at authorize/apply |
 | No auto-chain after wave-signoff | REQ-19 | `PolicyEngine.evaluate_dispatch` guards | `test_policy_wave_signoff_pass_stops_no_auto_chain`, `test_policy_wave_complete_pass_stops_no_auto_chain` | `verify_wave_closeout` | PE starts next wave/closure via dedicated APIs |
 | Live closeout co-ship | REQ-17 (partial) | `verify_wave_closeout.py`, `tests/README.md` | `test_wave_closeout` | **human_approved** — Pass-2 dogfood run `75dd6b42-…` | Done hop + purpose + no auto-chain; Learning-Extract W3 present |
-| Live implement_lane (Pass-1) | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md) | run `5385e416-…` → PR [#150](https://github.com/drivestream-lab/gateflow/pull/150); stop @ `live-verify` |
+| Live implement_lane (Pass-1) | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md) | run `5385e416-…` → PR [#150](https://github.com/drivestream-lab/gateflow/pull/150); historical stop @ `live-verify`; tip pin stop id `wave-acceptance` |
 
 | Gap | Status |
 |-----|--------|
@@ -266,7 +266,7 @@
 |------------|------|------|------|-------------|-------|
 | Closure start API (REQ-12) | REQ-12 | `POST /api/v1/initiatives/closure/start` | `test_closure_start` | `verify_initiative_closure` smoke | Programme token; 202 + run_id; malformed → 4xx |
 | Done-gate (REQ-13) | REQ-13 | `closure_done_gate.assert_closure_done_gate` | `test_closure_done_gate_*` | `verify_initiative_closure` optional probe | 422; 0 enqueue; EPIC untouched on fail |
-| EPIC Done before purge (REQ-14) | REQ-14 | `ClosureStartService.start_closure` | `test_closure_start_ok` | human @ live-verify | Board hygiene before purge-app Enter-at |
+| EPIC Done before purge (REQ-14) | REQ-14 | `ClosureStartService.start_closure` | `test_closure_start_ok` | human @ wave-acceptance | Board hygiene before purge-app Enter-at |
 | Closure purge walk (REQ-15) | REQ-15 | `RunOrchestrator` closure lane guards | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` | `verify_initiative_closure` stage guard | purge-app → closure PR → STOP signoff-app; never meta |
 | Partial failure hygiene (REQ-20) | REQ-20 | `RunOrchestrator._partial_closure_failure_payload` | `test_closure_partial_failure_after_epic_done_records_req20` | human negative path | `partial_closure_failure`; no closure-complete claim |
 | Live closure co-ship (REQ-17) | REQ-17 | `verify_initiative_closure.py`, `tests/README.md` | unit matrix | Pass-1 implement_lane **human_approved** | [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); `verify_initiative_closure` happy 202 needs all waves Done |
@@ -288,7 +288,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Pin consume (`v0.5.0-rc.2` family) | REQ-1 | `.harness-pin.yaml` + submodule | `make test` regression | N/A — W0 inspection | Submodule `72ad383` == tag tip; `spec-draft` orchestrated |
+| Pin consume (`v0.5.0-rc.2` tip family) | REQ-1 | `.harness-pin.yaml` + submodule | `make test` regression | N/A — W0 inspection | Tip graph: `wave-acceptance` (not `live-verify`); `spec-draft` orchestrated |
 | W0 prove-out checklist | REQ-2 | `W0-Prove-Out-Checklist-INIT-GATEFLOW-009.md` | — | N/A — P15 N/A | Meta Gate 1, dual workspace, token, reviewer steps |
 | Spec Pass-1 live prove-out | REQ-3…REQ-9 | existing APIs + pin walker | unit regression | **live** — [`Live-Verify-INIT-GATEFLOW-009-W1.md`](../reports/Live-Verify-INIT-GATEFLOW-009-W1.md) | run `89fd636d-…` → PR [#119](https://github.com/drivestream-lab/gateflow/pull/119); stop @ `technical-review-approval` |
 | Closeout Pass-2 prove-out | REQ-10…REQ-12 | closeout route (INIT-007) | `test_wave_closeout` | **live** — [`Live-Verify-INIT-GATEFLOW-009-W2.md`](../reports/Live-Verify-INIT-GATEFLOW-009-W2.md) | run `4da11692-…` on [#126](https://github.com/drivestream-lab/gateflow/pull/126) after Spec #119 merge; lifts 007 REQ-15 **for 009 exit** |
