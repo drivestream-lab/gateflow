@@ -140,15 +140,14 @@ def test_loop_spec_pass_resolves_to_wave_pr_action() -> None:
     assert resolved.authorization == AuthorizationModeType.AUTOMATED
 
 
-def test_verify_is_manual_learning_extract_and_ground_are_orchestrated() -> None:
-    """Closeout pin: verify manual; learning-extract → ground → wave-done → signoff."""
+def test_closeout_learning_extract_and_ground_are_orchestrated() -> None:
+    """Pass-2 pin: no /verify skill; learning-extract → ground → wave-done → signoff."""
     engine = WorkflowEngine()
     engine.load_pin()
-    assert engine.get_node("verify").dispatch == "manual"
+    with pytest.raises(ValueError, match="Unknown workflow node"):
+        engine.get_node("verify")
     assert engine.get_node("learning-extract").dispatch == "orchestrated"
     assert engine.get_node("ground-spec").dispatch == "orchestrated"
-    with pytest.raises(ValueError, match="orchestrated"):
-        engine.require_orchestrated_skill("verify")
     assert engine.require_orchestrated_skill("learning-extract").node_id == "learning-extract"
     handoff = HandoffEnvelope(
         contract="sdd-delivery/v2",

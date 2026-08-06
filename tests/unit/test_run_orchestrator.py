@@ -680,7 +680,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         )
     )
     handoff_reader = MagicMock()
-    # Pass-1: pre-implement → loop-spec → automated wave-pr apply → live-verify STOP.
+    # Pass-1: pre-implement → loop-spec → automated wave-pr apply → wave-acceptance STOP.
     handoff_reader.read_path = MagicMock(
         side_effect=[
             HandoffEnvelope(
@@ -733,7 +733,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
     assert summary.dispatched is True
     assert summary.terminal_status == RunStatusType.STOPPED.value
     assert summary.stop_reason is not None
-    assert "live-verify" in summary.stop_reason
+    assert "wave-acceptance" in summary.stop_reason
     assert stage_repo.create_stage.await_count == 2
     assert cursor_agent_runner.run_skill.await_count == 2
     assert handoff_reader.read_path.call_count == 2
@@ -744,7 +744,7 @@ async def test_walker_continues_then_stops_at_gate() -> None:
         if call.args[1].event_type == "run_stopped"
     ]
     assert len(stopped_events) == 1
-    assert stopped_events[0].payload.get("purpose") == "live-verify"
+    assert stopped_events[0].payload.get("purpose") == "wave-acceptance"
     assert "owner" not in stopped_events[0].payload
 
 
@@ -767,7 +767,7 @@ async def test_walker_hop_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     )
     handoff_reader = MagicMock()
-    # Need two orchestrated hops in a row: pre-implement → loop-spec (before live-verify).
+    # Need two orchestrated hops in a row: pre-implement → loop-spec (before wave-acceptance).
     handoff_reader.read_path = MagicMock(
         return_value=HandoffEnvelope(
             contract="sdd-delivery/v2",

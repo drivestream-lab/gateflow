@@ -27,7 +27,7 @@ written:
    missing/unknown → invalid pin). Day-one: `spec-pr-action` and `wave-pr-action`
    are **`automated`**; board / PRD / merge external-actions remain **`explicit`**.
 2. **Implement Pass-1 Draft PR placement:** after coding, not before:
-   `pre-implement` → `loop-spec` → `wave-pr-action` → `live-verify`, with
+   `pre-implement` → `loop-spec` → `wave-pr-action` → `wave-acceptance`, with
    `commit_workspace: required` on both content hops. No interactive STOP between
    checklist and coding. First Draft PR tip already has checklist + code.
 
@@ -38,7 +38,7 @@ algorithm, retirement of implement **PR-at-start** as Draft PR creator, run-cont
 
 **Product intent:** programme `implement/start` (one call) walks uninterrupted
 through coding; ForgeClient opens the wave Draft PR when pin says `automated`
-and requires are complete; humans still own `live-verify`, `wave-signoff`, and
+and requires are complete; humans still own `wave-acceptance`, `wave-signoff`, and
 all `explicit` external-actions (authorize API). Content skills never mutate.
 Pin remains policy SSOT — no laptop overlay, no env backdoor that reinterprets
 `explicit` as automated.
@@ -79,10 +79,10 @@ nodes only.
 | REQ-5 | After a successful content hop, apply pin `forge.commit_workspace` via ForgeClient to the **run head** (existing ADR-009 / INIT-006 publish path). `pre-implement` and `loop-spec` are **`required`** on the remounted pin — empty publish fail closed. | Pin workflow; forge-side-effects algorithm | Unit: required empty fails; dirty∪ahead publish still valid | unit |
 | REQ-6 | Resolve next node from pin `(stage, outcome)`. **Do not** treat “all `external-action` ⇒ STOP” as true. | Pin for-gateflow hard rule 5 | Unit: policy/orchestrator branches on `authorization` | unit |
 | REQ-7 | When next is `external-action` with **`authorization: explicit`**: STOP with pending forge; mutate only via existing programme **`POST /api/v1/runs/{id}/forge/authorize`** (`authorized=true`) or documented dual-executor human forge path. | INIT-006 REQ-8 retain for explicit | Unit: board-tickets / prd-pr still STOP; authorize executes | unit |
-| REQ-8 | When next is `external-action` with **`authorization: automated`**: **no** interactive STOP and **no** require `/forge/authorize` for that hop. Merge pin ⋉ handoff; if any pin `forge.requires` slot missing → **fail closed**. Else ForgeClient.apply (`open_draft_pr` / future actions) in the orchestrator path, then continue `outcomes.pass`. | Pin algorithm; day-one automated nodes | Unit walker: after `loop-spec` publish, automated `wave-pr-action` opens PR without authorize mock; continues toward `live-verify` STOP | unit |
+| REQ-8 | When next is `external-action` with **`authorization: automated`**: **no** interactive STOP and **no** require `/forge/authorize` for that hop. Merge pin ⋉ handoff; if any pin `forge.requires` slot missing → **fail closed**. Else ForgeClient.apply (`open_draft_pr` / future actions) in the orchestrator path, then continue `outcomes.pass`. | Pin algorithm; day-one automated nodes | Unit walker: after `loop-spec` publish, automated `wave-pr-action` opens PR without authorize mock; continues toward `wave-acceptance` STOP | unit |
 | REQ-9 | For automated (and explicit) `open_draft_pr`, bind **`head_ref` / `base_ref` from run context** (wave-start identity / stored targeting) when pin `requires` lists them. Handoff supplies instance slots such as `title` / `body_path`. Do not invent pin `forge.head` enums. | Pin wave-pr requires; ADR-009 head binding | Unit: missing run head/base → fail closed; same head used for both prior `commit_workspace` hops and open | unit |
 | REQ-10 | **Retire PR-at-start Draft PR create** for implement jobs (and for spec jobs that open via `spec-pr-action`). Must not skip or duplicate `wave-pr-action` / `spec-pr-action`. Optional **ensure_branch-only** before first publish is allowed; PR create only via Forge `open_draft_pr`. | Pin for-gateflow; partner remount note | Unit: implement start does not call create PR before skills; PR number appears after automated/explicit open | unit |
-| REQ-11 | Implement Pass-1 walk (remounted pin): Enter-at `pre-implement` → required publish → `loop-spec` → required publish → automated `wave-pr-action` → STOP `live-verify` → park `wave-awaiting-closeout` on pass. **No** authorize STOP between `pre-implement` and `loop-spec`. | Pin Pass-1 | Unit multi-hop; verify feature map updated | unit |
+| REQ-11 | Implement Pass-1 walk (remounted pin): Enter-at `pre-implement` → required publish → `loop-spec` → required publish → automated `wave-pr-action` → STOP `wave-acceptance` → park `wave-awaiting-closeout` on pass. **No** authorize STOP between `pre-implement` and `loop-spec`. | Pin Pass-1 | Unit multi-hop; verify feature map updated | unit |
 | REQ-12 | Spec Draft PR: when pin marks `spec-pr-action` **automated**, same automated apply rules as REQ-8 (after `spec-draft` required publish). Explicit nodes unchanged. | Pin day-one | Unit: automated spec-pr path without authorize | unit |
 | REQ-13 | Before `create_board_tickets`, validate plan §9 WorkManifest via the **pinned** contract (`delivery-contract.yaml` → `workmanifest_spec` + `scripts/workmanifest_contract.py`). Accept only **`apiVersion: prayog/v1`** + **`kind: WorkManifest`**. Reject `launchpad/v1` and unsupported pairs fail closed. | Pin WorkManifest Initiative B | Unit: reject launchpad/v1; pass prayog/v1 fixture | unit |
 | REQ-14 | BoardService **projects** epic/wave/task text onto issues; board bodies are **not** a second WorkManifest SSOT. Do **not** write runtime status/observed evidence into the approved manifest. | Pin for-gateflow | Inspection + unit: create path does not mutate approved manifest intent fields | unit + inspection |

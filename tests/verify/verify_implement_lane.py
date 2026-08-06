@@ -1,14 +1,15 @@
-"""Live verify: implement-lane Pass 1 prove-it (coding hops → wave-pr → live-verify).
+"""Live verify: implement-lane Pass 1 prove-it (coding hops → wave-pr → wave-acceptance).
 
-Pass 1 implement lane (pin ``v0.5.0-rc.2``+ authorization / wave-pr placement):
+Pass 1 implement lane (pin tip with authorization / wave-pr placement):
 
-  pre-implement → loop-spec → automated ``wave-pr-action`` → live-verify STOP
+  pre-implement → loop-spec → automated ``wave-pr-action`` → wave-acceptance STOP
 
 Job start **must not** create a Draft PR (ensure_branch-only). ``pr_number`` is
 expected unset/null at start and set after automated ``open_draft_pr``.
 
-``verify`` is ``dispatch: manual``. Closeout Enter-at ``learning-extract`` →
-``ground-spec`` is INIT-GATEFLOW-007 (not this script).
+There is **no** ``/verify`` content skill. Human prove is checkpoint
+``wave-acceptance`` (label ``wave-accepted`` phase-1 ingress). Closeout Enter-at
+``learning-extract`` → ``ground-spec`` is INIT-GATEFLOW-007 (not this script).
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
@@ -21,7 +22,7 @@ Requires:
 Asserts (when opted in, start_node=pre-implement):
   - Wave-start accepted; run detail ``pr_number`` null/absent right after start
   - Cursor stages for orchestrated hops (pre-implement, loop-spec) success
-  - Terminal status stopped at live-verify
+  - Terminal status stopped at wave-acceptance
   - ``pr_number`` present after automated wave-pr (when worker completed Pass-1)
   - wave_duration_ms present
   - stage_commit for required forge node loop-spec
@@ -46,15 +47,15 @@ import httpx
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
-# Orchestrated coding hops only (pin: stop at live-verify; closeout separate).
+# Orchestrated coding hops only (pin: stop at wave-acceptance; closeout separate).
 _LANE_NODES = ("pre-implement", "loop-spec")
 _LANE_NODE_SET = frozenset(_LANE_NODES)
-_PASS1_STOP_NODE = "live-verify"
+_PASS1_STOP_NODE = "wave-acceptance"
 
 # Valid Pass-1 stop nodes (human-checkpoint gates where the walker correctly stops).
-# live-verify: happy path after automated wave-pr-action.
+# wave-acceptance: happy path after automated wave-pr-action (human approved).
 # wave-signoff: blocked / needs-input from pre-implement or loop-spec.
-_IMPLEMENT_STOP_NODES = frozenset({"live-verify", "wave-signoff"})
+_IMPLEMENT_STOP_NODES = frozenset({"wave-acceptance", "wave-signoff"})
 
 
 def _expected_chain(start_node: str) -> tuple[str, ...]:
