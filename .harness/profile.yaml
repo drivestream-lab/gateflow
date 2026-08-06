@@ -1,5 +1,5 @@
 # Python backend SDD harness — layout defaults for development skills.
-# launchpad sync-harness copies this to .harness/profile.yaml in consumer app repos.
+# launchpad apply-harness copies this to .harness/profile.yaml in consumer app repos.
 
 profile: python-backend
 
@@ -34,7 +34,6 @@ development_skills:
   - loop-spec
   - learning-extract
   - ground-spec
-  - verify
   - purge-initiative-artifacts-app
 
 forge_skills:
