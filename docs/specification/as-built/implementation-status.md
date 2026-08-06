@@ -253,12 +253,12 @@
 | No Forge merge | REQ-09 | `ForgeActionService` + `ForgeClient.enable_auto_merge` | `test_forge_action_type_excludes_merge`, `test_forge_client_forbids_auto_merge` | secondary | Merge human-only at wave-signoff |
 | Never auto-apply `*-lgtm` | REQ-16 | `parse_node_forge`, `merge_pin_and_handoff_forge`, apply guard | `test_apply_external_action_rejects_lgtm_apply_labels` | secondary | Fail closed at authorize/apply |
 | No auto-chain after wave-signoff | REQ-19 | `PolicyEngine.evaluate_dispatch` guards | `test_policy_wave_signoff_pass_stops_no_auto_chain`, `test_policy_wave_complete_pass_stops_no_auto_chain` | `verify_wave_closeout` | PE starts next wave/closure via dedicated APIs |
-| Live closeout co-ship | REQ-17 (partial) | `verify_wave_closeout.py`, `tests/README.md` | `test_wave_closeout` | Pass-2 dogfood pending | Done hop + purpose + no auto-chain asserts after Pass-1 |
+| Live closeout co-ship | REQ-17 (partial) | `verify_wave_closeout.py`, `tests/README.md` | `test_wave_closeout` | smoke OK; dogfood optional at sign-off (GF-01) | Done hop + purpose + no auto-chain asserts co-shipped |
 | Live implement_lane (Pass-1) | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md) | run `5385e416-…` → PR [#150](https://github.com/drivestream-lab/gateflow/pull/150); stop @ `live-verify` |
 
 | Gap | Status |
 |-----|--------|
-| W3 closeout Done + guards + no auto-chain | **live-verify human_approved** — board [#141](https://github.com/drivestream-lab/gateflow/issues/141); PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) @ `1d324c9`; [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md); Pass-2 closeout / ground pending before merge |
+| W3 closeout Done + guards + no auto-chain | **ground pass — pending human_approved** — board [#141](https://github.com/drivestream-lab/gateflow/issues/141); PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) @ `c4d4cdc`; [`Ground-Report-INIT-GATEFLOW-010-W3.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W3.md); [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md); merge at `wave-signoff` only |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
