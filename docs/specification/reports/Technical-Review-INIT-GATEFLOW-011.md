@@ -11,14 +11,16 @@
 | Impact map / revision | `prayog-meta/prd/reports/Impact-Map-INIT-GATEFLOW-011.md` / `1` |
 | Repo scope digest | `sha256:afdc7bd51bcd0c12f614feebf338bdc78766396bb84777121a2565c0ecc7966d` |
 | Approved meta PR head | `f3da8148f3e861fad4720a3491f11f1fdc0145aa` |
-| Source freshness | **CURRENT** — H1/H2/H3 match meta @ `f3da8148…`; G1 APPROVED + `impact-map-lgtm`; Draft spec PR [#159](https://github.com/drivestream-lab/gateflow/pull/159) tip `cde7c6c`; Gate 2 `spec-pending` |
+| Source freshness | **CURRENT** — H1/H2/H3 match meta @ `f3da8148…`; G1 APPROVED + `impact-map-lgtm`; Draft spec PR [#159](https://github.com/drivestream-lab/gateflow/pull/159) tip `059e1f3`; Gate 2 `spec-pending` |
 | Repo | drivestream-lab/gateflow |
 | Date | 2026-08-06 |
 | Branch | `chore/INIT-GATEFLOW-011-spec-gateflow` (Draft spec PR — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-011` |
-| Status | Draft |
+| Status | **Accepted** |
 | Review deadline | 2026-08-13 |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
+| Deciders | PE: @drivestream-lab/prayog-pe-team |
+| Approval evidence | Explicit PE acceptance via Cursor chat 2026-08-06 (TDD accepted; proceed to `/spec-implementation-plan`); no ADR_REQUIRED |
+| Approved head | `059e1f3700bfedc0cf8c4ceb6f45a78c967c2f5a` (pre-acceptance tip; acceptance commit updates tip) |
 
 ---
 
@@ -306,7 +308,7 @@ _None — eng control-plane visibility; no domain SME lane items._
 | Domain questions outstanding | 0 |
 | Selected workflow outcome | `pass` — engineering package ready for PE artifact review; no blocking PM/domain |
 | Ready for PE review | **YES** |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE acceptance of this TDD required** |
+| **Ready for /spec-implementation-plan** | **YES — TDD Accepted; run `/spec-implementation-plan` on this branch** |
 
 ---
 
@@ -347,7 +349,7 @@ PE checklist:
   [ ] T3 no missing ADR_REQUIRED
   [ ] T9 PE decisions PE-1…PE-8 acceptable
   [ ] T12 no product leakage
-  [ ] Explicit accept → Status Draft→Accepted → Forge publish → /spec-implementation-plan
+  [x] Explicit accept → Status Draft→Accepted → Forge publish → /spec-implementation-plan
 ```
 
 ### Lint evidence (TDD)
@@ -365,32 +367,29 @@ paraphrasing acceptance prose; no ADR bodies to audit.
 ```yaml
 handoff:
   contract: sdd-delivery/v2
-  stage: spec-technical-review
+  stage: technical-review-approval
   outcome: pass
   artifact:
     path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-011.md
-    digest: sha256:954a1840d2202deb79c72ec4fbc392ec705dc4eff1bfdb8d494f00c5405b7b0f
+    digest: sha256:411607931e193b352eaafc843352b115dc9cd5d5b213732e48298fcdff8d5ea2
   blockers: []
   signals:
     initiative: INIT-GATEFLOW-011
     spec_pr: "https://github.com/drivestream-lab/gateflow/pull/159"
-    spec_pr_head: "cde7c6c12213c51fc0cd2ae29e28f08bbe3660c4"
-    source_freshness: CURRENT
+    tdd_status: Accepted
     new_adr: false
     adr_required: 0
-    draft_adr_files: []
     ready_for_pe_review: true
-    ready_for_plan: false
-    t12_lint: pass
-    nonblocking_pm: "PM-1"
+    ready_for_plan: true
+    approval_evidence: "Cursor chat 2026-08-06 — TDD accepted"
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
   forge:
     action: commit_workspace
     draft: true
     apply_labels: []
-    title: "[INIT-GATEFLOW-011] TDD — Day-1 visibility and GitHub reconcile"
+    title: "[INIT-GATEFLOW-011] TDD Accepted — proceed to implementation plan"
     body_path: docs/specification/reports/Technical-Review-INIT-GATEFLOW-011.md
 ```
