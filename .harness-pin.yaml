@@ -18,7 +18,6 @@ agent_skills:
     - loop-spec
     - learning-extract
     - ground-spec
-    - verify
     - purge-initiative-artifacts-app
     - commit-workspace
     - open-draft-pr
