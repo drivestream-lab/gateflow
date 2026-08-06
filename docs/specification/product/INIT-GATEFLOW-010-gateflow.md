@@ -69,11 +69,14 @@ implement-start ticket gate; Project Status sync with column labels; live
 `verify_implement_lane` run `89b7b7d9-…`; Learning + Ground on tip
 (REQ-06, REQ-07, REQ-08, REQ-17 partial). W3 `/pre-implement` may proceed.
 
-**W3 loop-spec (2026-08-05):** closeout walk applies automated `wave-done-action`
-Done hop after `ground-spec.pass`; terminal stop exposes `wave-signoff` purpose;
-forge guards refuse merge/`*-lgtm`; policy blocks same-run auto-chain after
-wave-signoff/wave-complete (REQ-05, REQ-09, REQ-16, REQ-19). Live verify co-shipped
-in `verify_wave_closeout` — human prove-it at `live-verify`.
+**W3 human_approved (2026-08-06):** merge [#150](https://github.com/drivestream-lab/gateflow/pull/150)
+`85c2ec5`. Closeout walk applies automated `wave-done-action` Done hop after
+`ground-spec.pass`; terminal stop exposes `wave-signoff` purpose; forge guards
+refuse merge/`*-lgtm`; policy blocks same-run auto-chain after wave-signoff/
+wave-complete (REQ-05, REQ-09, REQ-16, REQ-19). Pass-1 `verify_implement_lane`
+run `5385e416-…`; Pass-2 `verify_wave_closeout` dogfood run `75dd6b42-…`; board
+[#141](https://github.com/drivestream-lab/gateflow/issues/141) Done. W4
+`/pre-implement` may proceed.
 
 **Delivery waves (product-normative; PRD §5):**
 

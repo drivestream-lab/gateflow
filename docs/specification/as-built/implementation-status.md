@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-08-05 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
+| Updated | 2026-08-06 |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin `v0.5.0-rc.2` ≡ submodule `6561c7c` |
 
 ## Engineering lane naming
 
@@ -253,12 +253,12 @@
 | No Forge merge | REQ-09 | `ForgeActionService` + `ForgeClient.enable_auto_merge` | `test_forge_action_type_excludes_merge`, `test_forge_client_forbids_auto_merge` | secondary | Merge human-only at wave-signoff |
 | Never auto-apply `*-lgtm` | REQ-16 | `parse_node_forge`, `merge_pin_and_handoff_forge`, apply guard | `test_apply_external_action_rejects_lgtm_apply_labels` | secondary | Fail closed at authorize/apply |
 | No auto-chain after wave-signoff | REQ-19 | `PolicyEngine.evaluate_dispatch` guards | `test_policy_wave_signoff_pass_stops_no_auto_chain`, `test_policy_wave_complete_pass_stops_no_auto_chain` | `verify_wave_closeout` | PE starts next wave/closure via dedicated APIs |
-| Live closeout co-ship | REQ-17 (partial) | `verify_wave_closeout.py`, `tests/README.md` | `test_wave_closeout` | smoke OK; dogfood optional at sign-off (GF-01) | Done hop + purpose + no auto-chain asserts co-shipped |
+| Live closeout co-ship | REQ-17 (partial) | `verify_wave_closeout.py`, `tests/README.md` | `test_wave_closeout` | **human_approved** — Pass-2 dogfood run `75dd6b42-…` | Done hop + purpose + no auto-chain; Learning-Extract W3 present |
 | Live implement_lane (Pass-1) | REQ-17 (partial) | `verify_implement_lane.py`, `tests/README.md` | — | **human_approved** — [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md) | run `5385e416-…` → PR [#150](https://github.com/drivestream-lab/gateflow/pull/150); stop @ `live-verify` |
 
 | Gap | Status |
 |-----|--------|
-| W3 closeout Done + guards + no auto-chain | **ground pass — pending human_approved** — board [#141](https://github.com/drivestream-lab/gateflow/issues/141); PR [#150](https://github.com/drivestream-lab/gateflow/pull/150) @ `c4d4cdc`; [`Ground-Report-INIT-GATEFLOW-010-W3.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W3.md); [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md); merge at `wave-signoff` only |
+| W3 closeout Done + guards + no auto-chain | **human_approved** — merge [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`; board [#141](https://github.com/drivestream-lab/gateflow/issues/141) Done; Pass-1 run `5385e416-…`; Pass-2 closeout `75dd6b42-…`; [`Live-Verify-INIT-GATEFLOW-010-W3.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W3.md); [`Ground-Report-INIT-GATEFLOW-010-W3.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W3.md) |
 
 ## INIT-GATEFLOW-010 — both-lane factory prove-out (**human_approved** freeze)
 
