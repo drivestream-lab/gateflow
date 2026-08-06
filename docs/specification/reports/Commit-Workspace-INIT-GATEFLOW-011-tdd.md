@@ -7,6 +7,7 @@
 | Bound head | `chore/INIT-GATEFLOW-011-spec-gateflow` |
 | Spec PR | https://github.com/drivestream-lab/gateflow/pull/159 |
 | Paths published | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-011.md` |
+| Commit |  |
 | Outcome | **pass** |
 | Date | 2026-08-06 |
 
@@ -31,6 +32,7 @@ handoff:
     head_ref: chore/INIT-GATEFLOW-011-spec-gateflow
     base_ref: develop
     spec_pr: "https://github.com/drivestream-lab/gateflow/pull/159"
+    commit_sha: "902b056f67792b8a84e370077bc7dc9691a8b9b6"
     paths_published:
       - docs/specification/reports/Technical-Review-INIT-GATEFLOW-011.md
   human_checkpoint: false
