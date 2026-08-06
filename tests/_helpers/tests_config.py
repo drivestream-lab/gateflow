@@ -130,7 +130,7 @@ class WaveCloseoutFeatureConfig(BaseModel):
 
 
 class InitiativeClosureFeatureConfig(BaseModel):
-    """Opt-in initiative-closure start smoke (INIT-GATEFLOW-010 W4)."""
+    """Opt-in initiative-closure start smoke / walk dogfood (INIT-GATEFLOW-010 W4)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -148,6 +148,18 @@ class InitiativeClosureFeatureConfig(BaseModel):
     not_done_wave_ticket_id: str = Field(
         default="",
         description="Optional wave ticket still In Progress for Done-gate 422 probe",
+    )
+    dogfood: bool = Field(
+        default=False,
+        description=(
+            "When true: after enqueue, poll purge-app → open_draft_pr → "
+            "initiative-closure-signoff-app (requires worker)"
+        ),
+    )
+    timeout_s: float = Field(
+        default=3600.0,
+        ge=1.0,
+        description="Dogfood poll timeout seconds",
     )
 
 
