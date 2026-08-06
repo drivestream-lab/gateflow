@@ -6,7 +6,7 @@
 | Pin policy | `forge.commit_workspace: optional` |
 | Bound head | `feature/INIT-GATEFLOW-010-w3-implement-lane` |
 | PR | https://github.com/drivestream-lab/gateflow/pull/150 |
-| Published SHA | `ba2a0a2cd977d12e7967e4384b5166047b21b758` |
+| Published SHA | `5f38c4950836c6111c83635f322e4934a8f20ce5` |
 | Remote | `origin/feature/INIT-GATEFLOW-010-w3-implement-lane` |
 | Outcome | **pass** |
 | Date | 2026-08-06 |
@@ -33,7 +33,7 @@ handoff:
     commit_workspace: optional
     head_ref: feature/INIT-GATEFLOW-010-w3-implement-lane
     base_ref: develop
-    published_sha: "ba2a0a2cd977d12e7967e4384b5166047b21b758"
+    published_sha: "5f38c4950836c6111c83635f322e4934a8f20ce5"
     pr: "150"
     board_issue: "141"
     paths:
