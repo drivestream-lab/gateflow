@@ -291,15 +291,15 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (dogf
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
-| Closure route 400/202 matrix (REQ-12) | `verify_closure` smoke | `test_closure_start` |
-| Done-gate 422 + EPIC untouched (REQ-13) | `verify_closure` optional not_done probe | `test_closure_done_gate_*` |
-| EPIC Done before purge-app (REQ-14) | `verify_closure` happy enqueue timeline | `test_closure_start_ok` (board update before enqueue) |
-| Purge walk stops at signoff-app; no meta (REQ-15) | `verify_closure` run detail stage guard | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` |
+| Closure route 400/202 matrix (REQ-12) | `verify_initiative_closure` smoke | `test_closure_start` |
+| Done-gate 422 + EPIC untouched (REQ-13) | `verify_initiative_closure` optional not_done probe | `test_closure_done_gate_*` |
+| EPIC Done before purge-app (REQ-14) | `verify_initiative_closure` happy enqueue timeline | `test_closure_start_ok` (board update before enqueue) |
+| Purge walk stops at signoff-app; no meta (REQ-15) | `verify_initiative_closure` run detail stage guard | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` |
 | Partial failure after EPIC Done (REQ-20) | human Live-Verify | `test_closure_partial_failure_after_epic_done_records_req20` |
-| Live co-ship closure slice (REQ-17) | `verify_closure` | unit matrix above |
+| Live co-ship closure slice (REQ-17) | `verify_initiative_closure` | unit matrix above |
 | Feature-readiness freeze (REQ-18) | inspection | `Feature-Readiness-INIT-GATEFLOW-010.md` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_closure` with API + programme token + board tickets for Done-gate positives/negatives per knobs below.
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` with API + programme token + board tickets for Done-gate positives/negatives per knobs below.
 
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
@@ -312,7 +312,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_closure` with API + 
 #   features.initiative_closure.workspace: /absolute/path
 
 set -a && source .env && set +a
-.venv/bin/python -m tests.verify.verify_closure
+.venv/bin/python -m tests.verify.verify_initiative_closure
 ```
 
 Without `enabled: true`, the script still asserts 401 + 400 validation (smoke).

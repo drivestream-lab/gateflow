@@ -429,6 +429,89 @@ def test_board_tickets_action_remains_explicit_authorize_stop() -> None:
     assert decision.decision != PolicyDecisionType.APPLY_FORGE
 
 
+@pytest.mark.asyncio
+async def test_apply_open_draft_pr_materializes_body_from_signals_pr_body(
+    tmp_path: Path,
+) -> None:
+    """Purge-app handoff: signals.pr_body fills body_path before pin merge."""
+    forge = MagicMock()
+    forge.open_draft_pr = AsyncMock(return_value=88)
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("initiative-closure-pr-action-app")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="purge-initiative-artifacts-app",
+        outcome="pass",
+        signals={
+            "pr_body": "## Closure\n\nPurge complete.",
+            "initiative": "INIT-GATEFLOW-010",
+        },
+        forge=HandoffForgeDocument(
+            action="open_draft_pr",
+            head_ref="feature/INIT-GATEFLOW-010-w4-closure",
+            base_ref="develop",
+        ),
+    )
+    svc = _service(
+        run=_run(workflow_node="initiative-closure-pr-action-app"),
+        handoff=handoff,
+        forge_client=forge,
+    )
+    result = await svc.apply_external_action(
+        org="acme",
+        repo="widget",
+        node=node,
+        handoff=handoff,
+        workspace=tmp_path,
+        head_ref="feature/INIT-GATEFLOW-010-w4-closure",
+        base_ref="develop",
+    )
+    assert result.pr_number == 88
+    forge.open_draft_pr.assert_awaited_once()
+    kwargs = forge.open_draft_pr.await_args.kwargs
+    assert kwargs["title"] == "Initiative closure (app): INIT-GATEFLOW-010"
+    assert "Purge complete" in kwargs["body"]
+    ephemeral = tmp_path / ".gateflow" / "initiative-closure-pr-body.md"
+    assert ephemeral.is_file()
+    assert "Purge complete" in ephemeral.read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_apply_open_draft_pr_missing_body_and_signals_fails_closed(
+    tmp_path: Path,
+) -> None:
+    engine = WorkflowEngine()
+    engine.load_pin()
+    node = engine.get_node("initiative-closure-pr-action-app")
+    handoff = HandoffEnvelope(
+        contract="sdd-delivery/v2",
+        stage="purge-initiative-artifacts-app",
+        outcome="pass",
+        forge=HandoffForgeDocument(
+            action="open_draft_pr",
+            title="Closure without body",
+            head_ref="feature/x",
+            base_ref="develop",
+        ),
+    )
+    svc = _service(
+        run=_run(workflow_node="initiative-closure-pr-action-app"),
+        handoff=handoff,
+        forge_client=MagicMock(),
+    )
+    with pytest.raises(ValidationError, match="missing required slots|body_path"):
+        await svc.apply_external_action(
+            org="acme",
+            repo="widget",
+            node=node,
+            handoff=handoff,
+            workspace=tmp_path,
+            head_ref="feature/x",
+            base_ref="develop",
+        )
+
+
 def test_forge_action_type_excludes_merge() -> None:
     """REQ-09: ForgeActionType must not include merge actions."""
     values = {action.value for action in ForgeActionType}

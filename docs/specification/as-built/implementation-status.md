@@ -150,7 +150,7 @@
 |------------|------------------|------|------|-------------|-------|
 | Merge pin ⋉ handoff; `requires` fail closed | ADR-009; pin | `merge_pin_and_handoff_forge` | `test_forge_merge` | — | Invented labels / action conflict fail closed |
 | STOP at external-action + pending forge event | ADR-009 explicit auth | `run_orchestrator` STOP path | walker / policy tests | — | Content hop does not mutate |
-| Open draft PR + projection labels | pin `open_draft_pr` | `ForgeClient.open_draft_pr`, `ForgeActionService` | `test_forge_client`, `test_forge_action_service` | **deferred** | Never `*-lgtm` |
+| Open draft PR + projection labels | pin `open_draft_pr` | `ForgeClient.open_draft_pr`, `ForgeActionService` (materializes `body_path` from `signals.pr_body` when purge-app omits on-disk body) | `test_forge_client`, `test_forge_action_service` | **deferred** live authorize; unit covers signals.pr_body | Never `*-lgtm` |
 | Board ticket seed from plan §9 | pin `create_board_tickets`; FR-24 primitives | `ForgeActionService` → `BoardService.create_ticket` | `test_forge_action_service` | **deferred** | Idempotent EPIC + wave Features |
 | Programme authorize path | TDD / as-built | `POST /api/v1/runs/{id}/forge/authorize` | `test_forge_action_service` | **deferred** | Dual executor vs human forge skills |
 | Worker board isolation | FR-24 | no BoardService in `process_job` | `test_process_job_never_calls_board_forge_mutations` | — | Authorize path may call board; walker must not |
@@ -264,12 +264,12 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Closure start API (REQ-12) | REQ-12 | `POST /api/v1/initiatives/closure/start` | `test_closure_start` | `verify_closure` smoke | Programme token; 202 + run_id; malformed → 4xx |
-| Done-gate (REQ-13) | REQ-13 | `closure_done_gate.assert_closure_done_gate` | `test_closure_done_gate_*` | `verify_closure` optional probe | 422; 0 enqueue; EPIC untouched on fail |
+| Closure start API (REQ-12) | REQ-12 | `POST /api/v1/initiatives/closure/start` | `test_closure_start` | `verify_initiative_closure` smoke | Programme token; 202 + run_id; malformed → 4xx |
+| Done-gate (REQ-13) | REQ-13 | `closure_done_gate.assert_closure_done_gate` | `test_closure_done_gate_*` | `verify_initiative_closure` optional probe | 422; 0 enqueue; EPIC untouched on fail |
 | EPIC Done before purge (REQ-14) | REQ-14 | `ClosureStartService.start_closure` | `test_closure_start_ok` | human @ live-verify | Board hygiene before purge-app Enter-at |
-| Closure purge walk (REQ-15) | REQ-15 | `RunOrchestrator` closure lane guards | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` | `verify_closure` stage guard | purge-app → closure PR → STOP signoff-app; never meta |
+| Closure purge walk (REQ-15) | REQ-15 | `RunOrchestrator` closure lane guards | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` | `verify_initiative_closure` stage guard | purge-app → closure PR → STOP signoff-app; never meta |
 | Partial failure hygiene (REQ-20) | REQ-20 | `RunOrchestrator._partial_closure_failure_payload` | `test_closure_partial_failure_after_epic_done_records_req20` | human negative path | `partial_closure_failure`; no closure-complete claim |
-| Live closure co-ship (REQ-17) | REQ-17 | `verify_closure.py`, `tests/README.md` | unit matrix | Pass-1 implement_lane **human_approved** | [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); `verify_closure` happy 202 needs all waves Done |
+| Live closure co-ship (REQ-17) | REQ-17 | `verify_initiative_closure.py`, `tests/README.md` | unit matrix | Pass-1 implement_lane **human_approved** | [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); `verify_initiative_closure` happy 202 needs all waves Done |
 | Feature-readiness freeze (REQ-18) | REQ-18 | [`Feature-Readiness-INIT-GATEFLOW-010.md`](../reports/Feature-Readiness-INIT-GATEFLOW-010.md) | review | inspection | Proven vs deferred eng capabilities |
 
 | Gap | Status |
