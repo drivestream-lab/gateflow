@@ -6,7 +6,8 @@
 | Pin policy | `forge.commit_workspace: required` |
 | Bound head | `chore/INIT-GATEFLOW-011-spec-gateflow` |
 | Spec PR | https://github.com/drivestream-lab/gateflow/pull/159 |
-| Paths published | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-011.md` |
+| Paths published | `docs/specification/reports/Initiative-Feasibility-Report-INIT-GATEFLOW-011.md`
+| Commit | `b0304c8` |
 | Outcome | **pass** |
 | Date | 2026-08-06 |
 
