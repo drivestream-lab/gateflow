@@ -269,18 +269,18 @@
 | EPIC Done before purge (REQ-14) | REQ-14 | `ClosureStartService.start_closure` | `test_closure_start_ok` | human @ live-verify | Board hygiene before purge-app Enter-at |
 | Closure purge walk (REQ-15) | REQ-15 | `RunOrchestrator` closure lane guards | `test_closure_walk_purge_then_pr_action_stops_at_signoff_app` | `verify_closure` stage guard | purge-app → closure PR → STOP signoff-app; never meta |
 | Partial failure hygiene (REQ-20) | REQ-20 | `RunOrchestrator._partial_closure_failure_payload` | `test_closure_partial_failure_after_epic_done_records_req20` | human negative path | `partial_closure_failure`; no closure-complete claim |
-| Live closure co-ship (REQ-17) | REQ-17 | `verify_closure.py`, `tests/README.md` | unit matrix | **pending human** @ live-verify | Smoke green locally; happy 202 needs board knobs |
+| Live closure co-ship (REQ-17) | REQ-17 | `verify_closure.py`, `tests/README.md` | unit matrix | Pass-1 implement_lane **human_approved** | [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); `verify_closure` happy 202 needs all waves Done |
 | Feature-readiness freeze (REQ-18) | REQ-18 | [`Feature-Readiness-INIT-GATEFLOW-010.md`](../reports/Feature-Readiness-INIT-GATEFLOW-010.md) | review | inspection | Proven vs deferred eng capabilities |
 
 | Gap | Status |
 |-----|--------|
-| W4 closure Enter-at + freeze | **ground-spec pass (pending signoff)** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) In Progress; Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) open @ `64f34e7`; Pass-1 live-verify run `6f14f48f-…`; [`Ground-Report-INIT-GATEFLOW-010-W4.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W4.md); human `wave-signoff` merge pending |
+| W4 closure Enter-at + freeze | **ground-spec pass (pending signoff)** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) Done; Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) open; Pass-1 run `6f14f48f-…`; Pass-2 closeout `6b917688-…`; [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); [`Ground-Report-INIT-GATEFLOW-010-W4.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W4.md); human `wave-signoff` merge pending |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
 | Capability | Status |
 |------------|--------|
-| Eng lane tip parity (spec → tickets → implement → closeout → eng closure) | **W4 code green** — human live-verify + merge pending |
+| Eng lane tip parity (spec → tickets → implement → closeout → eng closure) | **W4 code green** — human `wave-signoff` merge pending |
 | PM Enter-at / meta purge | **deferred** — out of repo scope |
 | ops UI / C2 / authorize→resume | **deferred** — see Feature-Readiness |
 
