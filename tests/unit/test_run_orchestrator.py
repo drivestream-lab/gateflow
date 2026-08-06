@@ -992,6 +992,90 @@ async def test_publish_stage_workspace_optional_commits(
     assert event_arg.payload["commit_sha"] == "deadbeef"
 
 
+@pytest.mark.asyncio
+async def test_closeout_walk_applies_done_then_stops_at_wave_signoff() -> None:
+    """REQ-05: ground-spec pass → automated wave-done-action → STOP wave-signoff purpose."""
+    from src.models.forge_types import ForgeActionType
+    from src.models.handoff_models import HandoffEnvelope
+
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            model_profile="api",
+            model_id="cursor/auto",
+            model_provider="cursor",
+        )
+    )
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="ground-spec",
+            outcome="pass",
+            blockers=[],
+            human_checkpoint=False,
+        )
+    )
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    forge_action = MagicMock()
+    forge_action.apply_external_action = AsyncMock(
+        return_value=MagicMock(
+            pr_number=None,
+            action=ForgeActionType.UPDATE_BOARD_STATUS,
+            board_ticket=MagicMock(ticket_id="141", column="Done"),
+        )
+    )
+    raw = _job_payload(event_type="api_trigger").model_dump()
+    raw.pop("handoff", None)
+    raw.update(_dispatch_plan(start_node="ground-spec", model_id="cursor/auto"))
+    raw["head_ref"] = "feature/INIT-GATEFLOW-010-w3-closeout-done"
+    raw["ticket_id"] = "141"
+    orchestrator = _build_orchestrator(
+        trigger_router=_authorized_api_trigger(),
+        cursor_agent_runner=cursor_agent_runner,
+        handoff_reader=handoff_reader,
+        stage_repository=stage_repo,
+        run_event_repository=run_event_repo,
+        forge_action_service=forge_action,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is True
+    assert summary.terminal_status == RunStatusType.STOPPED.value
+    assert cursor_agent_runner.run_skill.await_count == 1
+    forge_action.apply_external_action.assert_awaited_once()
+    apply_kwargs = forge_action.apply_external_action.await_args.kwargs
+    assert apply_kwargs["node"].node_id == "wave-done-action"
+    assert apply_kwargs["ticket_ref"] == "141"
+
+    forge_events = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "forge_executed"
+    ]
+    assert any(e.workflow_node == "wave-done-action" for e in forge_events)
+
+    stopped_events = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(stopped_events) == 1
+    assert stopped_events[0].workflow_node == "wave-signoff"
+    assert stopped_events[0].payload.get("purpose") == "wave-signoff"
+
+
 def test_src_has_no_retired_checkpoint_transition_ids() -> None:
     """REQ-16 — runtime src must not hardcode retired pin checkpoint ids."""
     retired = ("gate-1", "gate-2", "wave-human-decision")

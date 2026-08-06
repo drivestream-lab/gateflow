@@ -42,7 +42,55 @@ from tests._helpers.tests_config import load_tests_config
 _PASS2_NODES = ("learning-extract", "ground-spec")
 _PASS2_NODE_SET = frozenset(_PASS2_NODES)
 _PASS2_STOP_NODE = "wave-signoff"
+_DONE_HOP_NODE = "wave-done-action"
+_AUTO_CHAIN_FORBIDDEN_STAGES = frozenset(
+    {"pre-implement", "initiative-closure", "purge-initiative-artifacts-app"}
+)
 _DEFAULT_REPORTS_DIR = "docs/specification/reports"
+
+
+def _assert_w3_closeout_timeline(detail_body: dict[str, Any]) -> int:
+    """REQ-05 / REQ-19 — Done hop, terminal purpose, no auto-chain stages."""
+    events = detail_body.get("events") or []
+    done_hops = [
+        e
+        for e in events
+        if e.get("event_type") == "forge_executed"
+        and e.get("workflow_node") == _DONE_HOP_NODE
+        and (e.get("payload") or {}).get("action") == "update_board_status"
+    ]
+    if not done_hops:
+        print(
+            "[ERROR] expected forge_executed update_board_status at "
+            f"{_DONE_HOP_NODE!r} (REQ-05 Done hop after ground-spec.pass)"
+        )
+        return 1
+    print(
+        f"[OK] wave-done-action Done hop: {len(done_hops)} "
+        "forge_executed update_board_status event(s)"
+    )
+
+    stopped = [e for e in events if e.get("event_type") == "run_stopped"]
+    if not stopped:
+        print("[ERROR] expected run_stopped event on terminal closeout run")
+        return 1
+    purpose = (stopped[-1].get("payload") or {}).get("purpose")
+    if purpose != "wave-signoff":
+        print(f"[ERROR] expected run_stopped purpose=wave-signoff, got {purpose!r}")
+        return 1
+    print("[OK] terminal run_stopped carries purpose=wave-signoff")
+
+    stages = detail_body.get("stages") or []
+    bad = [
+        str(s.get("workflow_node"))
+        for s in stages
+        if s.get("workflow_node") in _AUTO_CHAIN_FORBIDDEN_STAGES
+    ]
+    if bad:
+        print(f"[ERROR] REQ-19: closeout run must not auto-chain stages {bad}")
+        return 1
+    print("[OK] no pre-implement / closure stages on closeout run (REQ-19)")
+    return 0
 
 
 def _closeout_body(cfg: Any, *, workspace: Path) -> dict[str, Any]:
@@ -170,6 +218,10 @@ def _run_dogfood(
         print(f"[ERROR] expected workflow_node={_PASS2_STOP_NODE!r}, got {stop_node!r}")
         return 1
     print(f"[OK] terminal status={status} workflow_node={stop_node}")
+
+    w3_rc = _assert_w3_closeout_timeline(detail_body)
+    if w3_rc != 0:
+        return w3_rc
 
     if assert_learning_artifact:
         artifact = _learning_extract_path(workspace, initiative_id, wave_id)
