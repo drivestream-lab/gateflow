@@ -274,7 +274,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W4 closure Enter-at + freeze | **implement-lane green** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) In Progress; Draft PR pending `wave-pr-action`; human live-verify + Pass-2 closeout after merge |
+| W4 closure Enter-at + freeze | **ground-spec pass (pending signoff)** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) In Progress; Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) open @ `64f34e7`; Pass-1 live-verify run `6f14f48f-…`; [`Ground-Report-INIT-GATEFLOW-010-W4.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W4.md); human `wave-signoff` merge pending |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
