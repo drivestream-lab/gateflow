@@ -78,6 +78,7 @@ def create_app() -> FastAPI:
             "/internal",
             "/webhooks",
             "/api/v1/waves",
+            "/api/v1/initiatives",
             "/api/v1/runs",
             "/api/v1/metrics",
             "/api/v1/board",

@@ -49,6 +49,16 @@ def validate_branch_slug(branch_slug: str) -> str:
     return value
 
 
+def validate_closure_branch_slug(branch_slug: str) -> str:
+    """Closure head is ``feature/{INIT}-{slug}`` — slug may include wave tokens (no wave_id field)."""
+    value = branch_slug.strip()
+    if value != branch_slug or not _BRANCH_SLUG_RE.fullmatch(value):
+        raise ValueError(
+            "branch_slug must be lowercase kebab " f"(^[a-z][a-z0-9._-]*$), got {branch_slug!r}"
+        )
+    return value
+
+
 def validate_base_branch(base_branch: str) -> str:
     value = base_branch.strip()
     if value != base_branch or not value or not _BASE_BRANCH_RE.fullmatch(value):
@@ -75,6 +85,13 @@ def build_spec_head_branch(initiative_id: str) -> str:
     """Return Spec-lane head ``feature/{initiative_id}-spec`` (no wave token)."""
     initiative = validate_initiative_id(initiative_id)
     return f"feature/{initiative}-spec"
+
+
+def build_closure_head_branch(initiative_id: str, branch_slug: str) -> str:
+    """Return initiative-closure head ``feature/{initiative_id}-{branch_slug}``."""
+    initiative = validate_initiative_id(initiative_id)
+    slug = validate_closure_branch_slug(branch_slug)
+    return f"feature/{initiative}-{slug}"
 
 
 def branch_slug_from_head_ref(

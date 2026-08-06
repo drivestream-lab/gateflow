@@ -78,6 +78,13 @@ run `5385e416-…`; Pass-2 `verify_wave_closeout` dogfood run `75dd6b42-…`; bo
 [#141](https://github.com/drivestream-lab/gateflow/issues/141) Done. W4
 `/pre-implement` may proceed.
 
+**W4 implement-lane (2026-08-06):** `POST /api/v1/initiatives/closure/start`
+(REQ-12); Done-gate on `wave_ticket_ids[]` (REQ-13); EPIC → Done before
+`purge-initiative-artifacts-app` dispatch (REQ-14); closure walk stops at
+`initiative-closure-signoff-app` without meta purge (REQ-15); partial failure
+hygiene after EPIC Done (REQ-20); co-ship `verify_closure.py` (REQ-17);
+Feature-Readiness freeze (REQ-18). Human live-verify pending at Draft PR tip.
+
 **Delivery waves (product-normative; PRD §5):**
 
 | Wave | Intent | Exit PRD REQs |
