@@ -20,7 +20,7 @@
 | Review deadline | 2026-08-13 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team |
 | Approval evidence | Explicit PE acceptance via Cursor chat 2026-08-06 (TDD accepted; proceed to `/spec-implementation-plan`); no ADR_REQUIRED |
-| Approved head | `059e1f3700bfedc0cf8c4ceb6f45a78c967c2f5a` (pre-acceptance tip; acceptance commit updates tip) |
+| Approved head | `7054afbc7252a8a05c82accf425cd94d2e3bf53c` |
 
 ---
 
