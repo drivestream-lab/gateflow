@@ -15,6 +15,7 @@ from src.app import create_app
 from src.business_services.initiative_readout_service import (
     get_initiative_readout_service,
 )
+from src.business_services.spec_readout_service import get_spec_readout_service
 from src.business_services.wave_map_service import get_wave_map_service
 from src.di.dependency_container import configure_container, reset_container
 from src.exceptions.app_exceptions import NotFoundError
@@ -26,6 +27,7 @@ from src.models.initiative_readout_models import (
     InitiativeStageType,
     PrdApprovalStateType,
 )
+from src.models.spec_readout_models import SpecReadoutReadinessType, SpecReadoutResult
 from src.models.wave_map_models import WaveMapItem, WaveMapResult, WaveMapStatusType
 
 
@@ -326,6 +328,113 @@ def test_get_waves_non_get_rejected(waves_client: TestClient) -> None:
     """REQ-28 — non-GET on waves path rejected (GET-only)."""
     response = waves_client.post(
         "/api/v1/initiatives/INIT-X/waves",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _spec_readout_ready() -> SpecReadoutResult:
+    return SpecReadoutResult(
+        initiative_id="INIT-X",
+        readiness=SpecReadoutReadinessType.READY,
+        draft_spec_pr_number=99,
+        draft_spec_pr_url="https://github.com/acme/widget/pull/99",
+        spec_run_id="22222222-2222-2222-2222-222222222222",
+        next_step_node_id="initiative-feasibility",
+        next_step_label="initiative-feasibility",
+    )
+
+
+@pytest.fixture
+def spec_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_spec_readout = AsyncMock(return_value=_spec_readout_ready())
+    app = create_app()
+    app.dependency_overrides[get_spec_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def spec_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_spec_readout = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_spec_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_spec_401_without_token(spec_client: TestClient) -> None:
+    response = spec_client.get(
+        "/api/v1/initiatives/INIT-X/spec",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_spec_200_with_programme_token(spec_client: TestClient) -> None:
+    response = spec_client.get(
+        "/api/v1/initiatives/INIT-X/spec",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["readiness"] == "ready"
+    assert body["draft_spec_pr_number"] == 99
+    assert body["draft_spec_pr_url"] == "https://github.com/acme/widget/pull/99"
+
+
+def test_get_spec_404_unknown_initiative(spec_client_404: TestClient) -> None:
+    response = spec_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/spec",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_spec_non_get_rejected(spec_client: TestClient) -> None:
+    """REQ-28 — non-GET on spec path rejected (GET-only)."""
+    response = spec_client.post(
+        "/api/v1/initiatives/INIT-X/spec",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )

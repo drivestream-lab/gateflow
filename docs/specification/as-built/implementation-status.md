@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-07 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**; merge `0774e1b`) + W5 **code complete (unit)** (board [#166](https://github.com/drivestream-lab/gateflow/issues/166); live pending wave-acceptance); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -343,7 +343,20 @@
 | Gap | Status |
 |-----|--------|
 | W4 wave map readout | **human_approved** — board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
-| Later CAP-04 / CAP-06+ GETs | deferred — W5+ |
+| Later CAP-04 / CAP-06+ GETs | deferred — W5+ (see W5 matrix below) |
+
+## Capability matrix (INIT-GATEFLOW-011 W5 — spec lane readout)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Draft Spec PR link + artifacts + findings + pin next step | REQ-12 | `SpecReadoutService.get_spec_readout`; `spec_readout_models.py`; GET `/initiatives/{id}/spec` | `test_spec_readout_service`, `test_initiatives_read_api` | `verify_spec_readout` | Ready when `pr_number` or `forge_executed@spec-pr-action`; findings from handoff/stop blockers |
+| Plain not-ready before `spec-pr-action`; never broken URL | REQ-13 | `readiness=not_ready` + `readiness_reason`; `draft_spec_pr_url=null` | `test_spec_readout_service` | `verify_spec_readout` | Unavailable when initiative known but no spec-lane run (`meta_pr_url`) |
+| GET-only `/initiatives/{id}/spec`; 401; 404 unknown | REQ-28 | `initiatives_routes.py` GET + programme token | `test_initiatives_read_api` | `verify_spec_readout` | Non-GET 405; zero Forge writes |
+
+| Gap | Status |
+|-----|--------|
+| W5 spec lane readout | **code complete (unit)** — board [#166](https://github.com/drivestream-lab/gateflow/issues/166); live verify human at wave-acceptance (`verify_spec_readout`); Draft PR pending forge |
+| Later CAP-06+ GETs | deferred — W6+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
