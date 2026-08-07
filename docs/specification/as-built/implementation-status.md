@@ -316,7 +316,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W2 initiative list/detail (Gateflow-owned) | **code complete (unit)** — `make check` + `make test` (319 passed) green; live `verify_initiatives_readout` co-shipped; human `wave-acceptance` pending |
+| W2 initiative list/detail (Gateflow-owned) | **human_approved** — board [#163](https://github.com/drivestream-lab/gateflow/issues/163); PR [#174](https://github.com/drivestream-lab/gateflow/pull/174) @ `e9654c2` `wave-accepted`; Ground-Report W2 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
 | Initiative PRD-approval via meta bridge | deferred — W3 |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
