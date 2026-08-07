@@ -13,12 +13,14 @@ from fastapi.testclient import TestClient
 
 from src.app import create_app
 from src.business_services.closeout_readout_service import get_closeout_readout_service
+from src.business_services.completion_readout_service import get_completion_readout_service
 from src.business_services.implementation_readout_service import (
     get_implementation_readout_service,
 )
 from src.business_services.initiative_readout_service import (
     get_initiative_readout_service,
 )
+from src.business_services.merge_readout_service import get_merge_readout_service
 from src.business_services.spec_readout_service import get_spec_readout_service
 from src.business_services.wave_map_service import get_wave_map_service
 from src.di.dependency_container import configure_container, reset_container
@@ -26,6 +28,10 @@ from src.exceptions.app_exceptions import NotFoundError
 from src.models.closeout_readout_models import (
     CloseoutDriftStatusType,
     CloseoutReadoutResult,
+)
+from src.models.completion_readout_models import (
+    CompletionEligibilityType,
+    CompletionReadoutResult,
 )
 from src.models.implementation_readout_models import (
     ImplementationReadoutResult,
@@ -40,6 +46,7 @@ from src.models.initiative_readout_models import (
     InitiativeStageType,
     PrdApprovalStateType,
 )
+from src.models.merge_readout_models import MergeConfirmStateType, MergeReadoutResult
 from src.models.spec_readout_models import SpecReadoutReadinessType, SpecReadoutResult
 from src.models.wave_map_models import WaveMapItem, WaveMapResult, WaveMapStatusType
 
@@ -680,6 +687,216 @@ def test_get_closeout_non_get_rejected(closeout_client: TestClient) -> None:
     """REQ-28 — non-GET on closeout path rejected (GET-only)."""
     response = closeout_client.post(
         "/api/v1/initiatives/INIT-X/waves/W7/closeout",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _merge_readout() -> MergeReadoutResult:
+    return MergeReadoutResult(
+        initiative_id="INIT-X",
+        wave_id="W8",
+        owner="acme",
+        repo="widget",
+        pr_number=179,
+        merge_state=MergeConfirmStateType.MERGED,
+        merged=True,
+        merge_commit_sha="mergedeadbeef",
+        next_wave_nudge="wave W9 is now unblocked",
+    )
+
+
+def _completion_readout() -> CompletionReadoutResult:
+    return CompletionReadoutResult(
+        initiative_id="INIT-X",
+        eligibility=CompletionEligibilityType.READY_TO_CLOSE,
+        message="ready to close",
+        waiting_on=[],
+        waves=[],
+    )
+
+
+@pytest.fixture
+def merge_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_merge_readout = AsyncMock(return_value=_merge_readout())
+    app = create_app()
+    app.dependency_overrides[get_merge_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def merge_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_merge_readout = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_merge_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def completion_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_completion_readout = AsyncMock(return_value=_completion_readout())
+    app = create_app()
+    app.dependency_overrides[get_completion_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def completion_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_completion_readout = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run, EPIC, or Feature ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_completion_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_merge_401_without_token(merge_client: TestClient) -> None:
+    response = merge_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W8/merge",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_merge_200_with_programme_token(merge_client: TestClient) -> None:
+    response = merge_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W8/merge",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["wave_id"] == "W8"
+    assert body["merged"] is True
+    assert body["merge_commit_sha"] == "mergedeadbeef"
+    assert body["next_wave_nudge"] == "wave W9 is now unblocked"
+
+
+def test_get_merge_404_unknown_initiative(merge_client_404: TestClient) -> None:
+    response = merge_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/waves/W8/merge",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_merge_non_get_rejected(merge_client: TestClient) -> None:
+    response = merge_client.post(
+        "/api/v1/initiatives/INIT-X/waves/W8/merge",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def test_get_completion_401_without_token(completion_client: TestClient) -> None:
+    response = completion_client.get(
+        "/api/v1/initiatives/INIT-X/completion",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_completion_200_with_programme_token(completion_client: TestClient) -> None:
+    response = completion_client.get(
+        "/api/v1/initiatives/INIT-X/completion",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["eligibility"] == CompletionEligibilityType.READY_TO_CLOSE.value
+    assert body["message"] == "ready to close"
+
+
+def test_get_completion_404_unknown_initiative(completion_client_404: TestClient) -> None:
+    response = completion_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/completion",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+
+
+def test_get_completion_non_get_rejected(completion_client: TestClient) -> None:
+    response = completion_client.post(
+        "/api/v1/initiatives/INIT-X/completion",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )

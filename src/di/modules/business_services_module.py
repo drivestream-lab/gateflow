@@ -7,12 +7,14 @@ from src.business_services.board_service import BoardService
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.closure_start_service import ClosureStartService
 from src.business_services.closeout_readout_service import CloseoutReadoutService
+from src.business_services.completion_readout_service import CompletionReadoutService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
 from src.business_services.implementation_readout_service import ImplementationReadoutService
 from src.business_services.initiative_readout_service import InitiativeReadoutService
 from src.business_services.job_worker_service import JobWorkerService
 from src.business_services.learning_ingest_service import LearningIngestService
+from src.business_services.merge_readout_service import MergeReadoutService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.notifier import Notifier
@@ -51,6 +53,8 @@ class BusinessServicesModule(Module):
         binder.bind(SpecReadoutService, scope=singleton)
         binder.bind(ImplementationReadoutService, scope=singleton)
         binder.bind(CloseoutReadoutService, scope=singleton)
+        binder.bind(MergeReadoutService, scope=singleton)
+        binder.bind(CompletionReadoutService, scope=singleton)
         binder.bind(ForgeActionService, scope=singleton)
         binder.bind(LearningIngestService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)

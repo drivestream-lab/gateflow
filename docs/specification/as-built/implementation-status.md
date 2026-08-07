@@ -383,7 +383,22 @@
 | Gap | Status |
 |-----|--------|
 | W7 closeout readout + drift | **human_approved** — board [#168](https://github.com/drivestream-lab/gateflow/issues/168); PR [#179](https://github.com/drivestream-lab/gateflow/pull/179) @ `6bd8336` `wave-accepted`; live smoke human at wave-acceptance |
-| Later CAP-08+ GETs | deferred — W8+ |
+| Later CAP-08+ GETs | deferred — W8+ (see W8 matrix below) |
+
+## Capability matrix (INIT-GATEFLOW-011 W8 — merge confirm + completion)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Merge confirm via CAP-01 `wave-signoff` | REQ-21 | `MergeReadoutService.get_merge_readout`; `merge_readout_models.py`; GET `.../waves/{wave_id}/merge` | `test_merge_readout_service`, `test_initiatives_read_api` | `verify_merge_and_completion` | Reuses `CheckpointEvidenceService.evaluate`; PR `merged` + `merge_commit_sha` |
+| Next-wave nudge after confirmed merge | REQ-22 | nudge when next CAP-05 status is `ready-to-start` | `test_merge_readout_service` | `verify_merge_and_completion` | Plain `"wave W{n+1} is now unblocked"` |
+| Completion eligibility rollup | REQ-23 | `CompletionReadoutService.get_completion_readout`; GET `.../completion` | `test_completion_readout_service` | `verify_merge_and_completion` | ready_to_close / waiting_on_waves / no_waves_found |
+| Pure CAP-05 reuse (no parallel status logic) | REQ-24 | calls `WaveMapService.get_wave_map` only | `test_completion_readout_service` | `verify_merge_and_completion` | Echoes `waves[]` for transparency |
+| GET-only merge + completion; 401; 404 | REQ-28 | `initiatives_routes.py` + programme token | `test_initiatives_read_api` | `verify_merge_and_completion` | Non-GET 405; zero Forge writes |
+
+| Gap | Status |
+|-----|--------|
+| W8 merge confirm + completion | **code complete (unit)** — board [#169](https://github.com/drivestream-lab/gateflow/issues/169); live smoke pending wave-acceptance |
+| Later CAP-10 GETs | deferred — W9+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
