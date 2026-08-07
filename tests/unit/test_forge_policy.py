@@ -128,7 +128,10 @@ def test_pin_matrix_implement_lane_commit_workspace() -> None:
     )
     assert engine.get_node("loop-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
     # No /verify content skill on pin tip (wave-acceptance is the human prove checkpoint).
-    assert engine.get_node("learning-extract").forge.commit_workspace == CommitWorkspaceModeType.OPTIONAL
+    assert (
+        engine.get_node("learning-extract").forge.commit_workspace
+        == CommitWorkspaceModeType.OPTIONAL
+    )
     assert engine.get_node("ground-spec").forge.commit_workspace == CommitWorkspaceModeType.REQUIRED
 
 
