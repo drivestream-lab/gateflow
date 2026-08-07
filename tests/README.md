@@ -488,6 +488,29 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_wave_closeout_readout
 ```
 
+## Feature map (INIT-GATEFLOW-011 W8 — merge confirm + completion)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Merge confirm via CAP-01 wave-signoff (REQ-21) | `verify_merge_and_completion` | `test_merge_readout_service`, `test_initiatives_read_api` |
+| Next-wave nudge after merge (REQ-22) | `verify_merge_and_completion` | `test_merge_readout_service` |
+| Completion eligibility rollup (REQ-23/24) | `verify_merge_and_completion` | `test_completion_readout_service` |
+| GET merge + completion GET-only; 401 / 404 (REQ-28) | `verify_merge_and_completion` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_merge_and_completion` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Merge confirm + completion (INIT-GATEFLOW-011 W8)
+
+```bash
+# Smoke (always): 401/405/404 on .../merge and .../completion
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   export GATEFLOW_WAVE_ID=W8
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_merge_and_completion
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
