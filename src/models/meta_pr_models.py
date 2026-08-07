@@ -1,5 +1,6 @@
-"""Meta PR accept-gate DTOs (ADR-010 / INIT-006 W4)."""
+"""Meta PR accept-gate DTOs (ADR-010 / INIT-006 W4) + CAP-01 read shapes (INIT-011)."""
 
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -30,6 +31,39 @@ class GithubPullRequestBase(GithubPullRequestRef):
     """Minimal GitHub PR base shape."""
 
 
+class GithubPullRequestUser(BaseModel):
+    """Minimal GitHub user shape on review payloads."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    login: str = Field(default="")
+
+
+class GithubPullRequestReviewDocument(BaseModel):
+    """Validated GitHub pull-request review at the ForgeClient edge (CAP-01)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: Optional[int] = Field(default=None)
+    user: GithubPullRequestUser = Field(default_factory=GithubPullRequestUser)
+    state: str = Field(default="", description="APPROVED | CHANGES_REQUESTED | COMMENTED | …")
+    submitted_at: Optional[datetime] = Field(default=None)
+    commit_id: Optional[str] = Field(default=None)
+
+
+class GithubCheckRunDocument(BaseModel):
+    """Validated GitHub check-run at the ForgeClient edge (CAP-01)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(default="")
+    status: str = Field(default="", description="queued | in_progress | completed | …")
+    conclusion: Optional[str] = Field(
+        default=None, description="success | failure | neutral | … when completed"
+    )
+    head_sha: str = Field(default="")
+
+
 class GithubPullRequestDocument(BaseModel):
     """Validated GitHub pull-request payload at the ForgeClient edge."""
 
@@ -41,6 +75,9 @@ class GithubPullRequestDocument(BaseModel):
     labels: list[GithubPullRequestLabel] = Field(default_factory=list)
     head: GithubPullRequestHead = Field(default_factory=GithubPullRequestHead)
     base: GithubPullRequestBase = Field(default_factory=GithubPullRequestBase)
+    merged: bool = Field(default=False, description="Whether the PR is merged")
+    merge_commit_sha: Optional[str] = Field(default=None)
+    merged_at: Optional[datetime] = Field(default=None)
 
 
 class GithubIssueLabel(BaseModel):

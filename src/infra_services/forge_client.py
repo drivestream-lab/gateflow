@@ -13,7 +13,12 @@ from src.infra_services.base_infra_service import BaseInfraService
 from src.infra_services.github_token_provider import GithubTokenProvider
 from src.logging import get_logger
 from src.models.forge_models import CommitPathsResult
-from src.models.meta_pr_models import GithubIssueDocument, GithubPullRequestDocument
+from src.models.meta_pr_models import (
+    GithubCheckRunDocument,
+    GithubIssueDocument,
+    GithubPullRequestDocument,
+    GithubPullRequestReviewDocument,
+)
 
 logger = get_logger()
 
@@ -422,7 +427,7 @@ class ForgeClient(BaseInfraService):
     async def get_pull_request(
         self, owner: str, repo: str, pr_number: int
     ) -> GithubPullRequestDocument:
-        """Fetch one pull request by number (spec-lane meta accept-gate)."""
+        """Fetch one pull request by number (spec-lane meta accept-gate + CAP-01)."""
         client = self._require_client()
         response = await client.get(f"/repos/{owner}/{repo}/pulls/{pr_number}")
         response.raise_for_status()
@@ -432,9 +437,53 @@ class ForgeClient(BaseInfraService):
             owner=owner,
             repo=repo,
             pr_number=pr_number,
+            merged=document.merged,
             operation="get_pull_request",
         )
         return document
+
+    async def list_reviews(
+        self, owner: str, repo: str, pr_number: int
+    ) -> list[GithubPullRequestReviewDocument]:
+        """List pull-request reviews (CAP-01 read-only evidence)."""
+        client = self._require_client()
+        response = await client.get(f"/repos/{owner}/{repo}/pulls/{pr_number}/reviews")
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise ValueError("GitHub reviews response must be a list")
+        reviews = [GithubPullRequestReviewDocument.model_validate(item) for item in payload]
+        logger.info(
+            "ForgeClient pull request reviews listed",
+            owner=owner,
+            repo=repo,
+            pr_number=pr_number,
+            review_count=len(reviews),
+            operation="list_reviews",
+        )
+        return reviews
+
+    async def list_check_runs(
+        self, owner: str, repo: str, ref_sha: str
+    ) -> list[GithubCheckRunDocument]:
+        """List check-runs for a commit SHA (CAP-01 read-only evidence)."""
+        client = self._require_client()
+        response = await client.get(f"/repos/{owner}/{repo}/commits/{ref_sha}/check-runs")
+        response.raise_for_status()
+        payload = response.json()
+        raw_runs = payload.get("check_runs") if isinstance(payload, dict) else None
+        if not isinstance(raw_runs, list):
+            raise ValueError("GitHub check-runs response missing check_runs list")
+        check_runs = [GithubCheckRunDocument.model_validate(item) for item in raw_runs]
+        logger.info(
+            "ForgeClient check runs listed",
+            owner=owner,
+            repo=repo,
+            ref_sha=ref_sha,
+            check_run_count=len(check_runs),
+            operation="list_check_runs",
+        )
+        return check_runs
 
     async def get_issue(self, owner: str, repo: str, issue_number: int) -> GithubIssueDocument:
         """Fetch one issue by number."""
