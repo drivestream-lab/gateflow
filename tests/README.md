@@ -356,21 +356,46 @@ set -a && source .env && set +a
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Initiative list/detail from runs + board EPIC tickets (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
-| `prd_approval=unavailable` until W3 meta bridge (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
+| `prd_approval` present (W2 stub unavailable; W3 populates via meta) (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
 | GET-only on `/initiatives` + `/initiatives/{id}`; 401 without token; 404 unknown initiative (REQ-28) | `verify_initiatives_readout` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_initiatives_readout` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_INITIATIVE_ID` for a live detail assert).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiatives_readout` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_INITIATIVE_ID` for a live detail assert). Prefer **W3** `verify_initiative_meta_bridge` once the meta bridge is on the tip.
 
 ### Initiative list/detail (INIT-GATEFLOW-011 W2)
 
 ```bash
-# Smoke (always): 401/405/404-unknown-initiative + list shape with prd_approval=unavailable
+# Smoke (always): 401/405/404-unknown-initiative + list shape
 # Live detail when:
 #   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
 #   gateflow.org / gateflow.repo from tests/config.yaml (board EPIC repo)
 
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_initiatives_readout
+```
+
+## Feature map (INIT-GATEFLOW-011 W3 — meta bridge + partial success)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| PRD approval via CAP-01 on meta PR (REQ-09) | `verify_initiative_meta_bridge` | `test_initiative_readout` |
+| Meta-down / missing meta → 200 + `unavailable` + owned fields (REQ-11) | `verify_initiative_meta_bridge` | `test_initiative_readout` |
+| GET-only / 401 / 404 unknown (REQ-28) | `verify_initiative_meta_bridge` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_meta_bridge` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Initiative meta bridge (INIT-GATEFLOW-011 W3)
+
+```bash
+# Smoke (always): 401/405/404 + list prd_approval vocabulary + owned fields
+# Live meta-up detail when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   optional: export GATEFLOW_EXPECT_PRD_APPROVAL=satisfied|not_satisfied|unavailable|could_not_verify
+# Live meta-down detail when:
+#   export GATEFLOW_META_DOWN_INITIATIVE_ID=<initiative without meta_pr_url>
+#   (expects prd_approval=unavailable on HTTP 200)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_initiative_meta_bridge
 ```
 
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
