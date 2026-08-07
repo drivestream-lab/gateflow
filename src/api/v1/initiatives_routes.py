@@ -1,4 +1,4 @@
-"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4/W5)."""
+"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4/W5/W6)."""
 
 from typing import Annotated
 
@@ -8,6 +8,10 @@ from src.api.v1.programme_token import verify_programme_service_token
 from src.business_services.closure_start_service import (
     ClosureStartService,
     get_closure_start_service,
+)
+from src.business_services.implementation_readout_service import (
+    ImplementationReadoutService,
+    get_implementation_readout_service,
 )
 from src.business_services.initiative_readout_service import (
     InitiativeReadoutService,
@@ -19,6 +23,7 @@ from src.business_services.spec_readout_service import (
 )
 from src.business_services.wave_map_service import WaveMapService, get_wave_map_service
 from src.models.closure_models import ClosureStartRequest, ClosureStartResponse
+from src.models.implementation_readout_models import ImplementationReadoutResult
 from src.models.initiative_readout_models import (
     InitiativeListResult,
     InitiativeReadout,
@@ -92,6 +97,26 @@ async def get_initiative_waves(
     404 when no run, EPIC, or Feature ticket exists for ``initiative_id``.
     """
     return await service.get_wave_map(initiative_id, org=org, repo=repo)
+
+
+@router.get(
+    "/initiatives/{initiative_id}/waves/{wave_id}/implementation",
+    response_model=ImplementationReadoutResult,
+)
+async def get_wave_implementation(
+    initiative_id: str,
+    wave_id: str,
+    org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
+    repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
+    _: None = Depends(verify_programme_service_token),
+    service: ImplementationReadoutService = Depends(get_implementation_readout_service),
+) -> ImplementationReadoutResult:
+    """Wave implement-lane progress from run timeline (CAP-06).
+
+    REQ-16/17/28 — per-task progress + Draft PR when present; named failure on
+    stop; GET-only. 404 when no run or EPIC exists for ``initiative_id``.
+    """
+    return await service.get_implementation_readout(initiative_id, wave_id, org=org, repo=repo)
 
 
 @router.get(

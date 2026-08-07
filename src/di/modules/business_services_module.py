@@ -8,6 +8,7 @@ from src.business_services.checkpoint_evidence_service import CheckpointEvidence
 from src.business_services.closure_start_service import ClosureStartService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
+from src.business_services.implementation_readout_service import ImplementationReadoutService
 from src.business_services.initiative_readout_service import InitiativeReadoutService
 from src.business_services.job_worker_service import JobWorkerService
 from src.business_services.learning_ingest_service import LearningIngestService
@@ -47,6 +48,7 @@ class BusinessServicesModule(Module):
         binder.bind(InitiativeReadoutService, scope=singleton)
         binder.bind(WaveMapService, scope=singleton)
         binder.bind(SpecReadoutService, scope=singleton)
+        binder.bind(ImplementationReadoutService, scope=singleton)
         binder.bind(ForgeActionService, scope=singleton)
         binder.bind(LearningIngestService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)
