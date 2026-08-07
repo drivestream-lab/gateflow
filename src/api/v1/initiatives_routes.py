@@ -1,10 +1,14 @@
-"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4–W8)."""
+"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4–W9)."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
 from src.api.v1.programme_token import verify_programme_service_token
+from src.business_services.closure_preview_service import (
+    ClosurePreviewService,
+    get_closure_preview_service,
+)
 from src.business_services.closure_start_service import (
     ClosureStartService,
     get_closure_start_service,
@@ -36,6 +40,7 @@ from src.business_services.spec_readout_service import (
 from src.business_services.wave_map_service import WaveMapService, get_wave_map_service
 from src.models.closeout_readout_models import CloseoutReadoutResult
 from src.models.closure_models import ClosureStartRequest, ClosureStartResponse
+from src.models.closure_preview_models import ClosurePreviewResult
 from src.models.completion_readout_models import CompletionReadoutResult
 from src.models.implementation_readout_models import ImplementationReadoutResult
 from src.models.initiative_readout_models import (
@@ -191,6 +196,25 @@ async def get_initiative_completion(
     GET-only.
     """
     return await service.get_completion_readout(initiative_id, org=org, repo=repo)
+
+
+@router.get(
+    "/initiatives/{initiative_id}/closure",
+    response_model=ClosurePreviewResult,
+)
+async def get_initiative_closure_preview(
+    initiative_id: str,
+    org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
+    repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
+    _: None = Depends(verify_programme_service_token),
+    service: ClosurePreviewService = Depends(get_closure_preview_service),
+) -> ClosurePreviewResult:
+    """Closure preview from purge skill plan + CAP-01 signoffs (CAP-10).
+
+    REQ-25/26/27/28 — pre/post purge lists; CAP-01 for closure signoff checkpoints;
+    GET-only (distinct from POST /initiatives/closure/start).
+    """
+    return await service.get_closure_preview(initiative_id, org=org, repo=repo)
 
 
 @router.get(

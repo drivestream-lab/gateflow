@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from src.app import create_app
 from src.business_services.closeout_readout_service import get_closeout_readout_service
+from src.business_services.closure_preview_service import get_closure_preview_service
 from src.business_services.completion_readout_service import get_completion_readout_service
 from src.business_services.implementation_readout_service import (
     get_implementation_readout_service,
@@ -28,6 +29,12 @@ from src.exceptions.app_exceptions import NotFoundError
 from src.models.closeout_readout_models import (
     CloseoutDriftStatusType,
     CloseoutReadoutResult,
+)
+from src.models.closure_preview_models import (
+    ClosurePreviewResult,
+    PurgePlanPreview,
+    PurgePreviewPhaseType,
+    build_purge_plan_preview,
 )
 from src.models.completion_readout_models import (
     CompletionEligibilityType,
@@ -897,6 +904,116 @@ def test_get_completion_404_unknown_initiative(completion_client_404: TestClient
 def test_get_completion_non_get_rejected(completion_client: TestClient) -> None:
     response = completion_client.post(
         "/api/v1/initiatives/INIT-X/completion",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _closure_preview() -> ClosurePreviewResult:
+    plan: PurgePlanPreview = build_purge_plan_preview("INIT-X")
+    return ClosurePreviewResult(
+        initiative_id="INIT-X",
+        owner="acme",
+        repo="widget",
+        purge_phase=PurgePreviewPhaseType.NOT_YET_RUN,
+        purge_phase_message="not yet run",
+        plan=plan,
+        execution=None,
+        no_closure_run_reason="No closure-lane run found for this initiative",
+    )
+
+
+@pytest.fixture
+def closure_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_closure_preview = AsyncMock(return_value=_closure_preview())
+    app = create_app()
+    app.dependency_overrides[get_closure_preview_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def closure_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_closure_preview = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_closure_preview_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_closure_401_without_token(closure_client: TestClient) -> None:
+    response = closure_client.get(
+        "/api/v1/initiatives/INIT-X/closure",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_closure_200_with_programme_token(closure_client: TestClient) -> None:
+    response = closure_client.get(
+        "/api/v1/initiatives/INIT-X/closure",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["purge_phase"] == PurgePreviewPhaseType.NOT_YET_RUN.value
+    assert body["purge_phase_message"] == "not yet run"
+    assert body["plan"]["planned_delete"]
+    assert body["plan"]["planned_keep"]
+    assert body["execution"] is None
+
+
+def test_get_closure_404_unknown_initiative(closure_client_404: TestClient) -> None:
+    response = closure_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/closure",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_closure_non_get_rejected(closure_client: TestClient) -> None:
+    response = closure_client.post(
+        "/api/v1/initiatives/INIT-X/closure",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )

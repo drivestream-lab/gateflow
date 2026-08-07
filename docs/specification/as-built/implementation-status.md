@@ -398,7 +398,20 @@
 | Gap | Status |
 |-----|--------|
 | W8 merge confirm + completion | **human_approved** — board [#169](https://github.com/drivestream-lab/gateflow/issues/169); PR [#180](https://github.com/drivestream-lab/gateflow/pull/180) @ `a0de226` `wave-accepted`; Ground-Report W8 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
-| Later CAP-10 GETs | deferred — W9+ |
+| Later CAP-10 GETs | see W9 matrix below |
+
+## Capability matrix (INIT-GATEFLOW-011 W9 — closure preview + CAP-01 reuse)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Pre-purge plan from purge allowlist | REQ-25 | `ClosurePreviewService` + `build_purge_plan_preview`; GET `.../closure` | `test_closure_preview_service`, `test_initiatives_read_api` | `verify_closure_preview` | plan_source cites artifact-write-contract; `not_yet_run` when purge-app not executed |
+| Post-purge deleted/kept | REQ-26 | execution from handoff `signals.deleted` / `refused` / `missing_ok` | `test_closure_preview_service` | `verify_closure_preview` | Prefer run handoff / `run_stopped` handoff_context |
+| CAP-01 closure signoff reuse | REQ-27 | `CheckpointEvidenceService.evaluate` for `initiative-closure-signoff-app` + `-meta` | `test_closure_preview_service` | `verify_closure_preview` | When `closure_pr_number` present |
+| GET-only closure preview; 401; 404 | REQ-28 | `initiatives_routes.py` GET + programme token | `test_initiatives_read_api` | `verify_closure_preview` | Distinct from POST `.../closure/start`; non-GET 405 |
+
+| Gap | Status |
+|-----|--------|
+| W9 closure preview + CAP-01 reuse | **human_approved** — board [#170](https://github.com/drivestream-lab/gateflow/issues/170); PR [#181](https://github.com/drivestream-lab/gateflow/pull/181) @ `1ce031f` `wave-accepted`; Ground-Report W9 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
