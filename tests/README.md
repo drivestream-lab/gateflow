@@ -420,6 +420,28 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_wave_map
 ```
 
+## Feature map (INIT-GATEFLOW-011 W5 — spec lane readout)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Draft Spec PR + pin next step + findings when ready (REQ-12) | `verify_spec_readout` | `test_spec_readout_service`, `test_initiatives_read_api` |
+| Plain not-ready before `spec-pr-action`; no broken URL (REQ-13) | `verify_spec_readout` | `test_spec_readout_service` |
+| GET `/initiatives/{id}/spec` GET-only; 401 / 404 unknown (REQ-28) | `verify_spec_readout` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_spec_readout` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Spec lane readout (INIT-GATEFLOW-011 W5)
+
+```bash
+# Smoke (always): 401/405/404 on /initiatives/{id}/spec
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   (expects 200 + readiness vocabulary; not_ready/unavailable ⇒ null draft_spec_pr_url)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_spec_readout
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
