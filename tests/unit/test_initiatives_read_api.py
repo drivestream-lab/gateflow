@@ -1,7 +1,8 @@
-"""Unit tests for initiatives read-out API (INIT-GATEFLOW-011 TASK-W2-02).
+"""Unit tests for initiatives read-out API (INIT-GATEFLOW-011 TASK-W2-02 / W4-02).
 
 REQ-09/10: GET /initiatives + GET /initiatives/{id} return Gateflow-owned
-fields under programme-token auth. REQ-28: GET-only on the new surface
+fields under programme-token auth. REQ-14/15: GET /initiatives/{id}/waves
+returns per-wave status from board+runs. REQ-28: GET-only on the new surface
 (non-GET rejected; the existing POST /initiatives/closure/start is unchanged).
 """
 
@@ -14,6 +15,7 @@ from src.app import create_app
 from src.business_services.initiative_readout_service import (
     get_initiative_readout_service,
 )
+from src.business_services.wave_map_service import get_wave_map_service
 from src.di.dependency_container import configure_container, reset_container
 from src.exceptions.app_exceptions import NotFoundError
 from src.models.initiative_readout_models import (
@@ -24,6 +26,7 @@ from src.models.initiative_readout_models import (
     InitiativeStageType,
     PrdApprovalStateType,
 )
+from src.models.wave_map_models import WaveMapItem, WaveMapResult, WaveMapStatusType
 
 
 def _list_item(initiative_id: str = "INIT-X") -> InitiativeListItem:
@@ -190,6 +193,139 @@ def test_get_initiative_non_get_rejected(initiatives_client: TestClient) -> None
     """REQ-28 — non-GET on detail path rejected (GET-only)."""
     response = initiatives_client.post(
         "/api/v1/initiatives/INIT-X",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _wave_map_result() -> WaveMapResult:
+    return WaveMapResult(
+        initiative_id="INIT-X",
+        waves=[
+            WaveMapItem(
+                wave_id="W0",
+                title="[INIT-X W0] Slice",
+                status=WaveMapStatusType.DONE,
+                ticket_id="160",
+                ticket_url="https://github.com/acme/widget/issues/160",
+                board_column="Done",
+            ),
+            WaveMapItem(
+                wave_id="W1",
+                title="[INIT-X W1] Slice",
+                status=WaveMapStatusType.ACTIVE,
+                ticket_id="161",
+                ticket_url="https://github.com/acme/widget/issues/161",
+                board_column="In Progress",
+                in_flight_run_id="11111111-1111-1111-1111-111111111111",
+            ),
+            WaveMapItem(
+                wave_id="W2",
+                title="[INIT-X W2] Slice",
+                status=WaveMapStatusType.BLOCKED,
+                block_reason="predecessor W1 not Done",
+                ticket_id="162",
+                ticket_url="https://github.com/acme/widget/issues/162",
+                board_column="Todo",
+            ),
+        ],
+    )
+
+
+@pytest.fixture
+def waves_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_wave_map = AsyncMock(return_value=_wave_map_result())
+    app = create_app()
+    app.dependency_overrides[get_wave_map_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def waves_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_wave_map = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_wave_map_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_waves_401_without_token(waves_client: TestClient) -> None:
+    response = waves_client.get(
+        "/api/v1/initiatives/INIT-X/waves",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_waves_200_with_programme_token(waves_client: TestClient) -> None:
+    response = waves_client.get(
+        "/api/v1/initiatives/INIT-X/waves",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert len(body["waves"]) == 3
+    assert body["waves"][0]["status"] == "done"
+    assert body["waves"][1]["status"] == "active"
+    assert body["waves"][1]["in_flight_run_id"] == "11111111-1111-1111-1111-111111111111"
+    assert body["waves"][2]["status"] == "blocked"
+    assert body["waves"][2]["block_reason"] == "predecessor W1 not Done"
+
+
+def test_get_waves_404_unknown_initiative(waves_client_404: TestClient) -> None:
+    """REQ-14 — unknown initiative → 404 (same fail-closed identity as CAP-03)."""
+    response = waves_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/waves",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_waves_non_get_rejected(waves_client: TestClient) -> None:
+    """REQ-28 — non-GET on waves path rejected (GET-only)."""
+    response = waves_client.post(
+        "/api/v1/initiatives/INIT-X/waves",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )
