@@ -397,7 +397,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W8 merge confirm + completion | **code complete (unit)** — board [#169](https://github.com/drivestream-lab/gateflow/issues/169); live smoke pending wave-acceptance |
+| W8 merge confirm + completion | **human_approved** — board [#169](https://github.com/drivestream-lab/gateflow/issues/169); PR [#180](https://github.com/drivestream-lab/gateflow/pull/180) @ `a0de226` `wave-accepted`; Ground-Report W8 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
 | Later CAP-10 GETs | deferred — W9+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
