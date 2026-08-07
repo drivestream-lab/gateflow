@@ -145,6 +145,32 @@ class RunEventPayloadDocument(BaseModel):
     event_type: str
 
 
+class CheckpointCheckPayloadDocument(BaseModel):
+    """JSONB payload for ``checkpoint_check`` run events (REQ-06).
+
+    Persisted on every CAP-01 evaluate attempt that resolves to a run; the
+    record is historical (REQ-07) and must never be substituted for a live
+    verdict. ``initiative_id``/``wave_id`` are populated when the resolved
+    run carries them.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    event_type: str = Field(default="checkpoint_check")
+    checkpoint_id: str
+    owner: str
+    repo: str
+    pr_number: int
+    verdict: str
+    checked_sha: Optional[str] = Field(default=None)
+    checked_at: datetime
+    missing_count: int = Field(default=0)
+    missing_items: list[dict[str, Any]] = Field(default_factory=list)
+    stale_reason: Optional[str] = Field(default=None)
+    initiative_id: Optional[str] = Field(default=None)
+    wave_id: Optional[str] = Field(default=None)
+
+
 class RunEventCreate(BaseCreateModel):
     run_id: UUID
     event_type: str

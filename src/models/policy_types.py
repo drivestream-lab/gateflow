@@ -33,6 +33,7 @@ class RunEventNameType(str, Enum):
     STAGE_STARTED = "stage_started"
     STAGE_COMPLETED = "stage_completed"
     RUN_STOPPED = "run_stopped"
+    CHECKPOINT_CHECK = "checkpoint_check"
 
 
 class AgentRunOutcomeType(str, Enum):

@@ -226,6 +226,28 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         row = result.scalar_one_or_none()
         return self._to_model(row) if row is not None else None
 
+    async def find_run_by_pr(
+        self,
+        session: AsyncSession,
+        org: str,
+        repo: str,
+        pr_number: int,
+    ) -> Optional[RunModel]:
+        """Most recent run for a PR (any status) — used to correlate CAP-01
+        check records to initiative/wave when resolvable (REQ-06)."""
+        stmt = (
+            select(RunSchema)
+            .where(
+                RunSchema.org == org,
+                RunSchema.repo == repo,
+                RunSchema.pr_number == pr_number,
+            )
+            .order_by(RunSchema.created_at.desc())
+        )
+        result = await session.execute(stmt.limit(1))
+        row = result.scalar_one_or_none()
+        return self._to_model(row) if row is not None else None
+
     async def list_runs(
         self,
         session: AsyncSession,

@@ -90,6 +90,47 @@ class CheckpointStatusResult(BaseModel):
     stale_reason: Optional[str] = Field(default=None)
 
 
+class CheckpointHistoryRecord(BaseModel):
+    """One persisted ``checkpoint_check`` record marked historical (REQ-07).
+
+    Historical records must never be substituted for a live verdict when the
+    caller needs a current decision.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    historical: bool = Field(default=True, description="Always true — marks record as historical")
+    run_id: str
+    checkpoint_id: str
+    owner: str
+    repo: str
+    pr_number: int
+    verdict: CheckpointVerdictType
+    checked_sha: Optional[str] = Field(default=None)
+    checked_at: datetime
+    missing_count: int = Field(default=0)
+    missing_items: list[CheckpointMissingItem] = Field(default_factory=list)
+    stale_reason: Optional[str] = Field(default=None)
+    initiative_id: Optional[str] = Field(default=None)
+    wave_id: Optional[str] = Field(default=None)
+    recorded_at: datetime
+
+
+class CheckpointHistoryResult(BaseModel):
+    """Wrapper for history responses — records are explicitly historical."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    owner: str
+    repo: str
+    pr_number: int
+    historical: bool = Field(
+        default=True,
+        description="True — these records are historical, never a live verdict",
+    )
+    records: list[CheckpointHistoryRecord] = Field(default_factory=list)
+
+
 # Product-normative label association (PRD mapping table), validated against
 # the pin label catalog — never invent label names absent from the contract.
 CHECKPOINT_LABEL_RULES: dict[str, tuple[list[str], list[str]]] = {

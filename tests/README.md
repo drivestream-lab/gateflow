@@ -326,6 +326,31 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_checkpoint_status
 ```
 
+## Feature map (INIT-GATEFLOW-011 W1 — check persistence + composed readout)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Persist `checkpoint_check` run_event on every evaluate (REQ-06) | `verify_checkpoint_history` | `test_checkpoint_persistence` |
+| Stale evidence → not_satisfied + reason; checked_sha/checked_at always present (REQ-03) | — | `test_checkpoint_evidence` (stale cases) |
+| GET `/api/v1/checkpoints/history` marks records historical (REQ-07/28) | `verify_checkpoint_history` | `test_checkpoints_api` |
+| Composed readout via initiative+wave; 404 no run found for this wave (REQ-08/28) | `verify_checkpoint_history` | `test_checkpoints_api`, `test_checkpoint_persistence` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_history` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live persist + optional `GATEFLOW_COMPOSED_INITIATIVE`/`GATEFLOW_COMPOSED_WAVE` for composed readout).
+
+### Checkpoint history + composed readout (INIT-GATEFLOW-011 W1)
+
+```bash
+# Smoke (always): 401/405/400/404-no-run-for-wave + history empty 200
+# Live persist + stale when:
+#   export GATEFLOW_CHECKPOINT_PR=<fixture PR number>
+#   # optional: GATEFLOW_CHECKPOINT_ID=coding-readiness (default)
+#   # optional composed readout:
+#   export GATEFLOW_COMPOSED_INITIATIVE=INIT-X GATEFLOW_COMPOSED_WAVE=W0
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_checkpoint_history
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
