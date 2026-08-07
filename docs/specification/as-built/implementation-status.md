@@ -276,6 +276,22 @@
 |-----|--------|
 | W4 closure Enter-at + freeze | **ground-spec pass (pending signoff)** — board [#142](https://github.com/drivestream-lab/gateflow/issues/142) Done; Draft PR [#152](https://github.com/drivestream-lab/gateflow/pull/152) open; Pass-1 run `6f14f48f-…`; Pass-2 closeout `6b917688-…`; [`Live-Verify-INIT-GATEFLOW-010-W4.md`](../reports/Live-Verify-INIT-GATEFLOW-010-W4.md); [`Ground-Report-INIT-GATEFLOW-010-W4.md`](../reports/Ground-Report-INIT-GATEFLOW-010-W4.md); human `wave-signoff` merge pending |
 
+## Capability matrix (INIT-GATEFLOW-011 W0 — checkpoint status-check foundation)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| ForgeClient reviews / check-runs / merge fields | REQ-02 | `ForgeClient.list_reviews`, `list_check_runs`, `GithubPullRequestDocument.merged*` | `test_forge_client` | secondary | Read-only; CAP-01 evidence |
+| Pin checkpoint vocabulary | REQ-02 | `WorkflowEngine.get_github_checkpoint_vocab` | `test_checkpoint_vocab` | — | Six `review_roles` keys; labels validated against contract catalog |
+| Live CAP-01 evaluate | REQ-01, REQ-04, REQ-05 | `CheckpointEvidenceService.evaluate` | `test_checkpoint_evidence` | `verify_checkpoint_status` | Itemized misses; GitHub down → `could_not_verify`; 0 mutate calls |
+| GET `/api/v1/checkpoints/status` | REQ-01, REQ-05, REQ-28 | `checkpoints_routes.py`, `public_paths` | `test_checkpoints_api` | `verify_checkpoint_status` | Programme-token; non-GET 405; no persistence (W1) |
+
+| Gap | Status |
+|-----|--------|
+| Product INIT | **Accepted** — [`product/INIT-GATEFLOW-011-gateflow.md`](../product/INIT-GATEFLOW-011-gateflow.md); PE package accept 2026-08-06; spec PR [#159](https://github.com/drivestream-lab/gateflow/pull/159) |
+| W0 checkpoint status-check foundation | **code complete (unit)** — board [#161](https://github.com/drivestream-lab/gateflow/issues/161); live verify co-shipped; human `wave-acceptance` pending |
+| Check persistence / history / composed readout | deferred — W1 |
+| Initiative / wave visibility GETs | deferred — W2+ |
+
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
 | Capability | Status |

@@ -56,6 +56,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
 # .venv/bin/python -m tests.verify.verify_wave_closeout   # opt-in — INIT-009 W2 live proven (Pass-2)
+# .venv/bin/python -m tests.verify.verify_checkpoint_status  # INIT-011 CAP-01
 # authorize live (REQ-15): PE-waived for INIT-009 — unit only; no verify_authorize yet
 #
 # Draft PR live timing (INIT-008): use verify_implement_lane, not verify_pr_thread.
@@ -300,6 +301,30 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (dogf
 | Feature-readiness freeze (REQ-18) | inspection | `Feature-Readiness-INIT-GATEFLOW-010.md` |
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` with API + programme token + board tickets for Done-gate positives/negatives per knobs below.
+
+## Feature map (INIT-GATEFLOW-011 W0 — checkpoint status-check foundation)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| ForgeClient list_reviews / list_check_runs / merge fields (REQ-02) | secondary (fixture PR) | `test_forge_client` |
+| Pin checkpoint vocabulary from delivery-contract (REQ-02) | — | `test_checkpoint_vocab` |
+| Live CAP-01 evaluate + itemized misses + no mutate (REQ-01/04/05) | `verify_checkpoint_status` | `test_checkpoint_evidence` |
+| GET `/api/v1/checkpoints/status` programme-token (REQ-01/05/28) | `verify_checkpoint_status` | `test_checkpoints_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_status` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live GitHub evidence).
+
+### Checkpoint status (INIT-GATEFLOW-011 W0)
+
+```bash
+# Smoke (always): 401 without token, 405 on POST, 404 unknown checkpoint_id
+# Live GitHub evidence when:
+#   export GATEFLOW_CHECKPOINT_PR=<fixture PR number>
+#   # optional: GATEFLOW_CHECKPOINT_ID=coding-readiness (default)
+#   gateflow.org / gateflow.repo from tests/config.yaml
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_checkpoint_status
+```
 
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 

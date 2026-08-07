@@ -27,6 +27,7 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 def configure_container() -> Injector:
     from src.business_services.adapter_registry import AdapterRegistry
     from src.business_services.board_service import BoardService
+    from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
     from src.business_services.forge_action_service import ForgeActionService
     from src.business_services.handoff_reader import HandoffReader
     from src.business_services.job_worker_service import JobWorkerService
@@ -92,6 +93,7 @@ def configure_container() -> Injector:
             MetaPrIntakeService,
             WaveStartService,
             BoardService,
+            CheckpointEvidenceService,
             ForgeActionService,
             LearningIngestService,
             RunOrchestrator,

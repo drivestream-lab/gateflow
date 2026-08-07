@@ -4,6 +4,7 @@ from injector import Binder, Module, singleton
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.board_service import BoardService
+from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.closure_start_service import ClosureStartService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
@@ -39,6 +40,7 @@ class BusinessServicesModule(Module):
         binder.bind(WaveStartService, scope=singleton)
         binder.bind(ClosureStartService, scope=singleton)
         binder.bind(BoardService, scope=singleton)
+        binder.bind(CheckpointEvidenceService, scope=singleton)
         binder.bind(ForgeActionService, scope=singleton)
         binder.bind(LearningIngestService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)

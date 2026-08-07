@@ -7,6 +7,12 @@ import yaml
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.models.checkpoint_models import (
+    CheckpointEvidenceClassType,
+    CheckpointGithubVocab,
+    CheckpointVocabEntry,
+    CHECKPOINT_LABEL_RULES,
+)
 from src.models.forge_models import NodeForgePolicy, parse_node_forge
 from src.models.forge_types import AuthorizationModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
@@ -23,6 +29,7 @@ class WorkflowEngine(BaseBusinessService):
     def __init__(self) -> None:
         super().__init__()
         self._workflow: Optional[dict[str, Any]] = None
+        self._contract: Optional[dict[str, Any]] = None
         self._contract_id: Optional[str] = None
 
     def load_pin(
@@ -43,6 +50,7 @@ class WorkflowEngine(BaseBusinessService):
             raise ValueError("delivery-contract.yaml must be a mapping")
 
         self._workflow = workflow_raw
+        self._contract = contract_raw
         self._contract_id = str(
             workflow_raw.get("contract") or contract_raw.get("id") or INSTALLED_CONTRACT
         )
@@ -117,6 +125,86 @@ class WorkflowEngine(BaseBusinessService):
         if not isinstance(nodes, dict):
             raise ValueError("workflow.yaml missing nodes mapping")
         return {str(nid) for nid in nodes.keys()}
+
+    def get_github_checkpoint_vocab(self) -> CheckpointGithubVocab:
+        """Resolve checkpoint label + review_roles vocabulary from the pin tip."""
+        if self._contract is None:
+            self.load_pin()
+        assert self._contract is not None
+
+        github = self._contract.get("github")
+        if not isinstance(github, dict):
+            raise ValueError("delivery-contract.yaml missing github mapping")
+
+        labels_raw = github.get("labels")
+        if not isinstance(labels_raw, list):
+            raise ValueError("delivery-contract.yaml github.labels must be a list")
+        catalog: set[str] = set()
+        for item in labels_raw:
+            if not isinstance(item, dict) or "name" not in item:
+                raise ValueError("delivery-contract.yaml github.labels entries need name")
+            catalog.add(str(item["name"]))
+
+        review_roles = github.get("review_roles")
+        if not isinstance(review_roles, dict) or not review_roles:
+            raise ValueError("delivery-contract.yaml github.review_roles must be a mapping")
+
+        required_checks_raw = github.get("required_check_runs")
+        required_checks: list[str] = []
+        if required_checks_raw is not None:
+            if not isinstance(required_checks_raw, list):
+                raise ValueError("delivery-contract.yaml github.required_check_runs must be a list")
+            required_checks = [str(name) for name in required_checks_raw]
+
+        by_id: dict[str, CheckpointVocabEntry] = {}
+        for checkpoint_id, role_raw in review_roles.items():
+            cid = str(checkpoint_id)
+            if not isinstance(role_raw, dict):
+                raise ValueError(f"review_roles.{cid} must be a mapping")
+            role = str(role_raw.get("role") or "")
+            if not role:
+                raise ValueError(f"review_roles.{cid} missing role")
+            profiles_raw = role_raw.get("profiles") or []
+            if not isinstance(profiles_raw, list):
+                raise ValueError(f"review_roles.{cid}.profiles must be a list")
+            profiles = [str(p) for p in profiles_raw]
+
+            rules = CHECKPOINT_LABEL_RULES.get(cid)
+            if rules is None:
+                raise ValueError(f"Unknown checkpoint id in review_roles (no label rules): {cid}")
+            required_labels, blocking_labels = rules
+            for name in required_labels + blocking_labels:
+                if name not in catalog:
+                    raise ValueError(
+                        f"Checkpoint {cid} references label {name!r} absent from "
+                        "delivery-contract.yaml github.labels"
+                    )
+
+            evidence = (
+                CheckpointEvidenceClassType.LABEL_AND_REVIEW
+                if required_labels
+                else CheckpointEvidenceClassType.REVIEW_OR_MERGE
+            )
+            by_id[cid] = CheckpointVocabEntry(
+                checkpoint_id=cid,
+                required_labels=list(required_labels),
+                blocking_labels=list(blocking_labels),
+                required_check_runs=list(required_checks),
+                review_role=role,
+                review_profiles=profiles,
+                evidence_class=evidence,
+            )
+
+        if len(by_id) != 6:
+            raise ValueError(
+                f"Expected 6 checkpoint ids in review_roles, got {len(by_id)}: " f"{sorted(by_id)}"
+            )
+
+        self.logger.info(
+            "Resolved github checkpoint vocabulary",
+            checkpoint_count=len(by_id),
+        )
+        return CheckpointGithubVocab(by_checkpoint_id=by_id)
 
     def require_orchestrated_skill(self, node_id: str) -> ResolvedWorkflowNode:
         """Fail-fast: node must exist, be skill, and dispatch=orchestrated."""

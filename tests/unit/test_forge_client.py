@@ -281,3 +281,84 @@ async def test_open_draft_pr_forbids_lgtm_labels() -> None:
             base="develop",
             apply_labels=["spec-lgtm"],
         )
+
+
+@pytest.mark.asyncio
+async def test_get_pull_request_includes_merge_fields() -> None:
+    client = _forge_client()
+    http = MagicMock()
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {
+        "title": "Spec",
+        "state": "closed",
+        "labels": [{"name": "spec-lgtm"}],
+        "head": {"ref": "chore/x", "sha": "abc123"},
+        "base": {"ref": "develop", "sha": "def456"},
+        "merged": True,
+        "merge_commit_sha": "merge789",
+        "merged_at": "2026-08-07T01:00:00Z",
+    }
+    http.get = AsyncMock(return_value=resp)
+    client._client = http
+    client._initialized = True
+
+    pr = await client.get_pull_request("acme", "widget", 159)
+    assert pr.merged is True
+    assert pr.merge_commit_sha == "merge789"
+    assert pr.head.sha == "abc123"
+    http.get.assert_awaited_once_with("/repos/acme/widget/pulls/159")
+
+
+@pytest.mark.asyncio
+async def test_list_reviews_validates_documents() -> None:
+    client = _forge_client()
+    http = MagicMock()
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = [
+        {
+            "id": 1,
+            "user": {"login": "pe"},
+            "state": "APPROVED",
+            "submitted_at": "2026-08-06T17:29:07Z",
+            "commit_id": "c5047eaa",
+        }
+    ]
+    http.get = AsyncMock(return_value=resp)
+    client._client = http
+    client._initialized = True
+
+    reviews = await client.list_reviews("acme", "widget", 159)
+    assert len(reviews) == 1
+    assert reviews[0].state == "APPROVED"
+    assert reviews[0].user.login == "pe"
+    http.get.assert_awaited_once_with("/repos/acme/widget/pulls/159/reviews")
+
+
+@pytest.mark.asyncio
+async def test_list_check_runs_validates_documents() -> None:
+    client = _forge_client()
+    http = MagicMock()
+    resp = MagicMock()
+    resp.raise_for_status = MagicMock()
+    resp.json.return_value = {
+        "total_count": 1,
+        "check_runs": [
+            {
+                "name": "ci",
+                "status": "completed",
+                "conclusion": "success",
+                "head_sha": "abc123",
+            }
+        ],
+    }
+    http.get = AsyncMock(return_value=resp)
+    client._client = http
+    client._initialized = True
+
+    runs = await client.list_check_runs("acme", "widget", "abc123")
+    assert len(runs) == 1
+    assert runs[0].name == "ci"
+    assert runs[0].conclusion == "success"
+    http.get.assert_awaited_once_with("/repos/acme/widget/commits/abc123/check-runs")
