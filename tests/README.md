@@ -465,6 +465,29 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_wave_implementation
 ```
 
+## Feature map (INIT-GATEFLOW-011 W7 — closeout readout + drift)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Itemized closeout additions (REQ-18) | `verify_wave_closeout_readout` | `test_closeout_readout_service`, `test_initiatives_read_api` |
+| Advisory drift / unknown baseline (REQ-19/20) | `verify_wave_closeout_readout` | `test_closeout_readout_service` |
+| GET `.../waves/{wave_id}/closeout` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_closeout_readout` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout_readout` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Wave closeout readout (INIT-GATEFLOW-011 W7)
+
+```bash
+# Smoke (always): 401/405/404 on /initiatives/{id}/waves/{wave_id}/closeout
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   export GATEFLOW_WAVE_ID=W7
+#   (expects 200 + additions list + advisory_only true)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_wave_closeout_readout
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash

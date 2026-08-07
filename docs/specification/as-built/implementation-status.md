@@ -369,7 +369,21 @@
 | Gap | Status |
 |-----|--------|
 | W6 wave implementation progress | **human_approved** — board [#167](https://github.com/drivestream-lab/gateflow/issues/167); PR [#178](https://github.com/drivestream-lab/gateflow/pull/178) @ `0b0f144` `wave-accepted`; Ground-Report W6 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
-| Later CAP-07+ GETs | deferred — W7+ |
+| Later CAP-07+ GETs | deferred — W7+ (see W7 matrix below) |
+
+## Capability matrix (INIT-GATEFLOW-011 W7 — closeout readout + drift)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Itemized closeout additions (learning / ground) | REQ-18 | `CloseoutReadoutService.get_closeout_readout`; `closeout_readout_models.py`; GET `.../waves/{wave_id}/closeout` | `test_closeout_readout_service`, `test_initiatives_read_api` | `verify_wave_closeout_readout` | Prefer implement-lane run; learning rows + stages `learning-extract` / `ground-spec` |
+| Advisory drift vs wave-acceptance baseline SHA | REQ-19 | baseline from historical `checkpoint_check` (`wave-acceptance`); PR head via Forge GET | `test_closeout_readout_service` | `verify_wave_closeout_readout` | Missing baseline → `unknown_no_baseline` + plain message; mismatch → `drifted` |
+| Drift never blocks closeout mechanics | REQ-20 | `advisory_only=True` always | `test_closeout_readout_service` | `verify_wave_closeout_readout` | Smoke asserts `advisory_only` true |
+| GET-only closeout route; 401; 404 unknown | REQ-28 | `initiatives_routes.py` GET + programme token | `test_initiatives_read_api` | `verify_wave_closeout_readout` | Non-GET 405; zero Forge writes |
+
+| Gap | Status |
+|-----|--------|
+| W7 closeout readout + drift | **human_approved** — board [#168](https://github.com/drivestream-lab/gateflow/issues/168); PR [#179](https://github.com/drivestream-lab/gateflow/pull/179) @ `6bd8336` `wave-accepted`; live smoke human at wave-acceptance |
+| Later CAP-08+ GETs | deferred — W8+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 

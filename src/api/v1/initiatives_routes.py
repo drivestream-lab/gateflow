@@ -1,4 +1,4 @@
-"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4/W5/W6)."""
+"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4–W7)."""
 
 from typing import Annotated
 
@@ -8,6 +8,10 @@ from src.api.v1.programme_token import verify_programme_service_token
 from src.business_services.closure_start_service import (
     ClosureStartService,
     get_closure_start_service,
+)
+from src.business_services.closeout_readout_service import (
+    CloseoutReadoutService,
+    get_closeout_readout_service,
 )
 from src.business_services.implementation_readout_service import (
     ImplementationReadoutService,
@@ -22,6 +26,7 @@ from src.business_services.spec_readout_service import (
     get_spec_readout_service,
 )
 from src.business_services.wave_map_service import WaveMapService, get_wave_map_service
+from src.models.closeout_readout_models import CloseoutReadoutResult
 from src.models.closure_models import ClosureStartRequest, ClosureStartResponse
 from src.models.implementation_readout_models import ImplementationReadoutResult
 from src.models.initiative_readout_models import (
@@ -117,6 +122,26 @@ async def get_wave_implementation(
     stop; GET-only. 404 when no run or EPIC exists for ``initiative_id``.
     """
     return await service.get_implementation_readout(initiative_id, wave_id, org=org, repo=repo)
+
+
+@router.get(
+    "/initiatives/{initiative_id}/waves/{wave_id}/closeout",
+    response_model=CloseoutReadoutResult,
+)
+async def get_wave_closeout(
+    initiative_id: str,
+    wave_id: str,
+    org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
+    repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
+    _: None = Depends(verify_programme_service_token),
+    service: CloseoutReadoutService = Depends(get_closeout_readout_service),
+) -> CloseoutReadoutResult:
+    """Wave closeout additions + advisory drift (CAP-07).
+
+    REQ-18/19/20/28 — learning/ground itemization; drift vs acceptance baseline
+    (unknown when missing); advisory only; GET-only.
+    """
+    return await service.get_closeout_readout(initiative_id, wave_id, org=org, repo=repo)
 
 
 @router.get(
