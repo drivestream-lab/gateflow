@@ -382,7 +382,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W7 closeout readout + drift | **code complete (unit)** — board [#168](https://github.com/drivestream-lab/gateflow/issues/168); live smoke pending wave-acceptance |
+| W7 closeout readout + drift | **human_approved** — board [#168](https://github.com/drivestream-lab/gateflow/issues/168); PR [#179](https://github.com/drivestream-lab/gateflow/pull/179) @ `6bd8336` `wave-accepted`; live smoke human at wave-acceptance |
 | Later CAP-08+ GETs | deferred — W8+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
