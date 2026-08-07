@@ -351,6 +351,28 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_checkpoint_history
 ```
 
+## Feature map (INIT-GATEFLOW-011 W2 — initiative list/detail Gateflow-owned)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Initiative list/detail from runs + board EPIC tickets (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
+| `prd_approval=unavailable` until W3 meta bridge (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
+| GET-only on `/initiatives` + `/initiatives/{id}`; 401 without token; 404 unknown initiative (REQ-28) | `verify_initiatives_readout` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiatives_readout` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_INITIATIVE_ID` for a live detail assert).
+
+### Initiative list/detail (INIT-GATEFLOW-011 W2)
+
+```bash
+# Smoke (always): 401/405/404-unknown-initiative + list shape with prd_approval=unavailable
+# Live detail when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   gateflow.org / gateflow.repo from tests/config.yaml (board EPIC repo)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_initiatives_readout
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
