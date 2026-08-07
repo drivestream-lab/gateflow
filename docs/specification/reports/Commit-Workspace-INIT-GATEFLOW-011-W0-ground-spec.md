@@ -5,7 +5,7 @@
 | Prior content stage | `ground-spec` |
 | Pin policy | `forge.commit_workspace: required` |
 | Bound head | `feature/INIT-GATEFLOW-011-w0-checkpoint-status` (PR [#171](https://github.com/drivestream-lab/gateflow/pull/171)) |
-| Published SHA | pending |
+| Published SHA | `f684b1bd14053ab71f466493d7f4b1de9522c200` |
 | Remote | `origin/feature/INIT-GATEFLOW-011-w0-checkpoint-status` |
 | Outcome | **pass** |
 | Date | 2026-08-07 |
@@ -32,7 +32,7 @@ handoff:
     commit_workspace: required
     head_ref: feature/INIT-GATEFLOW-011-w0-checkpoint-status
     base_ref: develop
-    published_sha: pending
+    published_sha: "f684b1bd14053ab71f466493d7f4b1de9522c200"
     pr_number: "171"
     pr_url: "https://github.com/drivestream-lab/gateflow/pull/171"
     board_issue: "161"
