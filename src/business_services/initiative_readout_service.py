@@ -1,9 +1,12 @@
-"""InitiativeReadoutService — CAP-03 Gateflow-owned initiative list/detail (INIT-GATEFLOW-011 W2).
+"""InitiativeReadoutService — CAP-03 initiative list/detail (INIT-GATEFLOW-011).
 
-Composes the initiative read-out from Gateflow-owned data only (REQ-10):
-runs (RunRepository) plus board tickets (BoardService -> ForgeClient reads).
-W2 wires no meta PR read, so ``prd_approval`` is always ``unavailable``
-(populated in W3 via composed CAP-01 against ``prd-impact-acceptance``).
+Composes the initiative read-out from Gateflow-owned data (REQ-10): runs
+(RunRepository) plus board tickets (BoardService -> ForgeClient reads), plus
+at most one read-only meta CAP-01 evaluation against ``prd-impact-acceptance``
+on the initiative's meta PR (W3 / REQ-09 complete).
+
+When meta is unreachable or no meta PR URL is resolvable, Gateflow-owned
+fields still return and ``prd_approval`` is ``unavailable`` (REQ-11).
 
 Read-only: never calls ``apply_labels``, review create/update, merge, or
 ``update_board_status`` (REQ-05 / REQ-28).
@@ -11,13 +14,17 @@ Read-only: never calls ``apply_labels``, review create/update, merge, or
 
 from typing import Optional
 
+import httpx
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
+from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
+from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.exceptions.app_exceptions import NotFoundError
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import BoardTicketResource, BoardTicketType
+from src.models.checkpoint_models import CheckpointPrRef, CheckpointVerdictType
 from src.models.initiative_readout_models import (
     InitiativeListItem,
     InitiativeListResult,
@@ -30,11 +37,15 @@ from src.models.run_store_models import RunModel
 from src.models.run_store_types import RunStatusType
 from src.database.postgres.repository.run_store_repository import RunRepository
 
-_PRD_UNAVAILABLE_REASON = "meta bridge not yet wired (W3)"
+_PRD_CHECKPOINT_ID = "prd-impact-acceptance"
+_NO_META_URL_REASON = "no meta PR URL on initiative runs"
+_META_UNREACHABLE_REASON = "meta unreachable — could not verify PRD approval evidence"
+_META_NOT_FOUND_REASON = "meta PR not found"
+_META_INVALID_URL_REASON = "meta PR URL on runs is not a valid GitHub pull request URL"
 
 
 class InitiativeReadoutService(BaseBusinessService):
-    """Compose initiative list/detail from runs + board tickets (Gateflow-owned)."""
+    """Compose initiative list/detail from runs + board + meta CAP-01."""
 
     @inject
     def __init__(
@@ -42,11 +53,15 @@ class InitiativeReadoutService(BaseBusinessService):
         postgres_service: PostgresService,
         run_repository: RunRepository,
         board_service: BoardService,
+        checkpoint_evidence_service: CheckpointEvidenceService,
+        meta_pr_intake: MetaPrIntakeService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._run_repository = run_repository
         self._board_service = board_service
+        self._checkpoint_evidence = checkpoint_evidence_service
+        self._meta_pr_intake = meta_pr_intake
 
     async def list_initiatives(
         self,
@@ -76,7 +91,7 @@ class InitiativeReadoutService(BaseBusinessService):
         for initiative_id in all_ids:
             runs_for = runs_by_initiative.get(initiative_id, [])
             epic = epic_by_initiative.get(initiative_id)
-            items.append(self._build_item(initiative_id, runs_for, epic))
+            items.append(await self._build_item(initiative_id, runs_for, epic))
 
         if skip:
             items = items[skip:]
@@ -109,7 +124,7 @@ class InitiativeReadoutService(BaseBusinessService):
                 resource_id=initiative_id,
                 message=f"no run or EPIC ticket found for initiative {initiative_id}",
             )
-        item = self._build_item(initiative_id, runs, epic)
+        item = await self._build_item(initiative_id, runs, epic)
         return InitiativeReadout(**item.model_dump())
 
     async def _all_runs(self) -> list[RunModel]:
@@ -164,7 +179,7 @@ class InitiativeReadoutService(BaseBusinessService):
                 ordered.append(initiative_id)
         return sorted(ordered)
 
-    def _build_item(
+    async def _build_item(
         self,
         initiative_id: str,
         runs: list[RunModel],
@@ -176,11 +191,12 @@ class InitiativeReadoutService(BaseBusinessService):
         name = self._name(initiative_id, epic)
         epic_ticket_id = self._epic_ticket_id(epic)
         epic_ticket_url = self._epic_ticket_url(epic)
+        prd_approval, prd_reason = await self._resolve_prd_approval(initiative_id, runs)
         return InitiativeListItem(
             initiative_id=initiative_id,
             name=name,
-            prd_approval=PrdApprovalStateType.UNAVAILABLE,
-            prd_approval_reason=_PRD_UNAVAILABLE_REASON,
+            prd_approval=prd_approval,
+            prd_approval_reason=prd_reason,
             affected_repos=affected_repos,
             current_stage=stage,
             current_stage_detail=stage_detail,
@@ -188,6 +204,98 @@ class InitiativeReadoutService(BaseBusinessService):
             epic_ticket_id=epic_ticket_id,
             epic_ticket_url=epic_ticket_url,
         )
+
+    async def _resolve_prd_approval(
+        self,
+        initiative_id: str,
+        runs: list[RunModel],
+    ) -> tuple[PrdApprovalStateType, Optional[str]]:
+        """Populate PRD approval via CAP-01 on the meta PR (REQ-09 / REQ-11).
+
+        Uses ``evaluate`` with a meta ``CheckpointPrRef`` — not
+        ``evaluate_composed`` (which resolves the app wave PR).
+        """
+        meta_url = self._first_meta_pr_url(runs)
+        if meta_url is None:
+            return PrdApprovalStateType.UNAVAILABLE, _NO_META_URL_REASON
+
+        try:
+            meta_ref = self._meta_pr_intake.parse_url(meta_url)
+        except ValueError:
+            self.logger.warning(
+                "Initiative meta PR URL invalid",
+                initiative_id=initiative_id,
+                meta_pr_url=meta_url,
+            )
+            return PrdApprovalStateType.UNAVAILABLE, _META_INVALID_URL_REASON
+
+        pr_ref = CheckpointPrRef(
+            owner=meta_ref.owner,
+            repo=meta_ref.repo,
+            number=meta_ref.pr_number,
+        )
+        try:
+            result = await self._checkpoint_evidence.evaluate(_PRD_CHECKPOINT_ID, pr_ref)
+        except NotFoundError:
+            self.logger.warning(
+                "Initiative meta PR not found for PRD approval",
+                initiative_id=initiative_id,
+                owner=pr_ref.owner,
+                repo=pr_ref.repo,
+                pr_number=pr_ref.number,
+            )
+            return PrdApprovalStateType.UNAVAILABLE, _META_NOT_FOUND_REASON
+        except (httpx.HTTPError, ValueError, RuntimeError) as exc:
+            # Belt-and-suspenders: CAP-01 normally maps transport → could_not_verify,
+            # but any escape still yields partial success (REQ-11).
+            self.logger.warning(
+                "Initiative meta bridge unreachable",
+                initiative_id=initiative_id,
+                owner=pr_ref.owner,
+                repo=pr_ref.repo,
+                pr_number=pr_ref.number,
+                error_class=type(exc).__name__,
+            )
+            return PrdApprovalStateType.UNAVAILABLE, _META_UNREACHABLE_REASON
+
+        approval, reason = self._map_cap01_verdict(result.verdict, result.stale_reason)
+        self.logger.info(
+            "Initiative PRD approval resolved",
+            initiative_id=initiative_id,
+            prd_approval=approval.value,
+            prd_approval_reason=reason,
+            meta_owner=pr_ref.owner,
+            meta_repo=pr_ref.repo,
+            meta_pr_number=pr_ref.number,
+        )
+        return approval, reason
+
+    @staticmethod
+    def _first_meta_pr_url(runs: list[RunModel]) -> Optional[str]:
+        for run in runs:
+            url = (run.meta_pr_url or "").strip()
+            if url:
+                return url
+        return None
+
+    @staticmethod
+    def _map_cap01_verdict(
+        verdict: CheckpointVerdictType,
+        stale_reason: Optional[str],
+    ) -> tuple[PrdApprovalStateType, Optional[str]]:
+        """Map CAP-01 verdict to initiative ``prd_approval`` (REQ-09 / REQ-11).
+
+        Live satisfied / not_satisfied map 1:1. CAP-01 transport failures surface
+        as ``could_not_verify`` — for the meta bridge that is meta-down →
+        ``unavailable`` (REQ-11).
+        """
+        if verdict == CheckpointVerdictType.SATISFIED:
+            return PrdApprovalStateType.SATISFIED, None
+        if verdict == CheckpointVerdictType.NOT_SATISFIED:
+            reason = stale_reason or "prd-impact-acceptance evidence not satisfied"
+            return PrdApprovalStateType.NOT_SATISFIED, reason
+        # could_not_verify (and any future unknown) → unavailable for meta partial success
+        return PrdApprovalStateType.UNAVAILABLE, _META_UNREACHABLE_REASON
 
     @staticmethod
     def _affected_repos(runs: list[RunModel]) -> list[str]:
