@@ -12,6 +12,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.app import create_app
+from src.business_services.implementation_readout_service import (
+    get_implementation_readout_service,
+)
 from src.business_services.initiative_readout_service import (
     get_initiative_readout_service,
 )
@@ -19,6 +22,11 @@ from src.business_services.spec_readout_service import get_spec_readout_service
 from src.business_services.wave_map_service import get_wave_map_service
 from src.di.dependency_container import configure_container, reset_container
 from src.exceptions.app_exceptions import NotFoundError
+from src.models.implementation_readout_models import (
+    ImplementationReadoutResult,
+    ImplementationTaskItem,
+    ImplementationTaskStatusType,
+)
 from src.models.initiative_readout_models import (
     InitiativeListItem,
     InitiativeListResult,
@@ -435,6 +443,129 @@ def test_get_spec_non_get_rejected(spec_client: TestClient) -> None:
     """REQ-28 — non-GET on spec path rejected (GET-only)."""
     response = spec_client.post(
         "/api/v1/initiatives/INIT-X/spec",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _implementation_readout() -> ImplementationReadoutResult:
+    return ImplementationReadoutResult(
+        initiative_id="INIT-X",
+        wave_id="W6",
+        run_id="55555555-5555-5555-5555-555555555555",
+        run_status="active",
+        workflow_node="loop-spec",
+        tasks=[
+            ImplementationTaskItem(
+                task_id="pre-implement",
+                label="pre-implement",
+                status=ImplementationTaskStatusType.SUCCESS,
+            ),
+            ImplementationTaskItem(
+                task_id="loop-spec",
+                label="loop-spec",
+                status=ImplementationTaskStatusType.IN_PROGRESS,
+            ),
+        ],
+        draft_pr_number=178,
+        draft_pr_url="https://github.com/acme/widget/pull/178",
+    )
+
+
+@pytest.fixture
+def implementation_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_implementation_readout = AsyncMock(return_value=_implementation_readout())
+    app = create_app()
+    app.dependency_overrides[get_implementation_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def implementation_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_implementation_readout = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_implementation_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_implementation_401_without_token(implementation_client: TestClient) -> None:
+    response = implementation_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W6/implementation",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_implementation_200_with_programme_token(
+    implementation_client: TestClient,
+) -> None:
+    response = implementation_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W6/implementation",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["wave_id"] == "W6"
+    assert body["draft_pr_number"] == 178
+    assert len(body["tasks"]) == 2
+
+
+def test_get_implementation_404_unknown_initiative(
+    implementation_client_404: TestClient,
+) -> None:
+    response = implementation_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/waves/W6/implementation",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_implementation_non_get_rejected(implementation_client: TestClient) -> None:
+    """REQ-28 — non-GET on implementation path rejected (GET-only)."""
+    response = implementation_client.post(
+        "/api/v1/initiatives/INIT-X/waves/W6/implementation",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )

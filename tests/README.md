@@ -442,6 +442,29 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_spec_readout
 ```
 
+## Feature map (INIT-GATEFLOW-011 W6 — wave implementation progress)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Per-task timeline + Draft PR when `wave-pr-action` succeeded (REQ-16) | `verify_wave_implementation` | `test_implementation_readout_service`, `test_initiatives_read_api` |
+| Named task + reason on failure / needs-input stop (REQ-17) | `verify_wave_implementation` | `test_implementation_readout_service` |
+| GET `.../waves/{wave_id}/implementation` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_implementation` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_implementation` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Wave implementation progress (INIT-GATEFLOW-011 W6)
+
+```bash
+# Smoke (always): 401/405/404 on /initiatives/{id}/waves/{wave_id}/implementation
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   export GATEFLOW_WAVE_ID=W6
+#   (expects 200 + tasks list; draft_pr_url null when absent)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_wave_implementation
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
