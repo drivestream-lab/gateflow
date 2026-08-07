@@ -288,7 +288,7 @@
 | Gap | Status |
 |-----|--------|
 | Product INIT | **Accepted** — [`product/INIT-GATEFLOW-011-gateflow.md`](../product/INIT-GATEFLOW-011-gateflow.md); PE package accept 2026-08-06; spec PR [#159](https://github.com/drivestream-lab/gateflow/pull/159) |
-| W0 checkpoint status-check foundation | **code complete (unit)** — board [#161](https://github.com/drivestream-lab/gateflow/issues/161); live verify co-shipped; human `wave-acceptance` pending |
+| W0 checkpoint status-check foundation | **human_approved** — board [#161](https://github.com/drivestream-lab/gateflow/issues/161); PR [#171](https://github.com/drivestream-lab/gateflow/pull/171) @ `088d125` `wave-accepted`; Ground-Report W0 **pass** (GF-01 closed); L-01 open for codify; merge pending wave-signoff |
 | Check persistence / history / composed readout | deferred — W1 |
 | Initiative / wave visibility GETs | deferred — W2+ |
 
