@@ -411,7 +411,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W9 closure preview + CAP-01 reuse | **implemented** — board [#170](https://github.com/drivestream-lab/gateflow/issues/170); awaiting wave-acceptance / Ground-Report |
+| W9 closure preview + CAP-01 reuse | **human_approved** — board [#170](https://github.com/drivestream-lab/gateflow/issues/170); PR [#181](https://github.com/drivestream-lab/gateflow/pull/181) @ `1ce031f` `wave-accepted`; Ground-Report W9 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
