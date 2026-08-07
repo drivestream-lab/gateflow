@@ -1,4 +1,4 @@
-"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2)."""
+"""Initiative closure + read-out API routes (ADR-010 §7 / INIT-GATEFLOW-010 W4, INIT-GATEFLOW-011 W2/W4)."""
 
 from typing import Annotated
 
@@ -13,11 +13,13 @@ from src.business_services.initiative_readout_service import (
     InitiativeReadoutService,
     get_initiative_readout_service,
 )
+from src.business_services.wave_map_service import WaveMapService, get_wave_map_service
 from src.models.closure_models import ClosureStartRequest, ClosureStartResponse
 from src.models.initiative_readout_models import (
     InitiativeListResult,
     InitiativeReadout,
 )
+from src.models.wave_map_models import WaveMapResult
 
 router = APIRouter()
 
@@ -66,3 +68,22 @@ async def get_initiative(
     404 when no run and no EPIC ticket exists for ``initiative_id`` (REQ-09).
     """
     return await service.get_initiative(initiative_id, org=org, repo=repo)
+
+
+@router.get(
+    "/initiatives/{initiative_id}/waves",
+    response_model=WaveMapResult,
+)
+async def get_initiative_waves(
+    initiative_id: str,
+    org: Annotated[str, Query(description="Forge org whose board holds the Feature tickets")],
+    repo: Annotated[str, Query(description="Forge repo whose board holds the Feature tickets")],
+    _: None = Depends(verify_programme_service_token),
+    service: WaveMapService = Depends(get_wave_map_service),
+) -> WaveMapResult:
+    """Per-wave status map from board Feature tickets + runs (CAP-05).
+
+    REQ-14/15/28 — read-only; status ∈ {done, ready-to-start, blocked, active}.
+    404 when no run, EPIC, or Feature ticket exists for ``initiative_id``.
+    """
+    return await service.get_wave_map(initiative_id, org=org, repo=repo)

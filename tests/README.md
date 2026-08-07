@@ -398,6 +398,28 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_initiative_meta_bridge
 ```
 
+## Feature map (INIT-GATEFLOW-011 W4 — wave map readout)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Per-wave status ∈ {done, ready-to-start, blocked, active}; blocked names why (REQ-14) | `verify_wave_map` | `test_wave_map_service`, `test_initiatives_read_api` |
+| Derived from board Feature tickets + runs only — no new store (REQ-15) | `verify_wave_map` | `test_wave_map_service` |
+| GET `/initiatives/{id}/waves` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_map` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_map` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Wave map (INIT-GATEFLOW-011 W4)
+
+```bash
+# Smoke (always): 401/405/404 on /initiatives/{id}/waves
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+#   (expects 200 + waves[] with closed status vocabulary; blocked → block_reason)
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_wave_map
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash

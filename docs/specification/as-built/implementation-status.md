@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-07 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -330,7 +330,20 @@
 | Gap | Status |
 |-----|--------|
 | W3 meta bridge + partial success | **human_approved** — board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
-| Wave map / later CAP-04+ GETs | deferred — W4+ |
+| Wave map / later CAP-04+ GETs | deferred — W4+ (see W4 matrix below) |
+
+## Capability matrix (INIT-GATEFLOW-011 W4 — wave map readout)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Per-wave status ∈ {done, ready-to-start, blocked, active}; blocked names why | REQ-14 | `WaveMapService.get_wave_map`; `wave_map_models.py` (`WaveMapStatusType`); GET `/initiatives/{id}/waves` | `test_wave_map_service`, `test_initiatives_read_api` | `verify_wave_map` | Priority: Done column → `done`; active run → `active`; predecessor not Done → `blocked` + reason; else `ready-to-start` |
+| Derived from board Feature tickets + runs only — no new wave-state store | REQ-15 | `BoardService.list_tickets(Feature)` + `RunRepository.list_runs`; wave id from Feature title `\bW\d+\b` | `test_wave_map_service` | `verify_wave_map` | No new ORM table / Alembic; REQ-15 forbids parallel store |
+| GET-only `/initiatives/{id}/waves`; 401 without token; 404 unknown initiative | REQ-28 | `initiatives_routes.py` GET handler + programme token; `/api/v1/initiatives` on `public_paths` | `test_initiatives_read_api` | `verify_wave_map` | Non-GET 405; zero Forge writes from CAP-05 path |
+
+| Gap | Status |
+|-----|--------|
+| W4 wave map readout | **human_approved** — board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
+| Later CAP-04 / CAP-06+ GETs | deferred — W5+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
