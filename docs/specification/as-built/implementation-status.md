@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-07 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **code complete (unit)** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164)); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -329,7 +329,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W3 meta bridge + partial success | **code complete (unit)** — board [#164](https://github.com/drivestream-lab/gateflow/issues/164); human wave-acceptance pending (`verify_initiative_meta_bridge`) |
+| W3 meta bridge + partial success | **human_approved** — board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
 | Wave map / later CAP-04+ GETs | deferred — W4+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
