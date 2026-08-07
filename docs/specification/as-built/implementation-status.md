@@ -303,7 +303,7 @@
 
 || Gap | Status |
 ||-----|--------|
-|| W1 check persistence + composed readout | code complete (unit) — `make check && make test` exit 0 (302 passed); live verify co-shipped (`verify_checkpoint_history.py`); pending human `wave-acceptance` |
+|| W1 check persistence + composed readout | **human_approved** — board [#162](https://github.com/drivestream-lab/gateflow/issues/162); PR [#172](https://github.com/drivestream-lab/gateflow/pull/172) @ `3074e82` `wave-accepted`; Ground-Report W1 **pass** (no GF-* findings; Learning-Extract `items: []` — W0 L-01 did not recur); merge pending wave-signoff |
 || Initiative / wave visibility GETs | deferred — W2+ |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
