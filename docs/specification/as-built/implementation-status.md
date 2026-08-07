@@ -4,7 +4,7 @@
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
 | Updated | 2026-08-07 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
+| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -316,7 +316,7 @@
 
 | Gap | Status |
 |-----|--------|
-| W2 initiative list/detail (Gateflow-owned) | **human_approved** — board [#163](https://github.com/drivestream-lab/gateflow/issues/163); PR [#174](https://github.com/drivestream-lab/gateflow/pull/174) @ `e9654c2` `wave-accepted`; Ground-Report W2 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
+| W2 initiative list/detail (Gateflow-owned) | **human_approved + merged** — board [#163](https://github.com/drivestream-lab/gateflow/issues/163) Done; PR [#174](https://github.com/drivestream-lab/gateflow/pull/174) merged `ba2ab7b` (accepted product tip `e9654c2` `wave-accepted`; Pass-2 docs tip `caa496e`); Ground-Report W2 **pass** (no GF-* findings; Learning-Extract `items: []`); wave-signoff complete |
 | Initiative PRD-approval via meta bridge | deferred — W3 |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
