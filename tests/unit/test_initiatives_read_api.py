@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.app import create_app
+from src.business_services.closeout_readout_service import get_closeout_readout_service
 from src.business_services.implementation_readout_service import (
     get_implementation_readout_service,
 )
@@ -22,6 +23,10 @@ from src.business_services.spec_readout_service import get_spec_readout_service
 from src.business_services.wave_map_service import get_wave_map_service
 from src.di.dependency_container import configure_container, reset_container
 from src.exceptions.app_exceptions import NotFoundError
+from src.models.closeout_readout_models import (
+    CloseoutDriftStatusType,
+    CloseoutReadoutResult,
+)
 from src.models.implementation_readout_models import (
     ImplementationReadoutResult,
     ImplementationTaskItem,
@@ -566,6 +571,115 @@ def test_get_implementation_non_get_rejected(implementation_client: TestClient) 
     """REQ-28 — non-GET on implementation path rejected (GET-only)."""
     response = implementation_client.post(
         "/api/v1/initiatives/INIT-X/waves/W6/implementation",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def _closeout_readout() -> CloseoutReadoutResult:
+    return CloseoutReadoutResult(
+        initiative_id="INIT-X",
+        wave_id="W7",
+        run_id="run-closeout-1",
+        run_status="running",
+        additions=[],
+        drift_status=CloseoutDriftStatusType.UNKNOWN_NO_BASELINE,
+        drift_message="unknown — no baseline recorded",
+        advisory_only=True,
+    )
+
+
+@pytest.fixture
+def closeout_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_closeout_readout = AsyncMock(return_value=_closeout_readout())
+    app = create_app()
+    app.dependency_overrides[get_closeout_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def closeout_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_closeout_readout = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_closeout_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_get_closeout_401_without_token(closeout_client: TestClient) -> None:
+    response = closeout_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W7/closeout",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_closeout_200_with_programme_token(closeout_client: TestClient) -> None:
+    response = closeout_client.get(
+        "/api/v1/initiatives/INIT-X/waves/W7/closeout",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["wave_id"] == "W7"
+    assert body["advisory_only"] is True
+    assert body["drift_status"] == CloseoutDriftStatusType.UNKNOWN_NO_BASELINE.value
+    assert "unknown" in (body.get("drift_message") or "").lower()
+
+
+def test_get_closeout_404_unknown_initiative(closeout_client_404: TestClient) -> None:
+    response = closeout_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING/waves/W7/closeout",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_closeout_non_get_rejected(closeout_client: TestClient) -> None:
+    """REQ-28 — non-GET on closeout path rejected (GET-only)."""
+    response = closeout_client.post(
+        "/api/v1/initiatives/INIT-X/waves/W7/closeout",
         headers={"Authorization": "Bearer test-programme-token"},
         json={},
     )
