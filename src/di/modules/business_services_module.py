@@ -7,6 +7,7 @@ from src.business_services.board_service import BoardService
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.closure_start_service import ClosureStartService
 from src.business_services.closeout_readout_service import CloseoutReadoutService
+from src.business_services.closure_preview_service import ClosurePreviewService
 from src.business_services.completion_readout_service import CompletionReadoutService
 from src.business_services.forge_action_service import ForgeActionService
 from src.business_services.handoff_reader import HandoffReader
@@ -55,6 +56,7 @@ class BusinessServicesModule(Module):
         binder.bind(CloseoutReadoutService, scope=singleton)
         binder.bind(MergeReadoutService, scope=singleton)
         binder.bind(CompletionReadoutService, scope=singleton)
+        binder.bind(ClosurePreviewService, scope=singleton)
         binder.bind(ForgeActionService, scope=singleton)
         binder.bind(LearningIngestService, scope=singleton)
         binder.bind(RunOrchestrator, scope=singleton)

@@ -511,6 +511,28 @@ set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_merge_and_completion
 ```
 
+## Feature map (INIT-GATEFLOW-011 W9 — closure preview)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Pre-purge plan from purge allowlist; not yet run (REQ-25) | `verify_closure_preview` | `test_closure_preview_service`, `test_initiatives_read_api` |
+| Post-purge deleted/kept from handoff signals (REQ-26) | `verify_closure_preview` | `test_closure_preview_service` |
+| CAP-01 reuse for closure signoff-app/meta (REQ-27) | `verify_closure_preview` | `test_closure_preview_service` |
+| GET `/initiatives/{id}/closure` GET-only; 401 / 404 (REQ-28) | `verify_closure_preview` | `test_initiatives_read_api` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_closure_preview` (API + `PROGRAMME_SERVICE_TOKEN`).
+
+### Closure preview (INIT-GATEFLOW-011 W9)
+
+```bash
+# Smoke (always): 401/405/404 on .../closure
+# Live shape when:
+#   export GATEFLOW_INITIATIVE_ID=INIT-GATEFLOW-011
+
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_closure_preview
+```
+
 ### Initiative-closure start (INIT-GATEFLOW-010 W4)
 
 ```bash
