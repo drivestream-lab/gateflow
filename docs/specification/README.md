@@ -17,7 +17,14 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Active initiative (011 spec draft):** [`product/INIT-GATEFLOW-011-gateflow.md`](product/INIT-GATEFLOW-011-gateflow.md)
+**Active initiative (012 spec draft):** [`product/INIT-GATEFLOW-012-gateflow.md`](product/INIT-GATEFLOW-012-gateflow.md)
+(Tenant registry + workspace/branch lifecycle — repo clone/refresh replacing
+`Path.cwd()` fallback, branch create-or-reuse, harness-readiness gate,
+repo-scoped `NO_CONCURRENT_RUN`, dormant `ForgeClient.delete_branch`; REQ-01…27,
+REQ-32; `prayog-skills` contract shapes REQ-28…31 tracked separately; Gate 1
+approved on [prayog-meta#32](https://github.com/drivestream-lab/prayog-meta/pull/32)).
+
+**Prior (011 W0–W9 human_approved; merges pending wave-signoff):** [`product/INIT-GATEFLOW-011-gateflow.md`](product/INIT-GATEFLOW-011-gateflow.md)
 (Day-1 visibility + GitHub reconcile — checkpoint status-check CAP-01/02 +
 visibility CAP-03…10; REQ-01…28; all GET-only; Gate 1 approved on
 [prayog-meta#30](https://github.com/drivestream-lab/prayog-meta/pull/30)).
