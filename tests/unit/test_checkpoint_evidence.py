@@ -1,5 +1,7 @@
 """Unit tests for CheckpointEvidenceService (INIT-GATEFLOW-011 TASK-W0-03)."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -26,7 +28,24 @@ def _service(forge: MagicMock | None = None) -> CheckpointEvidenceService:
     engine = WorkflowEngine()
     engine.load_pin()
     forge_client = forge or MagicMock()
-    return CheckpointEvidenceService(forge_client=forge_client, workflow_engine=engine)
+    postgres = MagicMock()
+    postgres.transaction = _noop_transaction
+    run_repository = MagicMock()
+    run_repository.find_run_by_pr = AsyncMock(return_value=None)
+    run_event_repository = MagicMock()
+    run_event_repository.append_event = AsyncMock()
+    return CheckpointEvidenceService(
+        forge_client=forge_client,
+        workflow_engine=engine,
+        postgres_service=postgres,
+        run_repository=run_repository,
+        run_event_repository=run_event_repository,
+    )
+
+
+@asynccontextmanager
+async def _noop_transaction() -> AsyncIterator[AsyncMock]:
+    yield AsyncMock()
 
 
 def _pr(
@@ -41,12 +60,12 @@ def _pr(
     )
 
 
-def _approved() -> GithubPullRequestReviewDocument:
+def _approved(sha: str = "abc123") -> GithubPullRequestReviewDocument:
     return GithubPullRequestReviewDocument(
         id=1,
         user=GithubPullRequestUser(login="pe"),
         state="APPROVED",
-        commit_id="abc123",
+        commit_id=sha,
     )
 
 
@@ -130,3 +149,72 @@ async def test_evaluate_zero_mutate_forge_calls() -> None:
     forge.apply_issue_labels.assert_not_called()
     forge.update_issue_status.assert_not_called()
     forge.open_draft_pr.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_evaluate_stale_approval_predating_commit_is_not_satisfied() -> None:
+    """REQ-03 — approval against an older commit while PR head advanced → stale."""
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(return_value=_pr(labels=["spec-lgtm"], sha="newhead9"))
+    forge.list_reviews = AsyncMock(return_value=[_approved(sha="oldhead1")])
+    svc = _service(forge)
+
+    result = await svc.evaluate(
+        "coding-readiness",
+        CheckpointPrRef(owner="acme", repo="widget", number=1),
+    )
+    assert result.verdict == CheckpointVerdictType.NOT_SATISFIED
+    assert result.stale_reason == "stale — new commits since approval"
+    assert result.checked_sha == "newhead9"
+    assert result.checked_at is not None
+
+
+@pytest.mark.asyncio
+async def test_evaluate_fresh_approval_not_stale() -> None:
+    """REQ-03 — approval against the current head is not stale."""
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(return_value=_pr(labels=["spec-lgtm"], sha="abc123"))
+    forge.list_reviews = AsyncMock(return_value=[_approved(sha="abc123")])
+    svc = _service(forge)
+
+    result = await svc.evaluate(
+        "coding-readiness",
+        CheckpointPrRef(owner="acme", repo="widget", number=1),
+    )
+    assert result.verdict == CheckpointVerdictType.SATISFIED
+    assert result.stale_reason is None
+    assert result.checked_sha == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_no_approval_not_stale() -> None:
+    """REQ-03 — missing approval is a missing-item miss, not a stale flag."""
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(return_value=_pr(labels=["spec-lgtm"], sha="abc123"))
+    forge.list_reviews = AsyncMock(return_value=[])
+    svc = _service(forge)
+
+    result = await svc.evaluate(
+        "coding-readiness",
+        CheckpointPrRef(owner="acme", repo="widget", number=1),
+    )
+    assert result.verdict == CheckpointVerdictType.NOT_SATISFIED
+    assert result.stale_reason is None
+    assert result.checked_sha == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_evaluate_checked_sha_and_checked_at_always_present_on_success() -> None:
+    """REQ-03 — checked_sha/checked_at always present for a live verdict."""
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(return_value=_pr(labels=["spec-lgtm"], sha="abc123"))
+    forge.list_reviews = AsyncMock(return_value=[_approved(sha="abc123")])
+    svc = _service(forge)
+
+    result = await svc.evaluate(
+        "coding-readiness",
+        CheckpointPrRef(owner="acme", repo="widget", number=1),
+    )
+    assert result.verdict == CheckpointVerdictType.SATISFIED
+    assert result.checked_sha == "abc123"
+    assert result.checked_at is not None

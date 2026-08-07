@@ -292,6 +292,20 @@
 | Check persistence / history / composed readout | deferred — W1 |
 | Initiative / wave visibility GETs | deferred — W2+ |
 
+## Capability matrix (INIT-GATEFLOW-011 W1 — check persistence + composed readout)
+
+|| Capability | Spec | Code | Unit | Live verify | Notes |
+||------------|------|------|------|-------------|-------|
+| Persist `checkpoint_check` run_event on every evaluate (correlated to run when resolvable) | REQ-06 | `CheckpointEvidenceService._persist_check` + `_append_checkpoint_event`; `RunEventNameType.CHECKPOINT_CHECK`; `CheckpointCheckPayloadDocument`; `RunRepository.find_run_by_pr` | `test_checkpoint_persistence` | `verify_checkpoint_history` | Skipped (logged) when no run for PR; payload carries initiative/wave from resolved run |
+| Stale evidence → not_satisfied + reason; checked_sha/checked_at always present | REQ-03 | `CheckpointEvidenceService._detect_stale_reason` (approval commit_id vs head SHA) | `test_checkpoint_evidence` (stale/fresh/no-approval cases) | `verify_checkpoint_history` | Never silent pass; reason `stale — new commits since approval` |
+| GET `/api/v1/checkpoints/history` marks records historical | REQ-07, REQ-28 | `CheckpointEvidenceService.list_history` + `checkpoints_routes.get_checkpoint_history`; `CheckpointHistoryResult`/`CheckpointHistoryRecord` (`historical=true`) | `test_checkpoints_api`, `test_checkpoint_persistence` | `verify_checkpoint_history` | Never claims live verdict; empty 200 when no run |
+| Composed readout via initiative+wave; 404 no run found for this wave | REQ-08, REQ-28 | `CheckpointEvidenceService.evaluate_composed` + `/status` composed query params | `test_checkpoints_api`, `test_checkpoint_persistence` | `verify_checkpoint_history` | 400 when neither raw nor composed supplied; 404 distinct from malformed id |
+
+|| Gap | Status |
+||-----|--------|
+|| W1 check persistence + composed readout | **human_approved** — board [#162](https://github.com/drivestream-lab/gateflow/issues/162); PR [#172](https://github.com/drivestream-lab/gateflow/pull/172) @ `3074e82` `wave-accepted`; Ground-Report W1 **pass** (no GF-* findings; Learning-Extract `items: []` — W0 L-01 did not recur); merge pending wave-signoff |
+|| Initiative / wave visibility GETs | deferred — W2+ |
+
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
 | Capability | Status |
