@@ -1,0 +1,196 @@
+"""Unit tests for initiatives read-out API (INIT-GATEFLOW-011 TASK-W2-02).
+
+REQ-09/10: GET /initiatives + GET /initiatives/{id} return Gateflow-owned
+fields under programme-token auth. REQ-28: GET-only on the new surface
+(non-GET rejected; the existing POST /initiatives/closure/start is unchanged).
+"""
+
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from fastapi.testclient import TestClient
+
+from src.app import create_app
+from src.business_services.initiative_readout_service import (
+    get_initiative_readout_service,
+)
+from src.di.dependency_container import configure_container, reset_container
+from src.exceptions.app_exceptions import NotFoundError
+from src.models.initiative_readout_models import (
+    InitiativeListItem,
+    InitiativeListResult,
+    InitiativeReadout,
+    InitiativeRunLink,
+    InitiativeStageType,
+    PrdApprovalStateType,
+)
+
+
+def _list_item(initiative_id: str = "INIT-X") -> InitiativeListItem:
+    return InitiativeListItem(
+        initiative_id=initiative_id,
+        name="Initiative X",
+        prd_approval=PrdApprovalStateType.UNAVAILABLE,
+        prd_approval_reason="meta bridge not yet wired (W3)",
+        affected_repos=["acme/widget"],
+        current_stage=InitiativeStageType.IN_PROGRESS,
+        current_stage_detail="active run for wave W0 at pre-implement",
+        in_flight_run=InitiativeRunLink(
+            run_id="11111111-1111-1111-1111-111111111111",
+            wave_id="W0",
+            status_type="active",
+            workflow_node="pre-implement",
+            pr_number=42,
+            org="acme",
+            repo="widget",
+        ),
+        epic_ticket_id="160",
+        epic_ticket_url="https://github.com/acme/widget/issues/160",
+    )
+
+
+@pytest.fixture
+def initiatives_client(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.list_initiatives = AsyncMock(
+        return_value=InitiativeListResult(initiatives=[_list_item()])
+    )
+    service.get_initiative = AsyncMock(return_value=InitiativeReadout(**_list_item().model_dump()))
+    app = create_app()
+    app.dependency_overrides[get_initiative_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def initiatives_client_404(
+    mock_postgres_service: MagicMock,
+    mock_redis_service: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> TestClient:
+    reset_container()
+    configure_container()
+    monkeypatch.setattr(
+        "src.api.dependencies.get_postgres_service",
+        lambda: mock_postgres_service,
+    )
+    monkeypatch.setattr(
+        "src.api.dependencies.get_redis_service",
+        lambda: mock_redis_service,
+    )
+    service = MagicMock()
+    service.get_initiative = AsyncMock(
+        side_effect=NotFoundError(
+            resource_type="initiative",
+            resource_id="INIT-MISSING",
+            message="no run or EPIC ticket found for initiative INIT-MISSING",
+        )
+    )
+    app = create_app()
+    app.dependency_overrides[get_initiative_readout_service] = lambda: service
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_list_initiatives_401_without_token(initiatives_client: TestClient) -> None:
+    response = initiatives_client.get(
+        "/api/v1/initiatives",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_list_initiatives_200_with_programme_token(initiatives_client: TestClient) -> None:
+    response = initiatives_client.get(
+        "/api/v1/initiatives",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body["initiatives"], list)
+    assert len(body["initiatives"]) == 1
+    item = body["initiatives"][0]
+    assert item["initiative_id"] == "INIT-X"
+    assert item["name"] == "Initiative X"
+    assert item["prd_approval"] == "unavailable"
+    assert item["affected_repos"] == ["acme/widget"]
+    assert item["current_stage"] == "in_progress"
+    assert item["in_flight_run"]["run_id"] == "11111111-1111-1111-1111-111111111111"
+    assert item["epic_ticket_url"] == "https://github.com/acme/widget/issues/160"
+
+
+def test_list_initiatives_public_paths_bypass_jwt(initiatives_client: TestClient) -> None:
+    """Programme token path must not require JWT (public_paths includes /api/v1/initiatives)."""
+    response = initiatives_client.get(
+        "/api/v1/initiatives",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+
+
+def test_list_initiatives_non_get_rejected(initiatives_client: TestClient) -> None:
+    """REQ-28 — POST on the list path (not closure/start) is GET-only → 405."""
+    response = initiatives_client.post(
+        "/api/v1/initiatives",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405
+
+
+def test_get_initiative_401_without_token(initiatives_client: TestClient) -> None:
+    response = initiatives_client.get(
+        "/api/v1/initiatives/INIT-X",
+        params={"org": "acme", "repo": "widget"},
+    )
+    assert response.status_code == 401
+
+
+def test_get_initiative_200_with_programme_token(initiatives_client: TestClient) -> None:
+    response = initiatives_client.get(
+        "/api/v1/initiatives/INIT-X",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["initiative_id"] == "INIT-X"
+    assert body["prd_approval"] == "unavailable"
+    assert body["current_stage"] == "in_progress"
+    assert body["in_flight_run"]["wave_id"] == "W0"
+
+
+def test_get_initiative_404_unknown_initiative(initiatives_client_404: TestClient) -> None:
+    """REQ-09 — unknown initiative → 404 distinct from malformed."""
+    response = initiatives_client_404.get(
+        "/api/v1/initiatives/INIT-MISSING",
+        params={"org": "acme", "repo": "widget"},
+        headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "no run or EPIC ticket found" in body["error"]["message"]
+
+
+def test_get_initiative_non_get_rejected(initiatives_client: TestClient) -> None:
+    """REQ-28 — non-GET on detail path rejected (GET-only)."""
+    response = initiatives_client.post(
+        "/api/v1/initiatives/INIT-X",
+        headers={"Authorization": "Bearer test-programme-token"},
+        json={},
+    )
+    assert response.status_code == 405

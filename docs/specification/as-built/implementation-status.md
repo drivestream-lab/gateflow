@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-08-06 |
+| Updated | 2026-08-07 |
 | Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
@@ -305,6 +305,19 @@
 ||-----|--------|
 || W1 check persistence + composed readout | **human_approved** — board [#162](https://github.com/drivestream-lab/gateflow/issues/162); PR [#172](https://github.com/drivestream-lab/gateflow/pull/172) @ `3074e82` `wave-accepted`; Ground-Report W1 **pass** (no GF-* findings; Learning-Extract `items: []` — W0 L-01 did not recur); merge pending wave-signoff |
 || Initiative / wave visibility GETs | deferred — W2+ |
+
+## Capability matrix (INIT-GATEFLOW-011 W2 — initiative list/detail Gateflow-owned)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Initiative list/detail from runs + board EPIC tickets (Gateflow-owned) | REQ-09, REQ-10 | `InitiativeReadoutService.list_initiatives` / `get_initiative`; `initiative_readout_models.py`; `initiatives_routes.py` GET `/initiatives` + `/initiatives/{id}` | `test_initiative_readout`, `test_initiatives_read_api` | `verify_initiatives_readout` | Union of distinct `initiative_id` on runs + EPIC board tickets in `org/repo`; affected_repos deduped from runs; current_stage from active run / EPIC column / latest run |
+| `prd_approval=unavailable` until W3 meta bridge | REQ-09, REQ-10 | `PrdApprovalStateType.UNAVAILABLE` + `prd_approval_reason` "meta bridge not yet wired (W3)" | `test_initiative_readout`, `test_initiatives_read_api` | `verify_initiatives_readout` | W2 wires no meta PR read; W3 populates via composed CAP-01 against `prd-impact-acceptance` |
+| GET-only on `/initiatives` + `/initiatives/{id}`; 401 without token; 404 unknown initiative | REQ-28 | `initiatives_routes.py` GET handlers + `verify_programme_service_token`; `/api/v1/initiatives` on `public_paths` | `test_initiatives_read_api` | `verify_initiatives_readout` | Non-GET 405; existing `POST /initiatives/closure/start` (INIT-010 W4) unchanged |
+
+| Gap | Status |
+|-----|--------|
+| W2 initiative list/detail (Gateflow-owned) | **human_approved** — board [#163](https://github.com/drivestream-lab/gateflow/issues/163); PR [#174](https://github.com/drivestream-lab/gateflow/pull/174) @ `e9654c2` `wave-accepted`; Ground-Report W2 **pass** (no GF-* findings; Learning-Extract `items: []`); merge pending wave-signoff |
+| Initiative PRD-approval via meta bridge | deferred — W3 |
 
 ## INIT-GATEFLOW-010 — initiative freeze (W4 exit target)
 
