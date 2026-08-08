@@ -7,18 +7,21 @@ Authorized forge seeding uses ``ForgeActionService`` → these primitives after
 
 import asyncio
 from typing import Optional
+from uuid import UUID
 
 import httpx
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
-from src.exceptions.app_exceptions import ServiceUnavailableError, ValidationError
+from src.database.postgres.repository.tenant_repository import TenantRepository
+from src.exceptions.app_exceptions import NotFoundError, ServiceUnavailableError, ValidationError
 from src.infra_services.forge_client import (
     BOARD_COLUMN_LABEL_PREFIX,
     BOARD_INITIATIVE_LABEL_PREFIX,
     BOARD_TYPE_LABEL_PREFIX,
     ForgeClient,
 )
+from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import (
     BoardFailedResource,
     BoardTicketCreateRequest,
@@ -30,6 +33,7 @@ from src.models.board_models import (
     BoardTicketStatusUpdateRequest,
     BoardTicketType,
 )
+from src.models.tenant_models import TenantBoardDefault
 
 
 # GitHub Issues ``labels=`` list filter lags briefly after PATCH.
@@ -42,9 +46,65 @@ class BoardService(BaseBusinessService):
     """Programme-token board ops via ForgeClient only (no gh, no governance parsing)."""
 
     @inject
-    def __init__(self, forge_client: ForgeClient) -> None:
+    def __init__(
+        self,
+        forge_client: ForgeClient,
+        postgres_service: PostgresService,
+        tenant_repository: TenantRepository,
+    ) -> None:
         super().__init__()
         self._forge_client = forge_client
+        self._postgres_service = postgres_service
+        self._tenant_repository = tenant_repository
+
+    async def resolve_board_default(
+        self,
+        *,
+        tenant_id: Optional[UUID],
+        project_number: Optional[int],
+        project_owner: Optional[str],
+        org_fallback: str = "",
+    ) -> tuple[str, int]:
+        """Apply tenant board default when call omits project_number (REQ-08).
+
+        Explicit ``project_number`` / ``project_owner`` always win when set.
+        When ``project_number`` is present and owner omitted, ``org_fallback`` applies
+        (prior BoardTicketCreateRequest behavior).
+        """
+        resolved_number = project_number
+        resolved_owner = (project_owner or "").strip() or None
+        if resolved_number is None:
+            if tenant_id is None:
+                raise ValidationError(
+                    message="project_number is required when tenant board default is not used",
+                    field_errors={"project_number": "required"},
+                )
+            async with self._postgres_service.transaction() as session:
+                default: Optional[TenantBoardDefault] = (
+                    await self._tenant_repository.get_board_default(session, tenant_id)
+                )
+            if default is None:
+                raise NotFoundError(
+                    resource_type="tenant_board_default",
+                    resource_id=tenant_id,
+                    message="Tenant has no board default and project_number was omitted",
+                )
+            resolved_number = default.project_number
+            if resolved_owner is None:
+                resolved_owner = default.project_owner
+
+        if resolved_number is None or resolved_number <= 0:
+            raise ValidationError(
+                message="project_number must be a positive integer",
+                field_errors={"project_number": "must_be_positive"},
+            )
+        owner = resolved_owner or org_fallback.strip()
+        if not owner:
+            raise ValidationError(
+                message="project_owner is required when org is empty",
+                field_errors={"project_owner": "required"},
+            )
+        return owner, resolved_number
 
     async def _wait_until_labels_listed(
         self,
@@ -199,17 +259,16 @@ class BoardService(BaseBusinessService):
                 message="title is required",
                 field_errors={"title": "required"},
             )
-        if request.project_number <= 0:
-            raise ValidationError(
-                message="project_number must be a positive integer",
-                field_errors={"project_number": "must_be_positive"},
-            )
-        project_owner = (request.project_owner or request.org).strip()
-        if not project_owner:
-            raise ValidationError(
-                message="project_owner is required when org is empty",
-                field_errors={"project_owner": "required"},
-            )
+        project_owner, project_number = await self.resolve_board_default(
+            tenant_id=request.tenant_id,
+            project_number=request.project_number,
+            project_owner=request.project_owner,
+            org_fallback=request.org,
+        )
+        request = request.model_copy(
+            update={"project_number": project_number, "project_owner": project_owner}
+        )
+        assert request.project_number is not None
 
         type_label = ForgeClient.type_label(request.ticket_type.value)
         initiative_label = ForgeClient.initiative_label(request.initiative_id)
@@ -231,6 +290,7 @@ class BoardService(BaseBusinessService):
                         request=request,
                         ticket=ticket,
                         project_owner=project_owner,
+                        project_number=project_number,
                         created=False,
                         idempotent_replay=True,
                         created_resources=[],
@@ -256,6 +316,7 @@ class BoardService(BaseBusinessService):
                     request=request,
                     ticket=ticket,
                     project_owner=project_owner,
+                    project_number=project_number,
                     created=False,
                     idempotent_replay=True,
                     created_resources=[],
@@ -309,6 +370,7 @@ class BoardService(BaseBusinessService):
                 request=request,
                 ticket=ticket,
                 project_owner=project_owner,
+                project_number=project_number,
                 created=True,
                 idempotent_replay=False,
                 created_resources=created_resources,
@@ -328,6 +390,7 @@ class BoardService(BaseBusinessService):
         request: BoardTicketCreateRequest,
         ticket: BoardTicketResource,
         project_owner: str,
+        project_number: int,
         created: bool,
         idempotent_replay: bool,
         created_resources: list[str],
@@ -344,7 +407,7 @@ class BoardService(BaseBusinessService):
                 request.repo,
                 ticket.number,
                 project_owner=project_owner,
-                project_number=request.project_number,
+                project_number=project_number,
             )
             resources.append(f"project_item:{outcome}")
         except (httpx.HTTPError, RuntimeError, ValueError) as project_exc:
@@ -354,7 +417,7 @@ class BoardService(BaseBusinessService):
                 "Board project membership failed",
                 ticket_id=ticket.ticket_id,
                 project_owner=project_owner,
-                project_number=request.project_number,
+                project_number=project_number,
                 error=str(project_exc),
                 operation="create_ticket",
             )
@@ -387,7 +450,7 @@ class BoardService(BaseBusinessService):
             "Board ticket create completed",
             ticket_id=ticket.ticket_id,
             initiative_id=request.initiative_id,
-            project_number=request.project_number,
+            project_number=project_number,
             parent_ticket_id=parent_raw or None,
             partial=is_partial,
             created=created,

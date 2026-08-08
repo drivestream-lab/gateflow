@@ -24,6 +24,7 @@ from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.spec_readout_service import SpecReadoutService
+from src.business_services.tenant_service import TenantService
 from src.business_services.trigger_router import TriggerRouter
 from src.business_services.wave_map_service import WaveMapService
 from src.business_services.wave_start_service import WaveStartService
@@ -48,6 +49,7 @@ class BusinessServicesModule(Module):
         binder.bind(WaveStartService, scope=singleton)
         binder.bind(ClosureStartService, scope=singleton)
         binder.bind(BoardService, scope=singleton)
+        binder.bind(TenantService, scope=singleton)
         binder.bind(CheckpointEvidenceService, scope=singleton)
         binder.bind(InitiativeReadoutService, scope=singleton)
         binder.bind(WaveMapService, scope=singleton)

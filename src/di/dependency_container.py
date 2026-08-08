@@ -39,6 +39,7 @@ def configure_container() -> Injector:
     from src.business_services.prompt_resolver import PromptResolver
     from src.business_services.run_orchestrator import RunOrchestrator
     from src.business_services.slot_validator import SlotValidator
+    from src.business_services.tenant_service import TenantService
     from src.business_services.trigger_router import TriggerRouter
     from src.business_services.wave_start_service import WaveStartService
     from src.business_services.webhook_ingress_service import WebhookIngressService
@@ -49,6 +50,7 @@ def configure_container() -> Injector:
     from src.di.modules.repository_module import RepositoryModule
     from src.infra_services.cursor_agent_runner import CursorAgentRunner
     from src.infra_services.forge_client import ForgeClient
+    from src.infra_services.github_pat_probe import GithubPatProbe
     from src.infra_services.launchpad_client import LaunchpadClient
     from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
     from src.infra_services.stub_notifiers import SlackNotifierStub, TeamsNotifierStub
@@ -71,6 +73,7 @@ def configure_container() -> Injector:
             RedisService,
             TelemetryService,
             ForgeClient,
+            GithubPatProbe,
             LaunchpadClient,
             CursorAgentRunner,
             OpenCodeAgentRunner,
@@ -93,6 +96,7 @@ def configure_container() -> Injector:
             MetaPrIntakeService,
             WaveStartService,
             BoardService,
+            TenantService,
             CheckpointEvidenceService,
             ForgeActionService,
             LearningIngestService,

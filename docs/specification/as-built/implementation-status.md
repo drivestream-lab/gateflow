@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-08-07 |
-| Source | INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**; merge `0774e1b`) + W5 **human_approved** (board [#166](https://github.com/drivestream-lab/gateflow/issues/166); PR [#177](https://github.com/drivestream-lab/gateflow/pull/177) @ `069989e` `wave-accepted`; Ground-Report W5 **pass**) + W6 **human_approved** (board [#167](https://github.com/drivestream-lab/gateflow/issues/167); PR [#178](https://github.com/drivestream-lab/gateflow/pull/178) @ `0b0f144` `wave-accepted`; Ground-Report W6 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
+| Updated | 2026-08-08 |
+| Source | INIT-GATEFLOW-012 W0 **in progress** (Pass-1 loop-spec; board [#185](https://github.com/drivestream-lab/gateflow/issues/185)); INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**; merge `0774e1b`) + W5 **human_approved** (board [#166](https://github.com/drivestream-lab/gateflow/issues/166); PR [#177](https://github.com/drivestream-lab/gateflow/pull/177) @ `069989e` `wave-accepted`; Ground-Report W5 **pass**) + W6 **human_approved** (board [#167](https://github.com/drivestream-lab/gateflow/issues/167); PR [#178](https://github.com/drivestream-lab/gateflow/pull/178) @ `0b0f144` `wave-accepted`; Ground-Report W6 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
 
@@ -22,6 +22,16 @@
 | Live verify | `tests/verify/verify_all.py` | health…board (implement-lane **separate** opt-in) |
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
+
+## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Tenant register / attach / read/list | REQ-01–09, REQ-32 | `tenant_routes`, `tenant_service`, ORM | `test_tenant_*`, `test_github_pat_probe`, `test_tenant_token` | `verify_tenant_registry` (human; P15) | PAT plaintext G1; never in responses; ADR-011 Option A; human owns Alembic `versions/` |
+| Eager PAT probe (repo metadata GET) | REQ-06 | `github_pat_probe` | `test_github_pat_probe` | `verify_tenant_registry` | Per-call credential; not ForgeClient singleton |
+| Tenant board default on omit | REQ-08 | `BoardService.resolve_board_default` | `test_resolve_board_default_*` | secondary | Explicit override wins |
+
+**INIT-GATEFLOW-012 W0 status:** Pass-1 unit green pending live `wave-accepted` on tip. Human DDL required before live verify (see `DDL-NOTE-INIT-GATEFLOW-012-W0-tenants.md`).
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
 
