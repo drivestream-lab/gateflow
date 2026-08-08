@@ -15,9 +15,9 @@
 | Date | 2026-08-08 |
 | Branch | `chore/INIT-GATEFLOW-012-spec-gateflow` (spec PR [#183](https://github.com/drivestream-lab/gateflow/pull/183) — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-012` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-15 (5 business days) |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
+| Deciders | PE: @nikd10x — explicit acceptance recorded 2026-08-08 via Cursor chat, Draft spec PR [#183](https://github.com/drivestream-lab/gateflow/pull/183) |
 
 ---
 
@@ -201,7 +201,7 @@ call-site context; exact parameter list is TDD_ONLY, see §9 FF-04-adjacent row)
 | Finding | Classification | ADR file / TDD section | product_constraints | Product exclusions | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|---------------------|--------------------|--------------------------|--------|--------|
 | FF-01 | TDD_ONLY | §9 row FF-01 | `[REQ-10, REQ-12, REQ-15]` | none | Gap-fill, not reversal — no new ADR; documented as an additive case in this TDD | Resolved | N/A |
-| FF-02 | ADR_REQUIRED | `docs/specification/adr/adr-011-tenant-scoped-bearer-token-trust-zone.md` | `[REQ-03, REQ-04]` | none | New Draft record for a fourth trust zone, same Bearer/dependency mechanics as the existing programme-token zone | Draft | `sha256:6331d6031ee497d0da92100e353d7f29639a0c68670ed8d548c7682c81f052a8` |
+| FF-02 | ADR_REQUIRED | `docs/specification/adr/adr-011-tenant-scoped-bearer-token-trust-zone.md` | `[REQ-03, REQ-04]` | none | Fourth trust zone, same Bearer/dependency mechanics as the existing programme-token zone | **Accepted** (@nikd10x, 2026-08-08) | `sha256:6d4578b99287b664a3a0e324196ed3f0fbcdb6f2a7b3a5d555c5be11d793b56e` |
 | FF-03 | TDD_ONLY | §9 row FF-03 | `[REQ-11]` | none | Scope clarification only — no new ADR; ADR-003 Q-1 read as scoped to the credential it names | Resolved | N/A |
 | FF-04 | TDD_ONLY | §9 row FF-04 | `[REQ-11]` | none | Subprocess `git` CLI transport, no new Python package dependency | Resolved | N/A |
 | FF-05 | TDD_ONLY | §9 row FF-05 | `[REQ-20, REQ-21, REQ-22]` | none | First-ever unit coverage for the harness-check infra client, scheduled as plan §9 scope | Resolved | N/A |
@@ -320,14 +320,14 @@ _None — no auto-fixable items were identified in feasibility._
 | Gate | Status |
 |------|--------|
 | All T1–T12 checks | PASS (see Check summary) |
-| Engineering decisions resolved | 8 resolved (1 via Draft ADR, 7 via §9), 0 deferred |
-| Draft ADR files written | 1 file / 1 required |
-| Product-boundary integrity (T12) | PASS — mechanical lint clean on the 1 ADR + this TDD; manual re-read confirms no product-register leakage |
+| Engineering decisions resolved | 8 resolved (1 via ADR, 7 via §9), 0 deferred |
+| Draft ADR files written | 1 file / 1 required — **Accepted** by @nikd10x on 2026-08-08 (commit `ff1320e5254510a448d1dedd5ec21dfd5b5a05e2`) |
+| Product-boundary integrity (T12) | PASS — mechanical lint clean on the ADR (both `--strict` and `--verify-lint-evidence`) + this TDD; manual re-read confirms no product-register leakage |
 | PM questions outstanding | 1 — PM-1 (non-blocking, default recorded) |
 | Domain questions outstanding | 0 |
 | Selected workflow outcome | `pass` — zero unresolved engineering blockers; ready for PE review |
-| Ready for PE review | YES |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE approval required** |
+| Ready for PE review | YES — completed 2026-08-08 |
+| **Ready for /spec-implementation-plan** | **YES — the sole required ADR is Accepted with real Approval evidence, Approved head, and verified Lint evidence; TDD Status updated to Accepted** |
 
 ---
 
@@ -419,21 +419,26 @@ handoff:
     adr_required_count: 1
     adr_files:
       - path: docs/specification/adr/adr-011-tenant-scoped-bearer-token-trust-zone.md
-        status: Draft
-        lint_digest: "sha256:6331d6031ee497d0da92100e353d7f29639a0c68670ed8d548c7682c81f052a8"
+        status: Accepted
+        lint_digest: "sha256:6d4578b99287b664a3a0e324196ed3f0fbcdb6f2a7b3a5d555c5be11d793b56e"
+        approved_head: "ff1320e5254510a448d1dedd5ec21dfd5b5a05e2"
+        approved_by: "@nikd10x"
+        approved_at: "2026-08-08"
     reclassified_from_first_pass: "FF-01,FF-03"
     retired_adr_files: "adr-011-tenant-registered-workspace-authority.md,adr-013-per-tenant-github-credential-scope.md"
     native_findings: "TF-01"
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
     nonblocking_questions: "PM-1"
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
   forge:
     action: commit_workspace
     # Pin: spec-technical-review forge.commit_workspace = required.
-    # Publish TDD + 3 Draft ADR files onto the Draft spec PR head — invoke
-    # /commit-workspace (or Gateflow ForgeClient). This skill does not mutate.
+    # technical-review-approval (human-checkpoint) satisfied 2026-08-08 —
+    # PE accepted the sole required ADR with real evidence (see adr_files
+    # above). Acceptance package still needs /commit-workspace to publish
+    # this follow-up edit onto the Draft spec PR head.
 ```

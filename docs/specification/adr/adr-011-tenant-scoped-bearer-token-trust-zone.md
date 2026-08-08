@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-012 |
 | Feasibility finding | FF-02 (`Initiative-Feasibility-Report-INIT-GATEFLOW-012.md`) |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-012.md` |
@@ -14,9 +14,10 @@
 | supersedes | none |
 | superseded_by | none |
 | Relates to | Extends [`adr-002`](adr-002-edge-trust-model.md) (three-zone model) and [`adr-005`](adr-005-programme-token-control-plane-mutations.md) (widened programme-token zone) — adds a fourth zone; the existing three are unchanged |
-| Decision owner | PE |
-| Approval evidence | Pending |
-| Approved head | Pending |
+| Decision owner | @nikd10x |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-08 via Cursor chat, Draft spec PR [#183](https://github.com/drivestream-lab/gateflow/pull/183) |
+| Approved head | `ff1320e5254510a448d1dedd5ec21dfd5b5a05e2` |
+| Lint evidence | adr_boundary_lint.py 3/3, PASS, sha256:6d4578b99287b664a3a0e324196ed3f0fbcdb6f2a7b3a5d555c5be11d793b56e |
 
 > If `changes_user_visible_behavior` or `spec_amendment_required` would be
 > `true`, **stop**: amend and re-approve the product spec before this ADR may
