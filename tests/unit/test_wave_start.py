@@ -382,14 +382,22 @@ async def test_implement_concurrent_409() -> None:
         org="acme",
         repo="widget",
         status_type=RunStatusType.ACTIVE,
-        initiative_id="INIT-ACME-001",
-        wave_id="W0",
+        initiative_id="INIT-OTHER",
+        wave_id="W9",
         retry_counter=0,
         notify_pending=False,
     )
     service = _service(active=active)
-    with pytest.raises(ConflictError):
+    with pytest.raises(ConflictError) as exc_info:
+        # Different wave identity than the ACTIVE row — still blocked (REQ-23).
         await service.start_implement_wave(_implement_req())
+    assert exc_info.value.details.get("precondition_id") == ("PC-06-no-concurrent-active-run")
+    find = service._run_repository.find_active_run
+    assert isinstance(find, AsyncMock)
+    find.assert_awaited()
+    call = find.await_args
+    assert call is not None
+    assert call.kwargs == {"org": "acme", "repo": "widget"}
 
 
 @pytest.mark.asyncio

@@ -42,6 +42,7 @@ from src.infra_services.tenant_git_workspace_client import (
 from src.models.board_models import BoardTicketStatusUpdateRequest
 from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.pr_branch_naming import branch_slug_from_head_ref
+from src.models.policy_types import WavePreconditionIdType
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import (
@@ -463,17 +464,14 @@ class WaveStartService(BaseBusinessService):
                     session,
                     org=request.org,
                     repo=request.repo,
-                    pr_number=request.pr_number,
-                    issue_number=(
-                        issue_number if request.pr_number is None else request.issue_number
-                    ),
-                    initiative_id=initiative_id,
-                    wave_id=wave_id,
                 )
                 if active is not None:
                     raise ConflictError(
-                        message="Active run already exists for this wave identity",
-                        details={"existing_run_id": str(active.id)},
+                        message=(f"Active run already exists for {request.org}/{request.repo}"),
+                        details={
+                            "existing_run_id": str(active.id),
+                            "precondition_id": (WavePreconditionIdType.NO_CONCURRENT_RUN.value),
+                        },
                     )
 
                 run = await self._run_repository.create_run(

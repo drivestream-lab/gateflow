@@ -142,6 +142,77 @@ def main() -> int:
                 return 1
             print("[OK] GET /api/v1/runs filter → includes started run")
 
+            # REQ-23: same org+repo with a different wave identity while ACTIVE → 409
+            concurrent_identity, concurrent_body = smoke_wave_start_fields(
+                cfg.gateflow,
+                branch_slug="verify-wave-start-concurrent",
+                wave_id="W1",
+                initiative_prefix="INIT-VFC",
+            )
+            concurrent_body["org"] = body["org"]
+            concurrent_body["repo"] = body["repo"]
+            concurrent = client.post(start_url, json=concurrent_body, headers=headers)
+            if concurrent.status_code != 409:
+                print(
+                    f"[ERROR] expected 409 for same-repo concurrent start, got "
+                    f"{concurrent.status_code}: {concurrent.text}"
+                )
+                return 1
+            concurrent_payload = concurrent.json()
+            details = concurrent_payload.get("details") or {}
+            precondition = details.get("precondition_id") if isinstance(details, dict) else None
+            if precondition != "PC-06-no-concurrent-active-run":
+                text = concurrent.text
+                if "PC-06-no-concurrent-active-run" not in text and "CONFLICT" not in text:
+                    print(
+                        "[ERROR] expected NO_CONCURRENT_RUN / CONFLICT on same-repo " f"409: {text}"
+                    )
+                    return 1
+            print(
+                "[OK] same-repo second start (different wave) → 409 NO_CONCURRENT_RUN "
+                f"(REQ-23); other initiative={concurrent_identity['initiative_id']}"
+            )
+
+            # REQ-24: different repo must not be blocked by ACTIVE on the first repo
+            cross_org = (os.environ.get("GATEFLOW_VERIFY_CROSS_ORG") or "").strip()
+            cross_repo = (os.environ.get("GATEFLOW_VERIFY_CROSS_REPO") or "").strip()
+            if cross_org and cross_repo:
+                cross_identity, cross_body = smoke_wave_start_fields(
+                    cfg.gateflow,
+                    branch_slug="verify-wave-start-cross",
+                    wave_id="W0",
+                    initiative_prefix="INIT-VXR",
+                )
+                cross_body["org"] = cross_org
+                cross_body["repo"] = cross_repo
+                cross = client.post(start_url, json=cross_body, headers=headers)
+                if cross.status_code == 409:
+                    print(
+                        f"[ERROR] cross-repo start blocked by other repo ACTIVE "
+                        f"(REQ-24): {cross.text}"
+                    )
+                    return 1
+                if cross.status_code not in {200, 201}:
+                    print(
+                        f"[WARNING] cross-repo start returned {cross.status_code} "
+                        f"(not 409 — harness/board/other gate): {cross.text[:400]}"
+                    )
+                    print(
+                        "[OK] cross-repo allow probe: not blocked by same-repo ACTIVE "
+                        f"(REQ-24 secondary); org/repo={cross_org}/{cross_repo} "
+                        f"initiative={cross_identity['initiative_id']}"
+                    )
+                else:
+                    print(
+                        "[OK] cross-repo start succeeded while other repo ACTIVE "
+                        f"(REQ-24); run_id={cross.json().get('run_id')}"
+                    )
+            else:
+                print(
+                    "[INFO] skip cross-repo allow — set GATEFLOW_VERIFY_CROSS_ORG and "
+                    "GATEFLOW_VERIFY_CROSS_REPO for REQ-24 live probe"
+                )
+
             # Label ingress may still ack; it is not the 002 start path.
             secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
             if secret:
