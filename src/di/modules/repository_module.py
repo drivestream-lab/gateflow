@@ -10,6 +10,7 @@ from src.database.postgres.repository.run_store_repository import (
     StageRepository,
     WebhookDeliveryRepository,
 )
+from src.database.postgres.repository.tenant_repository import TenantRepository
 from src.infra_services.postgres_service import PostgresService
 
 
@@ -47,3 +48,8 @@ class RepositoryModule(Module):
     @singleton
     def provide_learning_repository(self, postgres_service: PostgresService) -> LearningRepository:
         return LearningRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_tenant_repository(self, postgres_service: PostgresService) -> TenantRepository:
+        return TenantRepository(session_factory=postgres_service.get_session_factory())

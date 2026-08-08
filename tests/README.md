@@ -52,6 +52,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
 # .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
+# .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-012 W0 tenant registry
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -600,3 +601,29 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Closeout Pass-2 | `verify_wave_closeout` — **live** ([Live-Verify W2](../docs/specification/reports/Live-Verify-INIT-GATEFLOW-009-W2.md)) | `test_wave_closeout` |
 | Authorize live | **PE-waived** (INIT-009) | `test_forge_action_service` unit only |
 | Feature readiness + CI | inspection + GitHub Actions `ci` | [`Feature-Readiness-INIT-GATEFLOW-009.md`](../docs/specification/reports/Feature-Readiness-INIT-GATEFLOW-009.md) |
+
+## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Register + one-time tenant bearer (REQ-01/03/09) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
+| PAT never in responses (REQ-02/32) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
+| Eager PAT probe itemized 422 (REQ-06) | `verify_tenant_registry` | `test_github_pat_probe`, `test_tenant_service` |
+| Absolute `workspace_root` → 400 (REQ-07) | `verify_tenant_registry` | `test_tenant_service` |
+| Tenant token 401 + attach boundary (REQ-04; ADR-011) | `verify_tenant_registry` | `test_tenant_token`, `test_tenant_routes` |
+| Board default when project omitted (REQ-08) | secondary | `test_board_service` (`test_resolve_board_default_*`) |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables + PAT with read access to `gateflow.org`/`gateflow.repo`).
+
+### Tenant registry (INIT-GATEFLOW-012 W0)
+
+```bash
+# Prerequisites: human Alembic for tenants / tenant_repos / tenant_users
+#   (see docs/specification/reports/DDL-NOTE-INIT-GATEFLOW-012-W0-tenants.md)
+# PAT: GITHUB_PERSONAL_ACCESS_TOKEN or GATEFLOW_TENANT_PAT
+# Optional: GATEFLOW_TENANT_ORG / GATEFLOW_TENANT_REPO / GATEFLOW_TENANT_WORKSPACE_ROOT
+
+make run
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_tenant_registry
+```

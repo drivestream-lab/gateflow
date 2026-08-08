@@ -2,6 +2,7 @@
 
 from enum import Enum
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -58,16 +59,20 @@ class BoardTicketCreateRequest(BaseModel):
     body: Optional[str] = Field(default=None)
     ticket_type: BoardTicketType = Field(description="EPIC or Feature")
     initiative_id: str = Field(description="Initiative id for EPIC/Feature idempotency")
-    project_number: int = Field(
+    project_number: Optional[int] = Field(
+        default=None,
         description=(
-            "Org Project v2 number (deterministic). Issue is added to this project "
-            "after create; idempotent replay also ensures membership."
+            "Org Project v2 number. When omitted, BoardService applies the tenant "
+            "board default (REQ-08) if tenant_id is supplied; otherwise required."
         ),
-        gt=0,
     )
     project_owner: Optional[str] = Field(
         default=None,
-        description="Org that owns the Project (defaults to request.org when omitted)",
+        description="Org that owns the Project (defaults to request.org / tenant board)",
+    )
+    tenant_id: Optional[UUID] = Field(
+        default=None,
+        description="Tenant whose board default applies when project_number is omitted",
     )
     parent_ticket_id: Optional[str] = Field(
         default=None,

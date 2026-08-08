@@ -8,6 +8,7 @@ from src.api.v1.forge_routes import router as forge_router
 from src.api.v1.initiatives_routes import router as initiatives_router
 from src.api.v1.metrics_routes import router as metrics_router
 from src.api.v1.runs_routes import router as runs_router
+from src.api.v1.tenant_routes import router as tenant_router
 from src.api.v1.waves_routes import router as waves_router
 
 api_router = APIRouter()
@@ -18,3 +19,4 @@ api_router.include_router(forge_router, tags=["Forge"])
 api_router.include_router(metrics_router, tags=["Metrics"])
 api_router.include_router(board_router, tags=["Board"])
 api_router.include_router(checkpoints_router, tags=["Checkpoints"])
+api_router.include_router(tenant_router, tags=["Tenants"])

@@ -18,7 +18,13 @@ from src.models.board_models import (
 
 def _service(forge: MagicMock | None = None) -> tuple[BoardService, MagicMock]:
     forge_client = forge or MagicMock()
-    service = BoardService(forge_client=forge_client)
+    postgres = MagicMock()
+    tenant_repo = MagicMock()
+    service = BoardService(
+        forge_client=forge_client,
+        postgres_service=postgres,
+        tenant_repository=tenant_repo,
+    )
     return service, forge_client
 
 
@@ -261,3 +267,61 @@ async def test_create_ticket_waits_for_label_index(monkeypatch: pytest.MonkeyPat
     forge.ensure_issue_on_project.assert_awaited_once()
     forge.ensure_sub_issue.assert_awaited_once()
     assert any(r.startswith("parent_link:") for r in result.created_resources)
+
+
+@pytest.mark.asyncio
+async def test_resolve_board_default_from_tenant() -> None:
+    from contextlib import asynccontextmanager
+    from uuid import uuid4
+
+    from src.models.tenant_models import TenantBoardDefault
+
+    forge = MagicMock()
+    postgres = MagicMock()
+
+    @asynccontextmanager
+    async def _tx():
+        yield MagicMock()
+
+    postgres.transaction = _tx
+    tenant_repo = MagicMock()
+    tenant_id = uuid4()
+    tenant_repo.get_board_default = AsyncMock(
+        return_value=TenantBoardDefault(project_owner="acme-org", project_number=42)
+    )
+    service = BoardService(
+        forge_client=forge,
+        postgres_service=postgres,
+        tenant_repository=tenant_repo,
+    )
+    owner, number = await service.resolve_board_default(
+        tenant_id=tenant_id,
+        project_number=None,
+        project_owner=None,
+        org_fallback="fallback",
+    )
+    assert owner == "acme-org"
+    assert number == 42
+
+
+@pytest.mark.asyncio
+async def test_resolve_board_default_explicit_wins() -> None:
+    from uuid import uuid4
+
+    forge = MagicMock()
+    postgres = MagicMock()
+    tenant_repo = MagicMock()
+    service = BoardService(
+        forge_client=forge,
+        postgres_service=postgres,
+        tenant_repository=tenant_repo,
+    )
+    owner, number = await service.resolve_board_default(
+        tenant_id=uuid4(),
+        project_number=7,
+        project_owner="explicit-owner",
+        org_fallback="fallback",
+    )
+    assert owner == "explicit-owner"
+    assert number == 7
+    tenant_repo.get_board_default.assert_not_called()
