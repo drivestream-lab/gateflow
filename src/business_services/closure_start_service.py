@@ -164,12 +164,10 @@ class ClosureStartService(BaseBusinessService):
                     session,
                     org=request.org,
                     repo=request.repo,
-                    initiative_id=request.initiative_id,
-                    issue_number=issue_number,
                 )
                 if active is not None:
                     raise ConflictError(
-                        message="Active run already exists for this initiative closure scope",
+                        message=(f"Active run already exists for {request.org}/{request.repo}"),
                         details={"existing_run_id": str(active.id)},
                     )
 

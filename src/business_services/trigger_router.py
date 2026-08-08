@@ -182,24 +182,11 @@ class TriggerRouter(BaseBusinessService):
             except ValueError:
                 exclude_run_id = None
 
-        wave_id = str(payload["wave_id"]) if payload.get("wave_id") is not None else None
-        if (
-            context.org
-            and context.repo
-            and (
-                context.pr_number is not None
-                or context.issue_number is not None
-                or (context.initiative_id is not None and wave_id is not None)
-            )
-        ):
+        if context.org and context.repo:
             active = await self._run_repository.find_active_run(
                 session,
                 org=context.org,
                 repo=context.repo,
-                pr_number=context.pr_number,
-                issue_number=context.issue_number,
-                initiative_id=context.initiative_id,
-                wave_id=wave_id,
             )
             if active is not None and (exclude_run_id is None or active.id != exclude_run_id):
                 failures.append(

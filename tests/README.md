@@ -705,3 +705,27 @@ make run
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_harness_readiness
 ```
+
+## Feature map (INIT-GATEFLOW-012 W4 — repo-scoped NO_CONCURRENT_RUN)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Same-repo ACTIVE second start → 409 (REQ-23) | `verify_wave_start` | `test_run_store_concurrency`, `test_implement_concurrent_409` |
+| Cross-repo never blocked (REQ-24) | `verify_wave_start` (optional env) | `test_ff06_cross_repo_*` |
+| No new isolation infra (REQ-25) | inspection | source guard in `test_ff06_source_is_org_repo_active_only` |
+| FF-06 fixture before query change | — | `test_run_store_concurrency` (landed before broaden) |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_start`
+
+Optional cross-repo allow probe: set `GATEFLOW_VERIFY_CROSS_ORG` + `GATEFLOW_VERIFY_CROSS_REPO`.
+
+### Repo concurrency (INIT-GATEFLOW-012 W4)
+
+```bash
+# Prerequisites: API + Postgres; PROGRAMME_SERVICE_TOKEN; resolvable board ticket.
+# First start leaves an ACTIVE run; script asserts same-repo second start → 409.
+
+make run
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_wave_start
+```

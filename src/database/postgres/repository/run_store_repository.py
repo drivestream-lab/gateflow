@@ -200,29 +200,18 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         session: AsyncSession,
         org: str,
         repo: str,
-        pr_number: Optional[int] = None,
-        issue_number: Optional[int] = None,
-        initiative_id: Optional[str] = None,
-        wave_id: Optional[str] = None,
     ) -> Optional[RunModel]:
-        """Return an ACTIVE run for the same scope (PR/issue or wave identity)."""
-        stmt = select(RunSchema).where(
-            RunSchema.org == org,
-            RunSchema.repo == repo,
-            RunSchema.status_type == RunStatusType.ACTIVE.value,
-        )
-        if initiative_id is not None and wave_id is not None:
-            stmt = stmt.where(
-                RunSchema.initiative_id == initiative_id,
-                RunSchema.wave_id == wave_id,
+        """Return any ACTIVE run for org+repo (REQ-23 — repo-scoped concurrency)."""
+        stmt = (
+            select(RunSchema)
+            .where(
+                RunSchema.org == org,
+                RunSchema.repo == repo,
+                RunSchema.status_type == RunStatusType.ACTIVE.value,
             )
-        elif pr_number is not None:
-            stmt = stmt.where(RunSchema.pr_number == pr_number)
-        elif issue_number is not None:
-            stmt = stmt.where(RunSchema.issue_number == issue_number)
-        else:
-            return None
-        result = await session.execute(stmt.limit(1))
+            .limit(1)
+        )
+        result = await session.execute(stmt)
         row = result.scalar_one_or_none()
         return self._to_model(row) if row is not None else None
 
