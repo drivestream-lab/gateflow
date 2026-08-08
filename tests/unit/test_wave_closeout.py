@@ -158,8 +158,13 @@ def _service(
         meta_pr_intake=intake,
         forge_client=forge,
         board_service=MagicMock(),
-        tenant_service=MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
+        tenant_service=MagicMock(
+            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            is_harness_verified=AsyncMock(return_value=False),
+            mark_harness_verified=AsyncMock(),
+        ),
         tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
+        launchpad_client=MagicMock(sync_harness=AsyncMock()),
     )
 
 

@@ -104,6 +104,10 @@ class ImplementWaveStartRequest(WaveStartTargetingFields):
         default=None,
         description="Optional app workspace path for implement lane",
     )
+    force_harness_recheck: bool = Field(
+        default=False,
+        description="When true, ignore harness_verified cache and re-probe (REQ-22)",
+    )
 
     @field_validator("ticket_id")
     @classmethod
@@ -323,6 +327,10 @@ class WaveStartJobPayload(BaseModel):
             "spec: feature/{INIT}-spec). "
             "When set, orchestrator must not invent head from branch_slug."
         ),
+    )
+    force_harness_recheck: bool = Field(
+        default=False,
+        description="When true, orchestrator ignores harness_verified cache (REQ-22)",
     )
 
     def to_job_payload_document(self) -> JobPayloadDocument:

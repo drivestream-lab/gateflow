@@ -173,6 +173,38 @@ class TenantService(BaseBusinessService):
                 details={"org": org, "repo": repo, "reason": "ambiguous_tenant_registration"},
             ) from exc
 
+    async def is_harness_verified(self, *, org: str, repo: str) -> bool:
+        """Return True when tenant_repos.harness_verified is set (REQ-22)."""
+        try:
+            async with self._postgres_service.transaction() as session:
+                flag = await self._tenant_repository.get_harness_verified(
+                    session, org=org, repo=repo
+                )
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"org": org, "repo": repo, "reason": "ambiguous_tenant_registration"},
+            ) from exc
+        return bool(flag)
+
+    async def mark_harness_verified(self, *, org: str, repo: str) -> None:
+        """Cache harness readiness after a successful probe (REQ-22)."""
+        try:
+            async with self._postgres_service.transaction() as session:
+                await self._tenant_repository.set_harness_verified(
+                    session, org=org, repo=repo, verified=True
+                )
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"org": org, "repo": repo, "reason": "harness_cache_update_failed"},
+            ) from exc
+        self.logger.info(
+            "Tenant repo marked harness verified",
+            org=org,
+            repo=repo,
+        )
+
     async def resolve_tenant_by_token(self, bearer_token: str) -> Optional[TenantResolvedContext]:
         async with self._postgres_service.transaction() as session:
             return await self._tenant_repository.resolve_tenant_by_token(session, bearer_token)

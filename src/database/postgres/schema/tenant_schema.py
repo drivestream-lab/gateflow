@@ -39,7 +39,12 @@ class TenantRepoSchema(PostgresBaseModel):
     )
     org: Mapped[str] = mapped_column(String(255), nullable=False)
     repo: Mapped[str] = mapped_column(String(255), nullable=False)
-    harness_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    harness_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        # W3 cache (REQ-22): set true after LaunchpadClient.sync_harness succeeds.
+    )
 
 
 class TenantUserSchema(PostgresBaseModel):

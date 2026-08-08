@@ -195,8 +195,13 @@ def _service(
         meta_pr_intake=intake,
         forge_client=MagicMock(),
         board_service=board,
-        tenant_service=MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
+        tenant_service=MagicMock(
+            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            is_harness_verified=AsyncMock(return_value=False),
+            mark_harness_verified=AsyncMock(),
+        ),
         tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
+        launchpad_client=MagicMock(sync_harness=AsyncMock()),
     )
 
 
@@ -512,18 +517,94 @@ async def test_implement_explicit_path_skips_tenant_resolve(tmp_path: Path) -> N
     service = _service()
     response = await service.start_implement_wave(_implement_req(workspace_path=explicit))
     assert response.status == "active"
-    lookup = service._tenant_service.get_workspace_credential_for_repo
-    assert isinstance(lookup, AsyncMock)
-    lookup.assert_not_awaited()
     resolve = service._tenant_git_workspace_client.resolve_workspace
     assert isinstance(resolve, AsyncMock)
     resolve.assert_not_awaited()
+    sync = service._launchpad_client.sync_harness
+    assert isinstance(sync, AsyncMock)
+    sync.assert_awaited_once_with(explicit)
     enqueue = service._job_repository.enqueue
     assert isinstance(enqueue, AsyncMock)
     call = enqueue.await_args
     assert call is not None
     raw = call.args[1].payload.model_dump()
     assert raw["workspace_path"] == explicit
+
+
+@pytest.mark.asyncio
+async def test_implement_harness_missing_422_zero_enqueue(tmp_path: Path) -> None:
+    """REQ-20/21: missing harness artifacts → 422; 0 enqueue; board untouched."""
+    from src.infra_services.launchpad_client import HarnessReadinessError
+
+    ws = tmp_path / "bare"
+    ws.mkdir()
+    service = _service()
+    service._launchpad_client.sync_harness = AsyncMock(
+        side_effect=HarnessReadinessError(
+            "Workspace is missing required harness artifacts",
+            reason="harness_artifacts_missing",
+            missing=[".harness-pin.yaml", ".harness"],
+            workspace_path=str(ws),
+        )
+    )
+    with pytest.raises(UnprocessableEntityError, match="harness"):
+        await service.start_implement_wave(_implement_req(workspace_path=str(ws)))
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+    board = service._board_service
+    assert isinstance(board.update_ticket_status, AsyncMock)
+    board.update_ticket_status.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_implement_harness_cache_skips_probe() -> None:
+    """REQ-22: registered + harness_verified skips sync_harness unless forced."""
+    from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+
+    service = _service()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=uuid4(),
+            workspace_root="/tmp",
+            pat="pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    service._tenant_service.is_harness_verified = AsyncMock(return_value=True)
+    await service.start_implement_wave(_implement_req())
+    sync = service._launchpad_client.sync_harness
+    assert isinstance(sync, AsyncMock)
+    sync.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_implement_force_harness_recheck_probes_when_cached() -> None:
+    """REQ-22: force_harness_recheck probes even when cache is true."""
+    from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+
+    service = _service()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=uuid4(),
+            workspace_root="/tmp",
+            pat="pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    service._tenant_service.is_harness_verified = AsyncMock(return_value=True)
+    await service.start_implement_wave(_implement_req(force_harness_recheck=True))
+    sync = service._launchpad_client.sync_harness
+    assert isinstance(sync, AsyncMock)
+    sync.assert_awaited()
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    call = enqueue.await_args
+    assert call is not None
+    raw = call.args[1].payload.model_dump()
+    assert raw["force_harness_recheck"] is True
 
 
 @pytest.mark.asyncio
