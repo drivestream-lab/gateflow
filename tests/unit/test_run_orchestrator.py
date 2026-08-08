@@ -181,6 +181,8 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "learning_ingest_service": MagicMock(
             ingest_after_learning_extract=AsyncMock(return_value=None)
         ),
+        "tenant_service": MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
+        "tenant_git_workspace_client": MagicMock(resolve_workspace=AsyncMock()),
     }
     defaults.update(overrides)
     orch = RunOrchestrator(**defaults)
@@ -1271,3 +1273,119 @@ def test_src_has_no_retired_checkpoint_transition_ids() -> None:
             if token in text:
                 offenders.append(f"{path}:{token}")
     assert not offenders, f"retired checkpoint ids still present: {offenders}"
+
+
+@pytest.mark.asyncio
+async def test_omitted_workspace_unregistered_fails_without_cwd() -> None:
+    """REQ-15 / FF-01: orchestrator must not fall back to Path.cwd()."""
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=None,
+            ),
+            failures=[],
+        )
+    )
+    orchestrator = _build_orchestrator(trigger_router=trigger_router)
+    raw = _job_payload().model_dump()
+    raw.pop("workspace_path", None)
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is False
+    assert summary.terminal_status == "failed"
+    assert "Path.cwd()" in (summary.stop_reason or "")
+    launchpad = orchestrator._launchpad_client
+    assert isinstance(launchpad.sync_harness, AsyncMock)
+    launchpad.sync_harness.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_omitted_workspace_registered_resolves_via_client(tmp_path: Path) -> None:
+    """REQ-10: omitted path + registered repo uses tenant git client."""
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+    from src.models.tenant_git_workspace_models import (
+        TenantWorkspaceCredential,
+        WorkspaceResolveModeType,
+        WorkspaceResolveResult,
+    )
+
+    resolved = str((tmp_path / "acme" / "widget").resolve())
+    (tmp_path / "acme" / "widget").mkdir(parents=True)
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=None,
+            ),
+            failures=[],
+        )
+    )
+    tenant_service = MagicMock()
+    tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=uuid4(),
+            workspace_root=str(tmp_path),
+            pat="pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    git_client = MagicMock()
+    git_client.resolve_workspace = AsyncMock(
+        return_value=WorkspaceResolveResult(
+            path=resolved,
+            mode=WorkspaceResolveModeType.FETCHED,
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        tenant_service=tenant_service,
+        tenant_git_workspace_client=git_client,
+    )
+    cursor = orchestrator._cursor_agent_runner
+    cursor.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            error_message=None,
+        )
+    )
+    raw = _job_payload().model_dump()
+    raw.pop("workspace_path", None)
+    await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    git_client.resolve_workspace.assert_awaited_once()
+    launchpad = orchestrator._launchpad_client
+    assert isinstance(launchpad.sync_harness, AsyncMock)
+    launchpad.sync_harness.assert_awaited()
+    sync_call = launchpad.sync_harness.await_args
+    assert sync_call is not None
+    assert sync_call.args[0] == resolved

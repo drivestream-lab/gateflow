@@ -13,6 +13,7 @@ from src.database.postgres.schema.tenant_schema import (
     TenantUserSchema,
 )
 from src.di.qualified_types import PostgresSessionFactory
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantBoardDefault,
     TenantReadModel,
@@ -146,3 +147,39 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         if row is None:
             return None
         return self._board_from_row(row)
+
+    async def find_workspace_credential_by_org_repo(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[TenantWorkspaceCredential]:
+        """Return tenant + stored PAT for a registered org/repo (REQ-11 lookup).
+
+        Read/list DTOs never include PAT; this internal shape is for git auth only.
+        Ambiguous multi-tenant registration of the same org/repo fails closed.
+        """
+        stmt = (
+            select(TenantSchema, TenantRepoSchema)
+            .join(TenantRepoSchema, TenantRepoSchema.tenant_id == TenantSchema.id)
+            .where(TenantRepoSchema.org == org, TenantRepoSchema.repo == repo)
+            .order_by(TenantSchema.id.asc())
+            .limit(2)
+        )
+        result = await session.execute(stmt)
+        rows = list(result.all())
+        if not rows:
+            return None
+        if len(rows) > 1:
+            raise ValueError(
+                f"Ambiguous tenant registration for {org}/{repo}: multiple tenants match"
+            )
+        tenant_row, repo_row = rows[0]
+        return TenantWorkspaceCredential(
+            tenant_id=tenant_row.id,
+            workspace_root=tenant_row.workspace_root,
+            pat=tenant_row.pat,
+            org=repo_row.org,
+            repo=repo_row.repo,
+        )

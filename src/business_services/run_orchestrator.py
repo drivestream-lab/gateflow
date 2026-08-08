@@ -21,6 +21,7 @@ from src.business_services.node_model_resolver import resolve_node_dispatch
 from src.business_services.notifier import Notifier
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.prompt_resolver import PromptResolver
+from src.business_services.tenant_service import TenantService
 from src.business_services.trigger_router import TriggerRouter
 from src.business_services.workflow_engine import WorkflowEngine
 from src.business_services.workspace_commit_paths import collect_commit_paths
@@ -30,11 +31,15 @@ from src.database.postgres.repository.run_store_repository import (
     RunRepository,
     StageRepository,
 )
-from src.exceptions.app_exceptions import ValidationError
+from src.exceptions.app_exceptions import UnprocessableEntityError, ValidationError
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.launchpad_client import LaunchpadClient
 from src.infra_services.postgres_service import PostgresService
+from src.infra_services.tenant_git_workspace_client import (
+    TenantGitWorkspaceClient,
+    TenantGitWorkspaceError,
+)
 from src.models.control_plane_models import RunEventComment, RunProcessSummary
 from src.models.dispatch_plan_models import DispatchPlan, ResolvedNodeDispatch
 from src.models.forge_models import merge_pin_and_handoff_forge
@@ -90,6 +95,8 @@ class RunOrchestrator(BaseBusinessService):
         stage_repository: StageRepository,
         prompt_resolver: PromptResolver,
         learning_ingest_service: LearningIngestService,
+        tenant_service: TenantService,
+        tenant_git_workspace_client: TenantGitWorkspaceClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -108,6 +115,8 @@ class RunOrchestrator(BaseBusinessService):
         self._run_event_repository = run_event_repository
         self._stage_repository = stage_repository
         self._prompt_resolver = prompt_resolver
+        self._tenant_service = tenant_service
+        self._tenant_git_workspace_client = tenant_git_workspace_client
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def process_job(self, job: JobModel) -> RunProcessSummary:
@@ -234,7 +243,29 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                 )
 
-            workspace_path = context.workspace_path or str(Path.cwd())
+            try:
+                workspace_path = await self._resolve_job_workspace_path(
+                    org=context.org,
+                    repo=context.repo,
+                    workspace_path=context.workspace_path,
+                )
+            except (ValueError, UnprocessableEntityError, TenantGitWorkspaceError) as exc:
+                reason = str(exc)
+                if isinstance(exc, TenantGitWorkspaceError):
+                    reason = f"{exc.reason}: {exc}"
+                return await self._finalize_run(
+                    session,
+                    run,
+                    status_type=RunStatusType.FAILED,
+                    outcome_type=RunOutcomeType.FAILED,
+                    stop_reason=reason,
+                    workflow_node=str(start_node_id),
+                    dispatched=False,
+                    notify_pending=notify_pending,
+                    issue_ref=issue_ref,
+                    org=context.org,
+                    repo=context.repo,
+                )
             await self._launchpad_client.sync_harness(workspace_path)
 
             dispatched_any = False
@@ -827,6 +858,29 @@ class RunOrchestrator(BaseBusinessService):
             "duration_ms": duration_ms,
             "handoff_path": handoff_path,
         }
+
+    async def _resolve_job_workspace_path(
+        self,
+        *,
+        org: str,
+        repo: str,
+        workspace_path: Optional[str],
+    ) -> str:
+        """Explicit path wins (REQ-12); omitted path uses tenant clone/fetch (REQ-10/15)."""
+        if workspace_path is not None and str(workspace_path).strip():
+            return str(workspace_path).strip()
+
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org,
+            repo=repo,
+        )
+        if credential is None:
+            raise ValueError(
+                "workspace_path omitted and org/repo is not Tenant-registered; "
+                "refusing Path.cwd() fallback"
+            )
+        resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
+        return resolved.path
 
     async def _ensure_run_handoff_path(
         self,

@@ -54,6 +54,7 @@ def configure_container() -> Injector:
     from src.infra_services.launchpad_client import LaunchpadClient
     from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
     from src.infra_services.stub_notifiers import SlackNotifierStub, TeamsNotifierStub
+    from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceClient
 
     settings = AppSettings.get_instance()
     global _injector
@@ -74,6 +75,7 @@ def configure_container() -> Injector:
             TelemetryService,
             ForgeClient,
             GithubPatProbe,
+            TenantGitWorkspaceClient,
             LaunchpadClient,
             CursorAgentRunner,
             OpenCodeAgentRunner,

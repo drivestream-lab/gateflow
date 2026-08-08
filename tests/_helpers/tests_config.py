@@ -378,5 +378,7 @@ def smoke_wave_start_fields(
         "start_node": start_node,
         "runner": runner,
         "model_id": model_id,
+        # Explicit path (REQ-12) — omitted path requires Tenant registration (REQ-15).
+        "workspace_path": str(Path.cwd().resolve()),
     }
     return identity, body
