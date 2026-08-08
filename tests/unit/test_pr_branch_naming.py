@@ -3,6 +3,8 @@
 import pytest
 
 from src.models.pr_branch_naming import (
+    BranchResolveModeType,
+    branch_slug_from_head_ref,
     build_spec_head_branch,
     build_wave_head_branch,
     normalize_wave_token,
@@ -77,3 +79,31 @@ def test_invalid_base_branch(base: str) -> None:
 def test_validate_base_branch_ok() -> None:
     assert validate_base_branch("develop") == "develop"
     assert validate_base_branch("release/1.0") == "release/1.0"
+
+
+def test_branch_slug_from_head_ref_matches_convention() -> None:
+    """REQ-17: continuation head derives slug from feature/{INIT}-{wn}-{slug}."""
+    assert (
+        branch_slug_from_head_ref(
+            "feature/INIT-GATEFLOW-012-w2-branch-resolve",
+            initiative_id="INIT-GATEFLOW-012",
+            wave_id="W2",
+        )
+        == "branch-resolve"
+    )
+
+
+def test_branch_slug_from_head_ref_placeholder_when_unmatched() -> None:
+    assert (
+        branch_slug_from_head_ref(
+            "feature/other-head",
+            initiative_id="INIT-GATEFLOW-012",
+            wave_id="W2",
+        )
+        == "wave-pr"
+    )
+
+
+def test_branch_resolve_mode_type_values() -> None:
+    assert BranchResolveModeType.NEW_WAVE.value == "new_wave"
+    assert BranchResolveModeType.CONTINUATION.value == "continuation"
