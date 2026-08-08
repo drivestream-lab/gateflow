@@ -54,6 +54,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
 # .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-012 W0 tenant registry
 # .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch
+# .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -653,4 +654,30 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_workspace_lifecycle`
 make run
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_workspace_lifecycle
+```
+
+## Feature map (INIT-GATEFLOW-012 W2 — branch create-or-reuse)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| New wave forks from live develop tip (REQ-16) | `verify_branch_lifecycle` | `test_resolve_branch_new_wave_*` |
+| Deterministic naming; no second scheme (REQ-17) | secondary | `test_pr_branch_naming`, `test_branch_slug_from_head_ref_*` |
+| Continuation reuses head; zero new refs (REQ-18) | `verify_branch_lifecycle` | `test_resolve_branch_continuation_*`, `test_process_job_continuation_missing_*` |
+| Never-cloned workspace + continuation (REQ-19) | `verify_branch_lifecycle` | checkout companion + live |
+| Missing continuation head → named fail-closed | secondary | `test_resolve_branch_explicit_head_missing_*` |
+| PE-1 existing-node 0 BROKEN (W2 coding-start waiver) | — | `test_all_remounted_pin_nodes_parse` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_branch_lifecycle`
+
+### Branch lifecycle (INIT-GATEFLOW-012 W2)
+
+```bash
+# Prerequisites: W0 DDL + W1 workspace contracts; API + worker;
+# gateflow.require_worker: true; PROGRAMME_SERVICE_TOKEN; PAT with branch write;
+# resolvable board ticket fields (same as verify_wave_start).
+# Optional: GATEFLOW_TENANT_WORKSPACE_ROOT (scratch absolute path)
+
+make run
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_branch_lifecycle
 ```

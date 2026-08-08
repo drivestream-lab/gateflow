@@ -44,9 +44,22 @@
 | Mismatch checkout → 422 untouched | REQ-14 | client mismatch raise | unit + live | `verify_workspace_lifecycle` | Named `workspace_mismatch` |
 | Omitted + unregistered → 422 0 enqueue | REQ-15 | wave-start before board/enqueue | unit + live | `verify_workspace_lifecycle` | Fail-closed; no guess |
 | Per-repo lock (TF-01) | — | asyncio lock per org+repo | `test_per_repo_lock_*` | — | Independent of W4 concurrency broaden |
-| Pin existing nodes 0 BROKEN (PE-1 W1 waiver) | REQ-10 gate | `.harness-pin.yaml` `v0.5.0-rc.2` | `test_all_remounted_pin_nodes_parse` | N/A | New CTR-01 shapes hard-gated at W2; see PE-Waiver |
+| Pin existing nodes 0 BROKEN (PE-1 W1 waiver) | REQ-10 gate | `.harness-pin.yaml` `v0.5.0-rc.2` | `test_all_remounted_pin_nodes_parse` | N/A | New CTR-01 shapes hard-gated for **pin-shape consume** (DEP-02); W2 coding-start waived — see PE-Waiver W2 |
 
-**INIT-GATEFLOW-012 W1 status:** **human_approved** at wave-acceptance — Draft PR [#192](https://github.com/drivestream-lab/gateflow/pull/192) @ `aa4445e` label `wave-accepted`; Ground-Report W1 **pass**. PE-1 remount of net-new pin shapes remains a **W2 hard gate**. Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-012 W1 status:** **human_approved** at wave-acceptance — Draft PR [#192](https://github.com/drivestream-lab/gateflow/pull/192) @ `aa4445e` label `wave-accepted`; Ground-Report W1 **pass**. Merge/publish at `wave-signoff` only.
+
+## Capability matrix (INIT-GATEFLOW-012 W2 — branch create-or-reuse)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| New wave forks from live develop tip | REQ-16 | `RunOrchestrator.resolve_branch` → `ensure_branch_from_base` | `test_resolve_branch_new_wave_*` | `verify_branch_lifecycle` (human; P15) | Live base tip at fork time |
+| Deterministic head naming | REQ-17 | `build_wave_head_branch` / `branch_slug_from_head_ref` | `test_pr_branch_naming` | secondary | No second scheme |
+| Continuation reuses head; zero new refs | REQ-18 | `resolve_branch` continuation path | `test_resolve_branch_continuation_*` | `verify_branch_lifecycle` | No `ensure_branch_from_base` when tip exists / explicit `head_ref` |
+| Never-cloned + continuation | REQ-19 | tenant clone/fetch + `checkout_branch` | checkout unit + live | `verify_branch_lifecycle` | Omitted-path only checks out (not explicit cwd) |
+| Missing continuation head fail-closed | — | explicit `head_ref` + tip miss | `test_resolve_branch_explicit_head_missing_*` | secondary | Reason `continuation branch not found on remote` |
+| PE-1 W2 coding-start waiver | REQ-16–19 gate | pin `v0.5.0-rc.2` | `test_all_remounted_pin_nodes_parse` | N/A | CTR-01 consume still DEP-02 |
+
+**INIT-GATEFLOW-012 W2 status:** **unit-complete** (Pass-1 `/loop-spec`); live pending human `wave-acceptance` via `.venv/bin/python -m tests.verify.verify_branch_lifecycle`. PE waiver: `PE-Waiver-INIT-GATEFLOW-012-W2-PE1.md`.
 
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
 

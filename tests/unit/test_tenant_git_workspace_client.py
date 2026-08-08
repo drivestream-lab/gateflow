@@ -168,3 +168,29 @@ def test_no_python_git_dependency_in_module_source() -> None:
     assert "GitPython" not in source
     assert "pygit2" not in source
     assert "import git" not in source
+
+
+@pytest.mark.asyncio
+async def test_checkout_branch_invokes_origin_tracking(tmp_path: Path) -> None:
+    """REQ-19 companion: checkout uses origin/{branch} after clone/fetch."""
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    target = tmp_path / "acme" / "widget"
+    _init_remote_like_checkout(target, org="acme", repo="widget")
+    captured: list[list[str]] = []
+
+    async def fake_run(argv: list[str]) -> tuple[int, str]:
+        captured.append(list(argv))
+        return 0, ""
+
+    with patch.object(client, "_run_git", side_effect=fake_run):
+        await client.checkout_branch(
+            target,
+            branch="feature/INIT-ACME-001-w2-x",
+            org="acme",
+            repo="widget",
+        )
+
+    assert captured
+    assert "checkout" in captured[0]
+    assert "origin/feature/INIT-ACME-001-w2-x" in captured[0]

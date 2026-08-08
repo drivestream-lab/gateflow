@@ -141,6 +141,8 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     stage_repo.create_stage = AsyncMock()
     forge_client = MagicMock()
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    # Default: remote head missing → new-wave path calls ensure_branch_from_base.
+    forge_client.get_branch_tip_sha = AsyncMock(side_effect=ValueError("branch missing"))
     forge_client.create_or_update_pull_request = AsyncMock(return_value=42)
     forge_client.open_draft_pr = AsyncMock(return_value=42)
     forge_client.commit_paths_to_branch = AsyncMock(
@@ -182,7 +184,10 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             ingest_after_learning_extract=AsyncMock(return_value=None)
         ),
         "tenant_service": MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
-        "tenant_git_workspace_client": MagicMock(resolve_workspace=AsyncMock()),
+        "tenant_git_workspace_client": MagicMock(
+            resolve_workspace=AsyncMock(),
+            checkout_branch=AsyncMock(),
+        ),
     }
     defaults.update(overrides)
     orch = RunOrchestrator(**defaults)
@@ -507,6 +512,7 @@ async def test_ensure_branch_before_stage_when_run_has_no_pr() -> None:
     )
     forge_client = MagicMock()
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    forge_client.get_branch_tip_sha = AsyncMock(side_effect=ValueError("branch missing"))
     forge_client.create_or_update_pull_request = AsyncMock(return_value=55)
     stage_repo = MagicMock()
     stage_repo.create_stage = AsyncMock()
@@ -1037,6 +1043,9 @@ async def test_closeout_walk_applies_done_then_stops_at_wave_signoff() -> None:
     raw.update(_dispatch_plan(start_node="ground-spec", model_id="cursor/auto"))
     raw["head_ref"] = "feature/INIT-GATEFLOW-010-w3-closeout-done"
     raw["ticket_id"] = "141"
+    forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    forge_client.get_branch_tip_sha = AsyncMock(return_value="deadbeef")
     orchestrator = _build_orchestrator(
         trigger_router=_authorized_api_trigger(),
         cursor_agent_runner=cursor_agent_runner,
@@ -1044,6 +1053,7 @@ async def test_closeout_walk_applies_done_then_stops_at_wave_signoff() -> None:
         stage_repository=stage_repo,
         run_event_repository=run_event_repo,
         forge_action_service=forge_action,
+        forge_client=forge_client,
     )
     summary = await orchestrator.process_job(
         JobModel(
@@ -1060,6 +1070,7 @@ async def test_closeout_walk_applies_done_then_stops_at_wave_signoff() -> None:
     apply_kwargs = forge_action.apply_external_action.await_args.kwargs
     assert apply_kwargs["node"].node_id == "wave-done-action"
     assert apply_kwargs["ticket_ref"] == "141"
+    forge_client.ensure_branch_from_base.assert_not_awaited()
 
     forge_events = [
         call.args[1]
@@ -1141,6 +1152,9 @@ async def test_closure_walk_purge_then_pr_action_stops_at_signoff_app() -> None:
             "wave_ticket_ids": ["138", "139", "140", "141", "142"],
         }
     )
+    forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    forge_client.get_branch_tip_sha = AsyncMock(return_value="deadbeef")
     orchestrator = _build_orchestrator(
         trigger_router=_authorized_api_trigger(),
         cursor_agent_runner=cursor_agent_runner,
@@ -1148,6 +1162,7 @@ async def test_closure_walk_purge_then_pr_action_stops_at_signoff_app() -> None:
         stage_repository=stage_repo,
         run_event_repository=run_event_repo,
         forge_action_service=forge_action,
+        forge_client=forge_client,
     )
     summary = await orchestrator.process_job(
         JobModel(
@@ -1233,6 +1248,9 @@ async def test_closure_partial_failure_after_epic_done_records_req20() -> None:
             "epic_done_applied": True,
         }
     )
+    forge_client = MagicMock()
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    forge_client.get_branch_tip_sha = AsyncMock(return_value="deadbeef")
     orchestrator = _build_orchestrator(
         trigger_router=_authorized_api_trigger(),
         cursor_agent_runner=cursor_agent_runner,
@@ -1240,6 +1258,7 @@ async def test_closure_partial_failure_after_epic_done_records_req20() -> None:
         stage_repository=stage_repo,
         run_event_repository=run_event_repo,
         forge_action_service=forge_action,
+        forge_client=forge_client,
     )
     summary = await orchestrator.process_job(
         JobModel(
@@ -1359,6 +1378,7 @@ async def test_omitted_workspace_registered_resolves_via_client(tmp_path: Path) 
             mode=WorkspaceResolveModeType.FETCHED,
         )
     )
+    git_client.checkout_branch = AsyncMock()
     orchestrator = _build_orchestrator(
         trigger_router=trigger_router,
         tenant_service=tenant_service,
@@ -1383,9 +1403,168 @@ async def test_omitted_workspace_registered_resolves_via_client(tmp_path: Path) 
         )
     )
     git_client.resolve_workspace.assert_awaited_once()
+    git_client.checkout_branch.assert_awaited_once()
+    checkout_kwargs = git_client.checkout_branch.await_args.kwargs
+    assert checkout_kwargs["branch"] == "feature/INIT-GATEFLOW-008-w1-implement-lane"
     launchpad = orchestrator._launchpad_client
     assert isinstance(launchpad.sync_harness, AsyncMock)
     launchpad.sync_harness.assert_awaited()
     sync_call = launchpad.sync_harness.await_args
     assert sync_call is not None
     assert sync_call.args[0] == resolved
+
+
+@pytest.mark.asyncio
+async def test_resolve_branch_new_wave_calls_ensure_from_base() -> None:
+    """REQ-16: missing remote head forks from live base tip."""
+    forge_client = MagicMock()
+    forge_client.get_branch_tip_sha = AsyncMock(side_effect=ValueError("missing"))
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    orch = _build_orchestrator(forge_client=forge_client)
+    run = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        initiative_id="INIT-ACME-001",
+        wave_id="W1",
+        retry_counter=0,
+        notify_pending=False,
+    )
+    head, mode = await orch.resolve_branch(
+        org="acme",
+        repo="widget",
+        run=run,
+        payload={
+            "initiative_id": "INIT-ACME-001",
+            "wave_id": "W1",
+            "branch_slug": "branch-resolve",
+            "base_branch": "develop",
+        },
+    )
+    from src.models.pr_branch_naming import BranchResolveModeType
+
+    assert head == "feature/INIT-ACME-001-w1-branch-resolve"
+    assert mode is BranchResolveModeType.NEW_WAVE
+    forge_client.ensure_branch_from_base.assert_awaited_once()
+    kwargs = forge_client.ensure_branch_from_base.await_args.kwargs
+    assert kwargs["branch"] == head
+    assert kwargs["base"] == "develop"
+
+
+@pytest.mark.asyncio
+async def test_resolve_branch_continuation_reuses_without_ensure() -> None:
+    """REQ-18: existing remote head → zero ensure_branch_from_base calls."""
+    forge_client = MagicMock()
+    forge_client.get_branch_tip_sha = AsyncMock(return_value="abc123")
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    orch = _build_orchestrator(forge_client=forge_client)
+    run = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        initiative_id="INIT-ACME-001",
+        wave_id="W1",
+        retry_counter=0,
+        notify_pending=False,
+    )
+    head, mode = await orch.resolve_branch(
+        org="acme",
+        repo="widget",
+        run=run,
+        payload={
+            "initiative_id": "INIT-ACME-001",
+            "wave_id": "W1",
+            "branch_slug": "branch-resolve",
+            "base_branch": "develop",
+        },
+    )
+    from src.models.pr_branch_naming import BranchResolveModeType
+
+    assert head == "feature/INIT-ACME-001-w1-branch-resolve"
+    assert mode is BranchResolveModeType.CONTINUATION
+    forge_client.ensure_branch_from_base.assert_not_awaited()
+    forge_client.get_branch_tip_sha.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolve_branch_explicit_head_missing_named_422_reason() -> None:
+    """Continuation with head_ref missing on remote → named fail-closed reason."""
+    forge_client = MagicMock()
+    forge_client.get_branch_tip_sha = AsyncMock(side_effect=ValueError("404"))
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+    orch = _build_orchestrator(forge_client=forge_client)
+    run = RunModel(
+        id=uuid4(),
+        org="acme",
+        repo="widget",
+        status_type=RunStatusType.ACTIVE,
+        initiative_id="INIT-ACME-001",
+        wave_id="W1",
+        retry_counter=0,
+        notify_pending=False,
+    )
+    with pytest.raises(ValueError, match="continuation branch not found on remote"):
+        await orch.resolve_branch(
+            org="acme",
+            repo="widget",
+            run=run,
+            payload={
+                "initiative_id": "INIT-ACME-001",
+                "wave_id": "W1",
+                "branch_slug": "branch-resolve",
+                "base_branch": "develop",
+                "head_ref": "feature/INIT-ACME-001-w1-branch-resolve",
+            },
+        )
+    forge_client.ensure_branch_from_base.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_process_job_continuation_missing_head_fails_closed() -> None:
+    """Job start with head_ref missing on remote fails (named 422 reason in stop_reason)."""
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+
+    forge_client = MagicMock()
+    forge_client.get_branch_tip_sha = AsyncMock(side_effect=ValueError("404"))
+    forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    orch = _build_orchestrator(trigger_router=trigger_router, forge_client=forge_client)
+    raw = _job_payload(
+        event_type="api_trigger",
+        pr_number=None,
+        initiative_id="INIT-ACME-001",
+        wave_id="W1",
+        branch_slug="gone",
+        base_branch="develop",
+        head_ref="feature/INIT-ACME-001-w1-gone",
+        **_dispatch_plan(start_node="ground-spec", model_id="cursor/auto"),
+    ).model_dump()
+    summary = await orch.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is False
+    assert summary.terminal_status == "failed"
+    assert "continuation branch not found on remote" in (summary.stop_reason or "")
+    forge_client.ensure_branch_from_base.assert_not_awaited()

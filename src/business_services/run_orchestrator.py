@@ -47,6 +47,8 @@ from src.models.forge_types import CommitWorkspaceModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import (
+    BranchResolveModeType,
+    branch_slug_from_head_ref,
     build_closure_head_branch,
     build_spec_head_branch,
     build_wave_head_branch,
@@ -183,8 +185,9 @@ class RunOrchestrator(BaseBusinessService):
             run_id = run.id
 
             notify_pending = False
+            resolved_head: Optional[str] = None
             try:
-                run, notify_pending = await self._ensure_run_branch(
+                run, notify_pending, resolved_head = await self._ensure_run_branch(
                     session,
                     run,
                     payload=payload,
@@ -244,11 +247,18 @@ class RunOrchestrator(BaseBusinessService):
                 )
 
             try:
-                workspace_path = await self._resolve_job_workspace_path(
+                workspace_path, tenant_bound = await self._resolve_job_workspace_path(
                     org=context.org,
                     repo=context.repo,
                     workspace_path=context.workspace_path,
                 )
+                if tenant_bound and resolved_head:
+                    await self._tenant_git_workspace_client.checkout_branch(
+                        workspace_path,
+                        branch=resolved_head,
+                        org=context.org,
+                        repo=context.repo,
+                    )
             except (ValueError, UnprocessableEntityError, TenantGitWorkspaceError) as exc:
                 reason = str(exc)
                 if isinstance(exc, TenantGitWorkspaceError):
@@ -865,10 +875,15 @@ class RunOrchestrator(BaseBusinessService):
         org: str,
         repo: str,
         workspace_path: Optional[str],
-    ) -> str:
-        """Explicit path wins (REQ-12); omitted path uses tenant clone/fetch (REQ-10/15)."""
+    ) -> tuple[str, bool]:
+        """Explicit path wins (REQ-12); omitted path uses tenant clone/fetch (REQ-10/15).
+
+        Returns ``(absolute_path, tenant_bound)``. ``tenant_bound`` is True only for
+        the omitted-path clone/fetch path so REQ-19 checkout never mutates an
+        explicit caller workspace (including unit-test ``Path.cwd()``).
+        """
         if workspace_path is not None and str(workspace_path).strip():
-            return str(workspace_path).strip()
+            return str(workspace_path).strip(), False
 
         credential = await self._tenant_service.get_workspace_credential_for_repo(
             org=org,
@@ -880,7 +895,7 @@ class RunOrchestrator(BaseBusinessService):
                 "refusing Path.cwd() fallback"
             )
         resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
-        return resolved.path
+        return resolved.path, True
 
     async def _ensure_run_handoff_path(
         self,
@@ -1093,18 +1108,20 @@ class RunOrchestrator(BaseBusinessService):
             str(branch_slug),
         )
 
-    async def _ensure_run_branch(
+    async def resolve_branch(
         self,
-        session: AsyncSession,
-        run: RunModel,
         *,
+        org: str,
+        repo: str,
+        run: RunModel,
         payload: dict[str, Any],
-        notify_pending: bool,
-    ) -> tuple[RunModel, bool]:
-        """Ensure wave head branch exists; do not open a Draft PR at job start."""
-        if run.id is None:
-            raise RuntimeError("Run missing id before ensure_branch")
+    ) -> tuple[str, BranchResolveModeType]:
+        """Compose new-wave fork vs continuation reuse (TDD §3.5 / REQ-16–18).
 
+        - Explicit ``head_ref`` (closeout / PR-bound): verify remote tip; never create.
+        - Otherwise: if the deterministic head already exists on remote → continuation
+          (zero ``ensure_branch_from_base``); else fork from live ``base_branch`` tip.
+        """
         base_branch = payload.get("base_branch")
         if not base_branch:
             raise ValueError(
@@ -1118,19 +1135,93 @@ class RunOrchestrator(BaseBusinessService):
         except ValueError as exc:
             raise ValueError(f"Invalid branch targeting for run start: {exc}") from exc
 
-        try:
-            await self._forge_client.ensure_branch_from_base(
-                run.org,
-                run.repo,
-                branch=head,
-                base=base,
-            )
-        except Exception as exc:
-            self.logger.error(
-                "ensure_branch_from_base failed at run start",
-                run_id=str(run.id),
+        raw_head = payload.get("head_ref")
+        explicit_continuation = bool(raw_head is not None and str(raw_head).strip())
+
+        if explicit_continuation:
+            initiative_id = payload.get("initiative_id") or run.initiative_id
+            wave_id = payload.get("wave_id") or run.wave_id
+            derived_slug: Optional[str] = None
+            if initiative_id and wave_id:
+                derived_slug = branch_slug_from_head_ref(
+                    head,
+                    initiative_id=str(initiative_id),
+                    wave_id=str(wave_id),
+                )
+            try:
+                await self._forge_client.get_branch_tip_sha(org, repo, branch=head)
+            except Exception as exc:
+                raise ValueError("continuation branch not found on remote") from exc
+            self.logger.info(
+                "Resolved continuation head (explicit head_ref)",
+                org=org,
+                repo=repo,
                 head=head,
                 base=base,
+                mode=BranchResolveModeType.CONTINUATION.value,
+                branch_slug=derived_slug,
+            )
+            return head, BranchResolveModeType.CONTINUATION
+
+        if await self._remote_branch_exists(org, repo, head):
+            self.logger.info(
+                "Resolved continuation head (remote exists)",
+                org=org,
+                repo=repo,
+                head=head,
+                base=base,
+                mode=BranchResolveModeType.CONTINUATION.value,
+            )
+            return head, BranchResolveModeType.CONTINUATION
+
+        await self._forge_client.ensure_branch_from_base(
+            org,
+            repo,
+            branch=head,
+            base=base,
+        )
+        self.logger.info(
+            "Resolved new-wave head from live base tip",
+            org=org,
+            repo=repo,
+            head=head,
+            base=base,
+            mode=BranchResolveModeType.NEW_WAVE.value,
+        )
+        return head, BranchResolveModeType.NEW_WAVE
+
+    async def _remote_branch_exists(self, org: str, repo: str, branch: str) -> bool:
+        try:
+            tip = await self._forge_client.get_branch_tip_sha(org, repo, branch=branch)
+        except Exception:
+            return False
+        return bool(str(tip).strip())
+
+    async def _ensure_run_branch(
+        self,
+        session: AsyncSession,
+        run: RunModel,
+        *,
+        payload: dict[str, Any],
+        notify_pending: bool,
+    ) -> tuple[RunModel, bool, Optional[str]]:
+        """Resolve wave head (new vs continuation); do not open a Draft PR at start."""
+        if run.id is None:
+            raise RuntimeError("Run missing id before ensure_branch")
+
+        try:
+            head, mode = await self.resolve_branch(
+                org=run.org,
+                repo=run.repo,
+                run=run,
+                payload=payload,
+            )
+        except ValueError:
+            raise
+        except Exception as exc:
+            self.logger.error(
+                "resolve_branch failed at run start",
+                run_id=str(run.id),
                 error=str(exc),
                 exc_info=True,
             )
@@ -1139,16 +1230,16 @@ class RunOrchestrator(BaseBusinessService):
                 run.id,
                 RunUpdate(notify_pending=True),
             )
-            return (updated or run), True
+            return (updated or run), True, None
 
         self.logger.info(
-            "Run head branch ensured at start (no PR create)",
+            "Run head branch resolved at start (no PR create)",
             run_id=str(run.id),
             head=head,
-            base=base,
+            mode=mode.value,
             pr_number=run.pr_number,
         )
-        return run, notify_pending
+        return run, notify_pending, head
 
     async def _apply_automated_forge(
         self,

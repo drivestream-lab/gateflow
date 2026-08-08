@@ -6,6 +6,7 @@ Fail-fast: invalid inputs raise ValueError — no programme prefix fallback.
 from __future__ import annotations
 
 import re
+from enum import Enum
 
 # COMPONENT up to 16 so INIT-GATEFLOW-* is valid (harness catalog abbrevs vary).
 _INITIATIVE_ID_RE = re.compile(r"^INIT-[A-Z]{2,16}-[0-9]{1,7}$")
@@ -92,6 +93,13 @@ def build_closure_head_branch(initiative_id: str, branch_slug: str) -> str:
     initiative = validate_initiative_id(initiative_id)
     slug = validate_closure_branch_slug(branch_slug)
     return f"feature/{initiative}-{slug}"
+
+
+class BranchResolveModeType(str, Enum):
+    """New-wave fork vs continuation reuse (INIT-GATEFLOW-012 W2 / REQ-16–18)."""
+
+    NEW_WAVE = "new_wave"
+    CONTINUATION = "continuation"
 
 
 def branch_slug_from_head_ref(

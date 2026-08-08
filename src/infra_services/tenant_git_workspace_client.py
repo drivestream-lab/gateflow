@@ -237,6 +237,57 @@ class TenantGitWorkspaceClient(BaseInfraService):
                 repo=repo,
             )
 
+    async def checkout_branch(
+        self,
+        workspace_path: str | Path,
+        *,
+        branch: str,
+        org: str,
+        repo: str,
+    ) -> None:
+        """Check out ``origin/{branch}`` in an existing clone (REQ-19 composition)."""
+        cleaned = branch.strip()
+        if not cleaned:
+            raise TenantGitWorkspaceError(
+                "branch is required for workspace checkout",
+                reason="invalid_branch",
+                org=org,
+                repo=repo,
+            )
+        target = Path(workspace_path)
+        if not target.is_dir() or not (target / ".git").exists():
+            raise TenantGitWorkspaceError(
+                "workspace_path is not a git checkout",
+                reason="checkout_not_a_repo",
+                org=org,
+                repo=repo,
+            )
+        code, stderr = await self._run_git(
+            [
+                "git",
+                "-C",
+                str(target),
+                "checkout",
+                "--force",
+                "-B",
+                cleaned,
+                f"origin/{cleaned}",
+            ]
+        )
+        if code != 0:
+            raise TenantGitWorkspaceError(
+                f"git checkout failed for branch {cleaned!r}",
+                reason=f"checkout_failed:{self._classify_git_failure(stderr)}",
+                org=org,
+                repo=repo,
+            )
+        logger.info(
+            "Tenant workspace checked out branch",
+            org=org,
+            repo=repo,
+            branch=cleaned,
+        )
+
     @staticmethod
     def _classify_git_failure(stderr: str) -> str:
         text = (stderr or "").lower()
