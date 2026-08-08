@@ -183,7 +183,11 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "learning_ingest_service": MagicMock(
             ingest_after_learning_extract=AsyncMock(return_value=None)
         ),
-        "tenant_service": MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
+        "tenant_service": MagicMock(
+            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            is_harness_verified=AsyncMock(return_value=False),
+            mark_harness_verified=AsyncMock(),
+        ),
         "tenant_git_workspace_client": MagicMock(
             resolve_workspace=AsyncMock(),
             checkout_branch=AsyncMock(),
@@ -1371,6 +1375,8 @@ async def test_omitted_workspace_registered_resolves_via_client(tmp_path: Path) 
             repo="widget",
         )
     )
+    tenant_service.is_harness_verified = AsyncMock(return_value=False)
+    tenant_service.mark_harness_verified = AsyncMock()
     git_client = MagicMock()
     git_client.resolve_workspace = AsyncMock(
         return_value=WorkspaceResolveResult(
@@ -1568,3 +1574,183 @@ async def test_process_job_continuation_missing_head_fails_closed() -> None:
     assert summary.terminal_status == "failed"
     assert "continuation branch not found on remote" in (summary.stop_reason or "")
     forge_client.ensure_branch_from_base.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_harness_cache_skips_sync_before_enter_at(tmp_path: Path) -> None:
+    """REQ-22: cached harness_verified skips probe; Enter-at still runs."""
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+    from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=str(ws),
+            ),
+            failures=[],
+        )
+    )
+    tenant_service = MagicMock()
+    tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=uuid4(),
+            workspace_root=str(tmp_path),
+            pat="pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    tenant_service.is_harness_verified = AsyncMock(return_value=True)
+    tenant_service.mark_harness_verified = AsyncMock()
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        tenant_service=tenant_service,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(
+                _job_payload(workspace_path=str(ws)).model_dump()
+            ),
+            delivery_id="d-run",
+        )
+    )
+    launchpad = orchestrator._launchpad_client
+    assert isinstance(launchpad.sync_harness, AsyncMock)
+    launchpad.sync_harness.assert_not_awaited()
+    assert "harness_artifacts_missing" not in (summary.stop_reason or "")
+    tenant_service.is_harness_verified.assert_awaited()
+    tenant_service.mark_harness_verified.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_harness_force_recheck_probes_when_cached(tmp_path: Path) -> None:
+    """REQ-22: force_harness_recheck forces probe when cache is true."""
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+    from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=str(ws),
+            ),
+            failures=[],
+        )
+    )
+    tenant_service = MagicMock()
+    tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=uuid4(),
+            workspace_root=str(tmp_path),
+            pat="pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    tenant_service.is_harness_verified = AsyncMock(return_value=True)
+    tenant_service.mark_harness_verified = AsyncMock()
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        tenant_service=tenant_service,
+    )
+    cursor = orchestrator._cursor_agent_runner
+    cursor.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            error_message=None,
+        )
+    )
+    raw = _job_payload(workspace_path=str(ws)).model_dump()
+    raw["force_harness_recheck"] = True
+    await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(raw),
+            delivery_id="d-run",
+        )
+    )
+    launchpad = orchestrator._launchpad_client
+    assert isinstance(launchpad.sync_harness, AsyncMock)
+    launchpad.sync_harness.assert_awaited_once_with(str(ws))
+    tenant_service.mark_harness_verified.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_harness_missing_fails_before_enter_at(tmp_path: Path) -> None:
+    """REQ-20/21: harness miss fails run; Enter-at skill not dispatched."""
+    from src.infra_services.launchpad_client import HarnessReadinessError
+    from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="",
+                workspace_path=str(ws),
+            ),
+            failures=[],
+        )
+    )
+    launchpad_client = MagicMock()
+    launchpad_client.sync_harness = AsyncMock(
+        side_effect=HarnessReadinessError(
+            "Workspace is missing required harness artifacts",
+            reason="harness_artifacts_missing",
+            missing=[".harness-pin.yaml", ".harness"],
+            workspace_path=str(ws),
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        launchpad_client=launchpad_client,
+    )
+    cursor = orchestrator._cursor_agent_runner
+    cursor.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+            error_message=None,
+        )
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=JobPayloadDocument.model_validate(
+                _job_payload(workspace_path=str(ws)).model_dump()
+            ),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.dispatched is False
+    assert summary.terminal_status == "failed"
+    assert "harness_artifacts_missing" in (summary.stop_reason or "")
+    cursor.run_skill.assert_not_awaited()

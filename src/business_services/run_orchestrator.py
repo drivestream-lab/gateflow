@@ -34,7 +34,10 @@ from src.database.postgres.repository.run_store_repository import (
 from src.exceptions.app_exceptions import UnprocessableEntityError, ValidationError
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
 from src.infra_services.forge_client import ForgeClient
-from src.infra_services.launchpad_client import LaunchpadClient
+from src.infra_services.launchpad_client import (
+    HarnessReadinessError,
+    LaunchpadClient,
+)
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -276,7 +279,30 @@ class RunOrchestrator(BaseBusinessService):
                     org=context.org,
                     repo=context.repo,
                 )
-            await self._launchpad_client.sync_harness(workspace_path)
+            try:
+                await self._ensure_harness_ready(
+                    org=context.org,
+                    repo=context.repo,
+                    workspace_path=workspace_path,
+                    force=bool(payload.get("force_harness_recheck")),
+                )
+            except (FileNotFoundError, HarnessReadinessError, UnprocessableEntityError) as exc:
+                reason = str(exc)
+                if isinstance(exc, HarnessReadinessError):
+                    reason = f"{exc.reason}: missing={','.join(exc.missing)}"
+                return await self._finalize_run(
+                    session,
+                    run,
+                    status_type=RunStatusType.FAILED,
+                    outcome_type=RunOutcomeType.FAILED,
+                    stop_reason=reason,
+                    workflow_node=str(start_node_id),
+                    dispatched=False,
+                    notify_pending=notify_pending,
+                    issue_ref=issue_ref,
+                    org=context.org,
+                    repo=context.repo,
+                )
 
             dispatched_any = False
             hop_count = 0
@@ -896,6 +922,39 @@ class RunOrchestrator(BaseBusinessService):
             )
         resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
         return resolved.path, True
+
+    async def _ensure_harness_ready(
+        self,
+        *,
+        org: str,
+        repo: str,
+        workspace_path: str,
+        force: bool = False,
+    ) -> None:
+        """Probe harness artifacts after workspace resolve; honor verified cache (REQ-20–22).
+
+        When the org/repo is Tenant-registered and ``harness_verified`` is true,
+        skip the filesystem probe unless ``force`` (re-check). Unregistered
+        workspaces always probe. Successful probes for registered repos set the
+        cache flag.
+        """
+        registered = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org,
+            repo=repo,
+        )
+        if registered is not None and not force:
+            if await self._tenant_service.is_harness_verified(org=org, repo=repo):
+                self.logger.info(
+                    "Harness readiness skipped (cached verified)",
+                    org=org,
+                    repo=repo,
+                    workspace_path=workspace_path,
+                )
+                return
+
+        await self._launchpad_client.sync_harness(workspace_path)
+        if registered is not None:
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo)
 
     async def _ensure_run_handoff_path(
         self,

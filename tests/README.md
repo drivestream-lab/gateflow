@@ -55,6 +55,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-012 W0 tenant registry
 # .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
+# .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -680,4 +681,27 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_branch_lifecycle`
 make run
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_branch_lifecycle
+```
+
+## Feature map (INIT-GATEFLOW-012 W3 — harness-readiness)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Missing harness artifacts → 422 (REQ-21) | `verify_harness_readiness` | `test_launchpad_client`, `test_implement_harness_missing_*`, `test_harness_missing_fails_*` |
+| Ready harness past gate (REQ-20) | `verify_harness_readiness` | `test_sync_harness_ready_*`, orchestrator wire |
+| Cache skip + force re-check (REQ-22) | secondary | `test_implement_harness_cache_*`, `test_harness_force_recheck_*`, `test_harness_cache_skips_*` |
+| Wire after workspace before Enter-at (REQ-20) | secondary | `test_harness_missing_fails_before_enter_at` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_readiness`
+
+### Harness readiness (INIT-GATEFLOW-012 W3)
+
+```bash
+# Prerequisites: API + Postgres; PROGRAMME_SERVICE_TOKEN; resolvable board
+# ticket fields (same as verify_wave_start). Script uses temp dirs with/without
+# .harness-pin.yaml + .harness/.
+
+make run
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_harness_readiness
 ```

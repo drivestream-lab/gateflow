@@ -33,6 +33,7 @@ from src.exceptions.app_exceptions import (
     ValidationError,
 )
 from src.infra_services.forge_client import ForgeClient
+from src.infra_services.launchpad_client import HarnessReadinessError, LaunchpadClient
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -71,6 +72,7 @@ class WaveStartService(BaseBusinessService):
         board_service: BoardService,
         tenant_service: TenantService,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
+        launchpad_client: LaunchpadClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -84,6 +86,7 @@ class WaveStartService(BaseBusinessService):
         self._board_service = board_service
         self._tenant_service = tenant_service
         self._tenant_git_workspace_client = tenant_git_workspace_client
+        self._launchpad_client = launchpad_client
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -112,6 +115,13 @@ class WaveStartService(BaseBusinessService):
             issue_number=request.issue_number,
         )
         workspace_path = await self._resolve_implement_workspace_path(request)
+        if workspace_path is not None:
+            await self._ensure_implement_harness_ready(
+                org=request.org,
+                repo=request.repo,
+                workspace_path=workspace_path,
+                force=request.force_harness_recheck,
+            )
         await self._apply_implement_in_progress(
             org=request.org,
             repo=request.repo,
@@ -130,6 +140,47 @@ class WaveStartService(BaseBusinessService):
             prior_run_id=None,
             lane="implement",
         )
+
+    async def _ensure_implement_harness_ready(
+        self,
+        *,
+        org: str,
+        repo: str,
+        workspace_path: str,
+        force: bool = False,
+    ) -> None:
+        """Harness probe before board/enqueue (REQ-20/21 → 422; 0 enqueue)."""
+        registered = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org,
+            repo=repo,
+        )
+        if registered is not None and not force:
+            if await self._tenant_service.is_harness_verified(org=org, repo=repo):
+                self.logger.info(
+                    "Harness readiness skipped at wave-start (cached verified)",
+                    org=org,
+                    repo=repo,
+                )
+                return
+        try:
+            await self._launchpad_client.sync_harness(workspace_path)
+        except FileNotFoundError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"org": org, "repo": repo, "reason": "workspace_path_missing"},
+            ) from exc
+        except HarnessReadinessError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={
+                    "org": org,
+                    "repo": repo,
+                    "reason": exc.reason,
+                    "missing": exc.missing,
+                },
+            ) from exc
+        if registered is not None:
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo)
 
     async def _resolve_implement_workspace_path(
         self, request: ImplementWaveStartRequest
@@ -480,6 +531,11 @@ class WaveStartService(BaseBusinessService):
                     prior_run_id=str(prior_run_id) if prior_run_id is not None else None,
                     lane=lane,
                     head_ref=head_ref.strip() if head_ref else None,
+                    force_harness_recheck=(
+                        request.force_harness_recheck
+                        if isinstance(request, ImplementWaveStartRequest)
+                        else False
+                    ),
                 )
                 job = await self._job_repository.enqueue(
                     session,
