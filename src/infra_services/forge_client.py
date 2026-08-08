@@ -195,6 +195,38 @@ class ForgeClient(BaseInfraService):
         )
         return created_ref
 
+    async def delete_branch(self, owner: str, repo: str, *, branch: str) -> None:
+        """Delete ``refs/heads/{branch}`` via DELETE on the git-refs update path.
+
+        Uses the same path family as tip PATCH (``_git_ref_update_path``) — no
+        new HTTP transport. Fail closed on missing or protected branches (no
+        silent no-op). Dormant this INIT: zero live callers (REQ-26/27, G5).
+        """
+        self.assert_no_gh_cli_transport()
+        if not str(branch).strip():
+            raise ValueError("branch is required")
+        client = self._require_client()
+        path = self._git_ref_update_path(owner, repo, branch)
+        response = await client.delete(path)
+        if response.status_code in {200, 204}:
+            logger.info(
+                "ForgeClient branch deleted",
+                owner=owner,
+                repo=repo,
+                branch=branch,
+                operation="delete_branch",
+            )
+            return
+        if response.status_code == 404:
+            raise LookupError(f"Branch not found for delete: {branch!r}")
+        if response.status_code in {403, 422}:
+            raise PermissionError(f"Branch protected or not deletable: {branch!r}")
+        response.raise_for_status()
+        raise RuntimeError(
+            f"ForgeClient.delete_branch failed for branch {branch!r}: "
+            f"HTTP {response.status_code}"
+        )
+
     async def post_comment(self, owner: str, repo: str, issue_number: int, body: str) -> str:
         """Post a PR/issue comment. Returns comment id as string."""
         client = self._require_client()

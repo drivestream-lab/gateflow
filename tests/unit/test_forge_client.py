@@ -148,6 +148,54 @@ async def test_ensure_branch_from_base_noop_when_present() -> None:
 
 
 @pytest.mark.asyncio
+async def test_delete_branch_uses_delete_ref_path() -> None:
+    """REQ-26: delete_branch hits DELETE on _git_ref_update_path."""
+    client = _forge_client()
+    http = MagicMock()
+    deleted = MagicMock()
+    deleted.status_code = 204
+    http.delete = AsyncMock(return_value=deleted)
+    client._client = http
+    client._initialized = True
+
+    await client.delete_branch("acme", "widget", branch="feature/purge-me")
+
+    expected = ForgeClient._git_ref_update_path("acme", "widget", "feature/purge-me")
+    http.delete.assert_awaited_once_with(expected)
+    http.patch.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_branch_missing_fails_closed() -> None:
+    """REQ-27: missing branch raises named error (no silent no-op)."""
+    client = _forge_client()
+    http = MagicMock()
+    missing = MagicMock()
+    missing.status_code = 404
+    http.delete = AsyncMock(return_value=missing)
+    client._client = http
+    client._initialized = True
+
+    with pytest.raises(LookupError, match="feature/missing"):
+        await client.delete_branch("acme", "widget", branch="feature/missing")
+
+
+@pytest.mark.asyncio
+async def test_delete_branch_protected_fails_closed() -> None:
+    """REQ-27: protected branch raises named error (no silent no-op)."""
+    client = _forge_client()
+    http = MagicMock()
+    protected = MagicMock()
+    protected.status_code = 422
+    http.delete = AsyncMock(return_value=protected)
+    client._client = http
+    client._initialized = True
+
+    with pytest.raises(PermissionError, match="feature/main"):
+        await client.delete_branch("acme", "widget", branch="feature/main")
+
+
+@pytest.mark.asyncio
 async def test_get_branch_tip_sha() -> None:
     client = _forge_client()
     http = MagicMock()
