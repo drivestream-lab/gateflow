@@ -729,3 +729,13 @@ make run
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_wave_start
 ```
+
+## Feature map (INIT-GATEFLOW-012 W5 — dormant ForgeClient.delete_branch)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| DELETE-ref `delete_branch` (REQ-26) | N/A — P15 N/A dormant | `test_delete_branch_uses_delete_ref_path` |
+| Fail-closed missing/protected (REQ-27) | N/A | `test_delete_branch_missing_*`, `test_delete_branch_protected_*` |
+| Zero production callers (REQ-27 / G5) | N/A | `test_delete_branch_dormant` |
+
+Human wave-acceptance: **unit-only** — `make check` / `make test` (dormancy guard included). No live verify script this wave (`verify_command` N/A). Do not wire `delete_branch` into walkers/routes this INIT.

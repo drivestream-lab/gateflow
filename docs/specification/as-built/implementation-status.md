@@ -83,6 +83,16 @@
 
 **INIT-GATEFLOW-012 W4 status:** **human_approved** (retrospective Pass-2) — Draft PR [#195](https://github.com/drivestream-lab/gateflow/pull/195) merged `20965ab` by @nikd10x **without** tip label `wave-accepted` (GF-01 / L-01); Ground-Report W4 **pass**. Board [#189](https://github.com/drivestream-lab/gateflow/issues/189).
 
+## Capability matrix (INIT-GATEFLOW-012 W5 — dormant ForgeClient.delete_branch)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| DELETE-ref `delete_branch` | REQ-26 | `ForgeClient.delete_branch` via `_git_ref_update_path` | `test_delete_branch_uses_delete_ref_path` | N/A — P15 N/A (G5) | Same transport family as tip PATCH; no new HTTP client |
+| Fail-closed missing/protected | REQ-27 | named `LookupError` / `PermissionError` | `test_delete_branch_missing_*`, `test_delete_branch_protected_*` | N/A | No silent no-op / 404-as-success |
+| Structural dormancy (zero callers) | REQ-27 / Q-6 / G5 | method present; unwired | `test_delete_branch_dormant` | N/A | Does **not** claim prayog-skills REQ-28–31 |
+
+**INIT-GATEFLOW-012 W5 status:** **unit-complete** (Pass-1) — board [#190](https://github.com/drivestream-lab/gateflow/issues/190); dormant capability; human wave-acceptance = unit + dormancy guard + tip `wave-accepted` (no live smoke script).
+
 ## Capability matrix (INIT-GATEFLOW-001 — human_approved)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
