@@ -21,6 +21,7 @@ from src.business_services.implement_ticket_gate import (
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
+from src.business_services.tenant_service import TenantService
 from src.business_services.trigger_router import API_TRIGGER_EVENT
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
@@ -33,6 +34,10 @@ from src.exceptions.app_exceptions import (
 )
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.postgres_service import PostgresService
+from src.infra_services.tenant_git_workspace_client import (
+    TenantGitWorkspaceClient,
+    TenantGitWorkspaceError,
+)
 from src.models.board_models import BoardTicketStatusUpdateRequest
 from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.pr_branch_naming import branch_slug_from_head_ref
@@ -64,6 +69,8 @@ class WaveStartService(BaseBusinessService):
         meta_pr_intake: MetaPrIntakeService,
         forge_client: ForgeClient,
         board_service: BoardService,
+        tenant_service: TenantService,
+        tenant_git_workspace_client: TenantGitWorkspaceClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -75,6 +82,8 @@ class WaveStartService(BaseBusinessService):
         self._meta_pr_intake = meta_pr_intake
         self._forge_client = forge_client
         self._board_service = board_service
+        self._tenant_service = tenant_service
+        self._tenant_git_workspace_client = tenant_git_workspace_client
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -102,6 +111,7 @@ class WaveStartService(BaseBusinessService):
             wave_id=request.wave_id,
             issue_number=request.issue_number,
         )
+        workspace_path = await self._resolve_implement_workspace_path(request)
         await self._apply_implement_in_progress(
             org=request.org,
             repo=request.repo,
@@ -114,12 +124,48 @@ class WaveStartService(BaseBusinessService):
             wave_id=wave_id,
             issue_number=issue_number,
             ticket=ticket,
-            workspace_path=request.workspace_path,
+            workspace_path=workspace_path,
             meta_accept=None,
             meta_workspace_path=None,
             prior_run_id=None,
             lane="implement",
         )
+
+    async def _resolve_implement_workspace_path(
+        self, request: ImplementWaveStartRequest
+    ) -> Optional[str]:
+        """Honor explicit path (REQ-12); resolve or 422 when omitted (REQ-10/15)."""
+        if request.workspace_path is not None and str(request.workspace_path).strip():
+            return str(request.workspace_path).strip()
+
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=request.org,
+            repo=request.repo,
+        )
+        if credential is None:
+            raise UnprocessableEntityError(
+                message=(
+                    "workspace_path omitted and org/repo is not Tenant-registered; "
+                    "refusing to guess a workspace"
+                ),
+                details={
+                    "org": request.org,
+                    "repo": request.repo,
+                    "reason": "unregistered_repo",
+                },
+            )
+        try:
+            resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
+        except TenantGitWorkspaceError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={
+                    "org": exc.org,
+                    "repo": exc.repo,
+                    "reason": exc.reason,
+                },
+            ) from exc
+        return resolved.path
 
     async def start_spec_wave(self, request: SpecWaveStartRequest) -> WaveStartResponse:
         """Spec-lane start: meta accept-gate + dual workspace path checks."""

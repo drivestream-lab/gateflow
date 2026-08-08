@@ -52,6 +52,8 @@ def _implement_req(**overrides: object) -> ImplementWaveStartRequest:
         "start_node": "loop-spec",
         "runner": "cursor",
         "model_id": "cursor/auto",
+        # Explicit path keeps REQ-12 regression path (omit → tenant resolve / 422).
+        "workspace_path": "/tmp/gateflow-unit-implement-ws",
     }
     body.update(overrides)
     return ImplementWaveStartRequest.model_validate(body)
@@ -193,6 +195,8 @@ def _service(
         meta_pr_intake=intake,
         forge_client=MagicMock(),
         board_service=board,
+        tenant_service=MagicMock(get_workspace_credential_for_repo=AsyncMock(return_value=None)),
+        tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
     )
 
 
@@ -446,3 +450,108 @@ async def test_spec_rejects_manual_start_node(tmp_path: Path) -> None:
     service = _service(meta_pr_intake=intake)
     with pytest.raises(ValidationError, match="orchestrated"):
         await service.start_spec_wave(_spec_req(tmp_path, start_node="spec-implementation-plan"))
+
+
+@pytest.mark.asyncio
+async def test_implement_omitted_path_unregistered_422_zero_enqueue() -> None:
+    """REQ-15: omitted workspace_path + unregistered org/repo → 422; 0 enqueue."""
+    service = _service()
+    with pytest.raises(UnprocessableEntityError, match="not Tenant-registered"):
+        await service.start_implement_wave(_implement_req(workspace_path=None))
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+    board = service._board_service
+    assert isinstance(board.update_ticket_status, AsyncMock)
+    board.update_ticket_status.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_implement_omitted_path_registered_resolves_before_enqueue(
+    tmp_path: Path,
+) -> None:
+    """REQ-10: omitted path + registered repo resolves and enqueues with absolute path."""
+    from src.models.tenant_git_workspace_models import (
+        TenantWorkspaceCredential,
+        WorkspaceResolveModeType,
+        WorkspaceResolveResult,
+    )
+
+    service = _service()
+    resolved_path = str((tmp_path / "acme" / "widget").resolve())
+    cred = TenantWorkspaceCredential(
+        tenant_id=uuid4(),
+        workspace_root=str(tmp_path),
+        pat="secret-pat",
+        org="acme",
+        repo="widget",
+    )
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(return_value=cred)
+    service._tenant_git_workspace_client.resolve_workspace = AsyncMock(
+        return_value=WorkspaceResolveResult(
+            path=resolved_path,
+            mode=WorkspaceResolveModeType.CLONED,
+        )
+    )
+    response = await service.start_implement_wave(_implement_req(workspace_path=None))
+    assert response.status == "active"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 1
+    call = enqueue.await_args
+    assert call is not None
+    raw = call.args[1].payload.model_dump()
+    assert raw["workspace_path"] == resolved_path
+
+
+@pytest.mark.asyncio
+async def test_implement_explicit_path_skips_tenant_resolve(tmp_path: Path) -> None:
+    """REQ-12: explicit workspace_path is honored; no clone/fetch."""
+    explicit = str((tmp_path / "caller-ws").resolve())
+    (tmp_path / "caller-ws").mkdir()
+    service = _service()
+    response = await service.start_implement_wave(_implement_req(workspace_path=explicit))
+    assert response.status == "active"
+    lookup = service._tenant_service.get_workspace_credential_for_repo
+    assert isinstance(lookup, AsyncMock)
+    lookup.assert_not_awaited()
+    resolve = service._tenant_git_workspace_client.resolve_workspace
+    assert isinstance(resolve, AsyncMock)
+    resolve.assert_not_awaited()
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    call = enqueue.await_args
+    assert call is not None
+    raw = call.args[1].payload.model_dump()
+    assert raw["workspace_path"] == explicit
+
+
+@pytest.mark.asyncio
+async def test_implement_mismatch_422_zero_enqueue(tmp_path: Path) -> None:
+    """REQ-14: mismatch from git client → 422; 0 enqueue."""
+    from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
+    from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+
+    service = _service()
+    cred = TenantWorkspaceCredential(
+        tenant_id=uuid4(),
+        workspace_root=str(tmp_path),
+        pat="secret-pat",
+        org="acme",
+        repo="widget",
+    )
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(return_value=cred)
+    service._tenant_git_workspace_client.resolve_workspace = AsyncMock(
+        side_effect=TenantGitWorkspaceError(
+            "mismatch",
+            reason="workspace_mismatch",
+            org="acme",
+            repo="widget",
+        )
+    )
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_implement_wave(_implement_req(workspace_path=None))
+    assert exc_info.value.details.get("reason") == "workspace_mismatch"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0

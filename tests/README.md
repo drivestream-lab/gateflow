@@ -53,6 +53,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
 # .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
 # .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-012 W0 tenant registry
+# .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -626,4 +627,30 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (AP
 make run
 set -a && source .env && set +a
 .venv/bin/python -m tests.verify.verify_tenant_registry
+```
+
+## Feature map (INIT-GATEFLOW-012 W1 — workspace clone/refresh)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Omitted path + registered → clone/fetch (REQ-10/13) | `verify_workspace_lifecycle` | `test_tenant_git_workspace_client`, `test_wave_start`, `test_run_orchestrator` |
+| Explicit `workspace_path` unchanged (REQ-12) | secondary | `test_implement_explicit_path_skips_tenant_resolve` |
+| Mismatch checkout → 422 untouched (REQ-14) | `verify_workspace_lifecycle` | `test_resolve_mismatch_*`, `test_implement_mismatch_422_*` |
+| Omitted + unregistered → 422 0 enqueue (REQ-15) | `verify_workspace_lifecycle` | `test_implement_omitted_path_unregistered_*` |
+| Tenant PAT auth on git (REQ-11) | inspection + live | client uses stored PAT; never logged |
+| Per-repo lock (TF-01) | — | `test_per_repo_lock_serializes_*` |
+| Pin 0 BROKEN existing nodes (PE-1 W1 waiver) | — | `test_all_remounted_pin_nodes_parse` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_workspace_lifecycle`
+
+### Workspace lifecycle (INIT-GATEFLOW-012 W1)
+
+```bash
+# Prerequisites: W0 tenant DDL applied; API up; PROGRAMME_SERVICE_TOKEN;
+# PAT with read access; resolvable board ticket (same as verify_wave_start).
+# Optional: GATEFLOW_TENANT_WORKSPACE_ROOT (scratch absolute path)
+
+make run
+set -a && source .env && set +a
+.venv/bin/python -m tests.verify.verify_workspace_lifecycle
 ```

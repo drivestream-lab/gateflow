@@ -20,6 +20,7 @@ from src.infra_services.redis_service import RedisService
 from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
 from src.infra_services.stub_notifiers import SlackNotifierStub, TeamsNotifierStub
 from src.infra_services.telemetry_service import TelemetryService
+from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceClient
 from src.logging import get_logger
 from src.models.github_auth_types import GithubAuthModeType
 
@@ -38,6 +39,7 @@ class InfraModule(Module):
         binder.bind(TelemetryService, scope=singleton)
         binder.bind(ForgeClient, to=ForgeClient, scope=singleton)
         binder.bind(GithubPatProbe, to=GithubPatProbe, scope=singleton)
+        binder.bind(TenantGitWorkspaceClient, to=TenantGitWorkspaceClient, scope=singleton)
         binder.bind(LaunchpadClient, to=LaunchpadClient, scope=singleton)
         binder.bind(CursorAgentRunner, to=CursorAgentRunner, scope=singleton)
         binder.bind(OpenCodeAgentRunner, to=OpenCodeAgentRunner, scope=singleton)

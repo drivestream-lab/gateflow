@@ -17,6 +17,7 @@ from src.exceptions.app_exceptions import (
 )
 from src.infra_services.github_pat_probe import GithubPatProbe
 from src.infra_services.postgres_service import PostgresService
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantListResponse,
     TenantReadModel,
@@ -153,6 +154,24 @@ class TenantService(BaseBusinessService):
             if read is None:
                 raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
             return read
+
+    async def get_workspace_credential_for_repo(
+        self,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[TenantWorkspaceCredential]:
+        """Lookup stored PAT + workspace_root for a registered org/repo (REQ-11)."""
+        try:
+            async with self._postgres_service.transaction() as session:
+                return await self._tenant_repository.find_workspace_credential_by_org_repo(
+                    session, org=org, repo=repo
+                )
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"org": org, "repo": repo, "reason": "ambiguous_tenant_registration"},
+            ) from exc
 
     async def resolve_tenant_by_token(self, bearer_token: str) -> Optional[TenantResolvedContext]:
         async with self._postgres_service.transaction() as session:
