@@ -16,8 +16,8 @@
 | Relates to | Infra boundary relative to existing `LaunchpadClient.sync_harness`; does not amend [`adr-003`](adr-003-slot-layer-ownership.md) |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-09 via Cursor chat (INIT-GATEFLOW-013 technical-review package) |
-| Approved head | `ddaff7df6a4f0f668d7cdfcc1bdd8ff104861eda` (develop tip at acceptance; update to Draft spec PR tip SHA after Forge publish of this Accepted package) |
-| Lint evidence | adr_boundary_lint.py 6/6, PASS, sha256:b4d9ea508a8a8258a3337051a2886df9218f3b1017f24a8e38ccac5df0c1710d |
+| Approved head | `3d9fa93b4b3f4519585898928a78b744d455c5f0` (Forge publish tip of Accepted package on chore/INIT-GATEFLOW-013-spec-gateflow) |
+| Lint evidence | adr_boundary_lint.py 6/6, PASS, sha256:abcdfbb2b82045c2722df633bebf60036698339404488b38285989b5958d65dc |
 
 > If `changes_user_visible_behavior` or `spec_amendment_required` would be
 > `true`, **stop**: amend and re-approve the product spec before this ADR may

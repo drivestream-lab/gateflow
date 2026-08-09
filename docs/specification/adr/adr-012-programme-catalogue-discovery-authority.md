@@ -16,8 +16,8 @@
 | Relates to | Boundary clarification vs [`adr-004`](adr-004-programme-config-authority.md) (**Accepted**); does not supersede ADR-004 |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-09 via Cursor chat (INIT-GATEFLOW-013 technical-review package) |
-| Approved head | `ddaff7df6a4f0f668d7cdfcc1bdd8ff104861eda` (develop tip at acceptance; update to Draft spec PR tip SHA after Forge publish of this Accepted package) |
-| Lint evidence | adr_boundary_lint.py 4/4, PASS, sha256:101861275eb458826e04bd63803196b4c097236bb511db115fc572b1197dc6a9 |
+| Approved head | `3d9fa93b4b3f4519585898928a78b744d455c5f0` (Forge publish tip of Accepted package on chore/INIT-GATEFLOW-013-spec-gateflow) |
+| Lint evidence | adr_boundary_lint.py 4/4, PASS, sha256:85b68eb85910aeea07252fa7dc9731c0e34ee4da66bb5f2cbf8a4f1975bcd05e |
 
 > If `changes_user_visible_behavior` or `spec_amendment_required` would be
 > `true`, **stop**: amend and re-approve the product spec before this ADR may

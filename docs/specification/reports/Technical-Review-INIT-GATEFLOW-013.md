@@ -19,7 +19,7 @@
 | Review deadline | 2026-08-14 |
 | Deciders | PE: @nikd10x — Accepted 2026-08-09 via Cursor chat |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-09 via Cursor chat (INIT-GATEFLOW-013 technical-review package) |
-| Approved head | `ddaff7df6a4f0f668d7cdfcc1bdd8ff104861eda` (develop tip at acceptance; update to Draft spec PR tip SHA after Forge publish) |
+| Approved head | `3d9fa93b4b3f4519585898928a78b744d455c5f0` (Forge publish tip of Accepted package on chore/INIT-GATEFLOW-013-spec-gateflow) |
 
 ---
 
