@@ -43,7 +43,7 @@
 | Deselect membership | REQ-26, REQ-27 | `POST …/programme/repos/deselect` | `test_programme_selection` | `verify_repo_selection` | ACTIVE run → 422; clone/readiness not cleared via update path |
 | Per-repo pending_setup | TDD / W1 | select response outcomes | `test_programme_selection` | `verify_repo_selection` | Setup batch wiring is W2 |
 
-**INIT-GATEFLOW-013 W1 status:** **implemented** (unit + co-shipped live FILE) — awaiting human `wave-accepted` on Draft PR tip. Board [#201](https://github.com/drivestream-lab/gateflow/issues/201). PM-1: `verify_workspace_lifecycle` / `verify_branch_lifecycle` updated to register→connect→select.
+**INIT-GATEFLOW-013 W1 status:** **human_approved** at wave-acceptance — Draft PR [#206](https://github.com/drivestream-lab/gateflow/pull/206) @ `7d8fefc` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W1 **pass**. Board [#201](https://github.com/drivestream-lab/gateflow/issues/201). PM-1: `verify_workspace_lifecycle` / `verify_branch_lifecycle` updated to register→connect→select. Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
