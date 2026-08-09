@@ -36,6 +36,7 @@ def configure_container() -> Injector:
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.policy_engine import PolicyEngine
+    from src.business_services.programme_onboarding_service import ProgrammeOnboardingService
     from src.business_services.prompt_resolver import PromptResolver
     from src.business_services.run_orchestrator import RunOrchestrator
     from src.business_services.slot_validator import SlotValidator
@@ -99,6 +100,7 @@ def configure_container() -> Injector:
             WaveStartService,
             BoardService,
             TenantService,
+            ProgrammeOnboardingService,
             CheckpointEvidenceService,
             ForgeActionService,
             LearningIngestService,

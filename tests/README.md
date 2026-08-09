@@ -56,6 +56,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
+# .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -604,6 +605,17 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Closeout Pass-2 | `verify_wave_closeout` — **live** ([Live-Verify W2](../docs/specification/reports/Live-Verify-INIT-GATEFLOW-009-W2.md)) | `test_wave_closeout` |
 | Authorize live | **PE-waived** (INIT-009) | `test_forge_action_service` unit only |
 | Feature readiness + CI | inspection + GitHub Actions `ci` | [`Feature-Readiness-INIT-GATEFLOW-009.md`](../docs/specification/reports/Feature-Readiness-INIT-GATEFLOW-009.md) |
+
+## Feature map (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Connect programme meta (REQ-01–04, REQ-28) | `verify_programme_connect` | `test_programme_onboarding` |
+| Catalogue candidates from synced copy (REQ-05–06) | `verify_programme_connect` | `test_catalogue_parser` |
+| Optional git ref (FF-05) | secondary | `test_tenant_git_workspace_client` |
+| PAT never in responses | `verify_programme_connect` | `test_programme_onboarding` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_connect` (API + human DDL for `tenant_programme_connections` + PAT with read on programme meta; env `GATEFLOW_PROGRAMME_ORG`/`REPO`/`REF` optional).
 
 ## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
 

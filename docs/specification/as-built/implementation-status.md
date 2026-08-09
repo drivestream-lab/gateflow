@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Repo | drivestream-lab/gateflow |
-| Updated | 2026-08-08 |
+| Updated | 2026-08-09 |
 | Source | INIT-GATEFLOW-012 W5 **human_approved** (board [#190](https://github.com/drivestream-lab/gateflow/issues/190); Draft PR [#196](https://github.com/drivestream-lab/gateflow/pull/196) @ `aa6d2bf` `wave-accepted`; Ground-Report W5 **pass**); INIT-GATEFLOW-012 W4 **human_approved** (board [#189](https://github.com/drivestream-lab/gateflow/issues/189); PR [#195](https://github.com/drivestream-lab/gateflow/pull/195) merge `20965ab`; Ground-Report W4 **pass** — retrospective Pass-2); INIT-GATEFLOW-012 W3 **human_approved** (board [#188](https://github.com/drivestream-lab/gateflow/issues/188); Draft PR [#194](https://github.com/drivestream-lab/gateflow/pull/194) @ `0007bff` `wave-accepted`; Ground-Report W3 **pass**); INIT-GATEFLOW-012 W2 **human_approved** (board [#187](https://github.com/drivestream-lab/gateflow/issues/187); Draft PR [#193](https://github.com/drivestream-lab/gateflow/pull/193) @ `3191407` `wave-accepted`; Ground-Report W2 **pass**); INIT-GATEFLOW-012 W1 **human_approved** (board [#186](https://github.com/drivestream-lab/gateflow/issues/186); Draft PR [#192](https://github.com/drivestream-lab/gateflow/pull/192) @ `aa4445e` `wave-accepted`; Ground-Report W1 **pass**); INIT-GATEFLOW-012 W0 **human_approved** (board [#185](https://github.com/drivestream-lab/gateflow/issues/185); Draft PR [#191](https://github.com/drivestream-lab/gateflow/pull/191) @ `0fb1f2f` `wave-accepted`; Ground-Report W0 **pass**); INIT-GATEFLOW-010 W0+W1+W2+W3 **human_approved** (W0 [#144](https://github.com/drivestream-lab/gateflow/pull/144) `0ca2376`; W1 [#146](https://github.com/drivestream-lab/gateflow/pull/146) `34e5813`; W2 [#148](https://github.com/drivestream-lab/gateflow/pull/148) `ba6d804`; W3 [#150](https://github.com/drivestream-lab/gateflow/pull/150) `85c2ec5`); INIT-GATEFLOW-011 W0+W1 **human_approved** (W0 [#171](https://github.com/drivestream-lab/gateflow/pull/171) `088d125`; W1 [#172](https://github.com/drivestream-lab/gateflow/pull/172) `3074e82`) + W2 **merged** ([#174](https://github.com/drivestream-lab/gateflow/pull/174) `ba2ab7b`) + W3 **human_approved** (board [#164](https://github.com/drivestream-lab/gateflow/issues/164); PR [#175](https://github.com/drivestream-lab/gateflow/pull/175) @ `438761a` `wave-accepted`; Ground-Report W3 **pass**) + W4 **human_approved** (board [#165](https://github.com/drivestream-lab/gateflow/issues/165); PR [#176](https://github.com/drivestream-lab/gateflow/pull/176) @ `ed3d6be` `wave-accepted`; Ground-Report W4 **pass**; merge `0774e1b`) + W5 **human_approved** (board [#166](https://github.com/drivestream-lab/gateflow/issues/166); PR [#177](https://github.com/drivestream-lab/gateflow/pull/177) @ `069989e` `wave-accepted`; Ground-Report W5 **pass**) + W6 **human_approved** (board [#167](https://github.com/drivestream-lab/gateflow/issues/167); PR [#178](https://github.com/drivestream-lab/gateflow/pull/178) @ `0b0f144` `wave-accepted`; Ground-Report W6 **pass**); INIT-GATEFLOW-008 (006A) W0–W2 human_approved; INIT-007 W0–W2 human_approved; INIT-009 human_approved freeze; pin ref `v0.5.0-rc.2` (launchpad tip family; submodule HEAD includes `live-verify`→`wave-acceptance`) |
 
 ## Engineering lane naming
@@ -22,6 +22,16 @@
 | Live verify | `tests/verify/verify_all.py` | health…board (implement-lane **separate** opt-in) |
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
+
+## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Programme connect (upsert) | REQ-01–04, REQ-28 | `programme_routes`, `programme_onboarding_service`, `tenant_programme_connections` | `test_programme_onboarding` | `verify_programme_connect` (human; P15) | Same git client + optional `ref`; fail-closed cleanup; ADR-011 tenant bearer |
+| Catalogue from synced meta | REQ-05–07 | `engine/catalogue_parser` (ADR-012 discovery-input) | `test_catalogue_parser` | `verify_programme_connect` | Fail closed on malformed; no partial list |
+| Optional git ref checkout | REQ-01 / FF-05 | `TenantGitWorkspaceClient.resolve_workspace(..., ref=)` | `test_tenant_git_workspace_client` | secondary | Default-branch path unchanged when omitted |
+
+**INIT-GATEFLOW-013 W0 status:** **human_approved** at wave-acceptance — Draft PR [#205](https://github.com/drivestream-lab/gateflow/pull/205) @ `4b9bd69` label `wave-accepted` (+ Pass-2 docs on tip); Ground-Report W0 **pass**. Board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 

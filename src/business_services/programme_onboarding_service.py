@@ -1,0 +1,183 @@
+"""Programme connect + catalogue read (INIT-GATEFLOW-013 W0)."""
+
+import shutil
+from pathlib import Path
+from uuid import UUID
+
+from injector import inject
+
+from src.business_services.base_business_service import BaseBusinessService
+from src.database.postgres.repository.tenant_repository import TenantRepository
+from src.engine.catalogue_parser import CatalogueParseError, parse_candidates
+from src.exceptions.app_exceptions import (
+    NotFoundError,
+    UnauthorizedError,
+    UnprocessableEntityError,
+)
+from src.infra_services.postgres_service import PostgresService
+from src.infra_services.tenant_git_workspace_client import (
+    TenantGitWorkspaceClient,
+    TenantGitWorkspaceError,
+)
+from src.models.programme_catalogue_models import ProgrammeCatalogueResponse
+from src.models.programme_connection_models import (
+    ProgrammeConnectRequest,
+    ProgrammeConnectResponse,
+    ProgrammeConnectionReadModel,
+)
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+from src.models.tenant_models import TenantResolvedContext
+
+
+class ProgrammeOnboardingService(BaseBusinessService):
+    """Connect tenant to programme meta and expose catalogue candidates."""
+
+    @inject
+    def __init__(
+        self,
+        postgres_service: PostgresService,
+        tenant_repository: TenantRepository,
+        tenant_git_workspace_client: TenantGitWorkspaceClient,
+    ) -> None:
+        super().__init__()
+        self._postgres_service = postgres_service
+        self._tenant_repository = tenant_repository
+        self._git_client = tenant_git_workspace_client
+
+    async def connect_programme(
+        self,
+        tenant_id: UUID,
+        request: ProgrammeConnectRequest,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeConnectResponse:
+        self._assert_tenant_match(tenant_id, resolved)
+        org = request.org.strip()
+        repo = request.repo.strip()
+        ref = request.ref.strip() if request.ref is not None and request.ref.strip() else None
+
+        async with self._postgres_service.transaction() as session:
+            auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+            if auth is None:
+                raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+            workspace_root, pat = auth
+
+        credential = TenantWorkspaceCredential(
+            tenant_id=tenant_id,
+            workspace_root=workspace_root,
+            pat=pat,
+            org=org,
+            repo=repo,
+        )
+        target = Path(workspace_root) / org / repo
+        existed_before = target.exists()
+        try:
+            await self._git_client.resolve_workspace(credential, ref=ref)
+        except TenantGitWorkspaceError as exc:
+            if not existed_before and target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            self.logger.error(
+                "Programme connect git failed",
+                tenant_id=str(tenant_id),
+                org=org,
+                repo=repo,
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={
+                    "org": org,
+                    "repo": repo,
+                    "reason": exc.reason,
+                },
+            ) from exc
+
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.upsert_programme_connection(
+                session,
+                tenant_id=tenant_id,
+                org=org,
+                repo=repo,
+                ref=ref,
+            )
+
+        self.logger.info(
+            "Programme connected",
+            tenant_id=str(tenant_id),
+            org=org,
+            repo=repo,
+            ref=ref,
+        )
+        return ProgrammeConnectResponse(connection=connection)
+
+    async def get_catalogue(
+        self,
+        tenant_id: UUID,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeCatalogueResponse:
+        self._assert_tenant_match(tenant_id, resolved)
+
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
+            auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+
+        if connection is None:
+            raise UnprocessableEntityError(
+                message="Tenant has no programme connection",
+                details={"reason": "programme_not_connected"},
+            )
+        if auth is None:
+            raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+
+        workspace_root, _pat = auth
+        meta_root = Path(workspace_root) / connection.org / connection.repo
+        try:
+            candidates = parse_candidates(meta_root, org=connection.org)
+        except CatalogueParseError as exc:
+            self.logger.warning(
+                "Catalogue parse rejected",
+                tenant_id=str(tenant_id),
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": exc.reason},
+            ) from exc
+
+        self.logger.info(
+            "Catalogue read",
+            tenant_id=str(tenant_id),
+            candidate_count=len(candidates),
+        )
+        return ProgrammeCatalogueResponse(
+            programme_org=connection.org,
+            candidates=candidates,
+        )
+
+    async def get_connection(
+        self,
+        tenant_id: UUID,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeConnectionReadModel:
+        self._assert_tenant_match(tenant_id, resolved)
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
+        if connection is None:
+            raise UnprocessableEntityError(
+                message="Tenant has no programme connection",
+                details={"reason": "programme_not_connected"},
+            )
+        return connection
+
+    @staticmethod
+    def _assert_tenant_match(tenant_id: UUID, resolved: TenantResolvedContext) -> None:
+        if resolved.tenant_id != tenant_id:
+            raise UnauthorizedError(message="Tenant token does not match path tenant_id")
+
+
+def get_programme_onboarding_service() -> ProgrammeOnboardingService:
+    from src.di.dependency_container import provide_service
+
+    return provide_service(ProgrammeOnboardingService)
