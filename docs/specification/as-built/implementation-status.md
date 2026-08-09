@@ -31,7 +31,7 @@
 | Catalogue from synced meta | REQ-05–07 | `engine/catalogue_parser` (ADR-012 discovery-input) | `test_catalogue_parser` | `verify_programme_connect` | Fail closed on malformed; no partial list |
 | Optional git ref checkout | REQ-01 / FF-05 | `TenantGitWorkspaceClient.resolve_workspace(..., ref=)` | `test_tenant_git_workspace_client` | secondary | Default-branch path unchanged when omitted |
 
-**INIT-GATEFLOW-013 W0 status:** **human_approved** at wave-acceptance — Draft PR [#205](https://github.com/drivestream-lab/gateflow/pull/205) @ `4b9bd69` label `wave-accepted`; Ground-Report W0 **pass**. Board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-013 W0 status:** **human_approved** at wave-acceptance — Draft PR [#205](https://github.com/drivestream-lab/gateflow/pull/205) @ `4b9bd69` label `wave-accepted` (+ Pass-2 docs on tip); Ground-Report W0 **pass**. Board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 

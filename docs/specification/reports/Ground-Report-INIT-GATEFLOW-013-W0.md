@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-013-gateflow.md` |
 | Initiative | INIT-GATEFLOW-013 |
 | Date | 2026-08-09 |
-| Wave head (exact) | `feature/INIT-GATEFLOW-013-w0-programme-connect` @ `4b9bd696c2bad987ace5640e975d5f61fc11abcb` — reviewed head for sign-off |
+| Wave head (exact) | `feature/INIT-GATEFLOW-013-w0-programme-connect` — PR [#205] tip at sign-off (code accept `4b9bd69` + `wave-accepted`; Pass-2 docs follow) |
 | PR URL | https://github.com/drivestream-lab/gateflow/pull/205 |
 | Status | Ready for wave-signoff |
 | Review deadline | 2026-08-11 |
@@ -84,7 +84,7 @@ N/A — no Makefile `ground_command`. Manual scan of wave-assigned entry points 
 
 ## Exact-head merge package (for wave-signoff)
 
-- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/205 @ `4b9bd696c2bad987ace5640e975d5f61fc11abcb`
+- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/205 — merge tip at wave-signoff (code accept `4b9bd69` + `wave-accepted`)
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-013-W0.md`
 - Accept evidence: `wave-accepted` on tip (wave-acceptance) — human approved already
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-013-W0.md`
@@ -96,7 +96,7 @@ N/A — no Makefile `ground_command`. Manual scan of wave-assigned entry points 
 
 - [ ] Review REQ checklist — all wave-assigned REQs pass or explicitly deferred
 - [ ] Review §Contracts produced — accurate for W1 `/pre-implement`
-- [ ] Confirm reviewed head SHA matches `4b9bd696c2bad987ace5640e975d5f61fc11abcb` (or newer tip if hotfixed)
+- [ ] Confirm reviewed head SHA matches PR #205 tip at merge time
 - [ ] Confirm human_approved already from wave-acceptance
 - [ ] Merge the wave PR manually at wave-signoff — record merge commit SHA
 - [ ] Do not ask Gateflow/Forge to merge
