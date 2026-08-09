@@ -17,12 +17,18 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Active initiative (012 spec draft):** [`product/INIT-GATEFLOW-012-gateflow.md`](product/INIT-GATEFLOW-012-gateflow.md)
+**Active initiative (013 spec draft):** [`product/INIT-GATEFLOW-013-gateflow.md`](product/INIT-GATEFLOW-013-gateflow.md)
+(Programme-first onboarding — connect to programme meta, catalogue-driven
+select/deselect, repo setup, real Launchpad readiness replacing file-presence
+for newly selected repos, catalogue refresh; retires hand-typed `repos[]` at
+tenant registration; CAP-01…07 / REQ-01…28; Gate 1 approved on
+[prayog-meta#33](https://github.com/drivestream-lab/prayog-meta/pull/33)).
+
+**Prior (012):** [`product/INIT-GATEFLOW-012-gateflow.md`](product/INIT-GATEFLOW-012-gateflow.md)
 (Tenant registry + workspace/branch lifecycle — repo clone/refresh replacing
 `Path.cwd()` fallback, branch create-or-reuse, harness-readiness gate,
 repo-scoped `NO_CONCURRENT_RUN`, dormant `ForgeClient.delete_branch`; REQ-01…27,
-REQ-32; `prayog-skills` contract shapes REQ-28…31 tracked separately; Gate 1
-approved on [prayog-meta#32](https://github.com/drivestream-lab/prayog-meta/pull/32)).
+REQ-32; Gate 1 approved on [prayog-meta#32](https://github.com/drivestream-lab/prayog-meta/pull/32)).
 
 **Prior (011 W0–W9 human_approved; merges pending wave-signoff):** [`product/INIT-GATEFLOW-011-gateflow.md`](product/INIT-GATEFLOW-011-gateflow.md)
 (Day-1 visibility + GitHub reconcile — checkpoint status-check CAP-01/02 +
