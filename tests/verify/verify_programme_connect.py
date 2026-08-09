@@ -43,19 +43,14 @@ def main() -> int:
     workspace = Path(tempfile.mkdtemp(prefix="gf013-w0-"))
     name = f"verify-013-w0-{uuid4().hex[:8]}"
 
-    # Register with a throwaway registered repo (012 contract still requires repos[]).
-    # Prefer a repo the PAT can read; default to programme meta itself.
-    register_org = os.environ.get("GATEFLOW_VERIFY_ORG", org).strip()
-    register_repo = os.environ.get("GATEFLOW_VERIFY_REPO", repo).strip()
-
     with httpx.Client(base_url=base, timeout=120.0) as client:
+        # INIT-GATEFLOW-013 REQ-12: registration no longer accepts repos[].
         reg = client.post(
             "/api/v1/tenants",
             json={
                 "name": name,
                 "pat": pat,
                 "workspace_root": str(workspace.resolve()),
-                "repos": [{"org": register_org, "repo": register_repo}],
             },
         )
         if reg.status_code != 200:

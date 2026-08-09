@@ -1,4 +1,4 @@
-"""Programme connect / catalogue HTTP routes (INIT-GATEFLOW-013 W0)."""
+"""Programme connect / catalogue / selection HTTP routes (INIT-GATEFLOW-013 W0/W1)."""
 
 from typing import Annotated
 from uuid import UUID
@@ -15,6 +15,12 @@ from src.models.programme_connection_models import (
     ProgrammeConnectRequest,
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
+)
+from src.models.programme_selection_models import (
+    ProgrammeDeselectRequest,
+    ProgrammeDeselectResponse,
+    ProgrammeSelectRequest,
+    ProgrammeSelectResponse,
 )
 from src.models.tenant_models import TenantResolvedContext
 
@@ -48,3 +54,25 @@ async def get_programme_catalogue(
     service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
 ) -> ProgrammeCatalogueResponse:
     return await service.get_catalogue(tenant_id, resolved=resolved)
+
+
+@router.post("/repos/select", response_model=ProgrammeSelectResponse, status_code=200)
+async def select_programme_repos(
+    tenant_id: UUID,
+    body: ProgrammeSelectRequest,
+    resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
+    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+) -> ProgrammeSelectResponse:
+    """Admit catalogue-gated repos onto the tenant active list (PAT probe on new)."""
+    return await service.select_repos(tenant_id, body, resolved=resolved)
+
+
+@router.post("/repos/deselect", response_model=ProgrammeDeselectResponse, status_code=200)
+async def deselect_programme_repo(
+    tenant_id: UUID,
+    body: ProgrammeDeselectRequest,
+    resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
+    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+) -> ProgrammeDeselectResponse:
+    """Remove active-list membership; blocked when an ACTIVE run exists."""
+    return await service.deselect_repo(tenant_id, body, resolved=resolved)

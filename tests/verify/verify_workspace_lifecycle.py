@@ -81,18 +81,41 @@ def main() -> int:
             return 1
         print("[OK] omitted path + unregistered repo → 422 (REQ-15)")
 
-        # --- Register tenant for clone/fetch / mismatch ------------------------
+        # --- Register tenant + admit repo via programme selection (013 REQ-12) -
+        programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
+        programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
         register = {
             "name": f"verify-ws-{os.getpid()}",
             "pat": pat,
-            "repos": [{"org": org, "repo": repo}],
             "workspace_root": str(workspace_root),
         }
         r = client.post("/api/v1/tenants", json=register)
         if r.status_code != 200:
             print(f"[ERROR] tenant register failed {r.status_code}: {r.text}")
             return 1
-        print("[OK] tenant registered for workspace lifecycle")
+        tenant_token = r.json()["bearer_token"]
+        tenant_id = r.json()["tenant_id"]
+        tenant_headers = {"Authorization": f"Bearer {tenant_token}"}
+        conn = client.put(
+            f"/api/v1/tenants/{tenant_id}/programme/connect",
+            json={"org": programme_org, "repo": programme_repo},
+            headers=tenant_headers,
+        )
+        if conn.status_code != 200:
+            print(f"[ERROR] programme connect failed {conn.status_code}: {conn.text}")
+            return 1
+        sel = client.post(
+            f"/api/v1/tenants/{tenant_id}/programme/repos/select",
+            json={"repos": [{"org": org, "repo": repo}]},
+            headers=tenant_headers,
+        )
+        if sel.status_code != 200:
+            print(
+                f"[ERROR] select {org}/{repo} failed {sel.status_code}: {sel.text} "
+                "(repo must be on the programme catalogue)"
+            )
+            return 1
+        print("[OK] tenant registered + repo selected for workspace lifecycle")
 
         # --- REQ-14: mismatch --------------------------------------------------
         if target.exists():

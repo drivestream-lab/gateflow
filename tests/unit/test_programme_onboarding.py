@@ -80,10 +80,16 @@ def _service(
         )
 
     _ = parse_result, parse_error
+    probe = MagicMock()
+    probe.verify_read_access = AsyncMock(return_value=MagicMock(ok=True, reason=None))
+    run_repo = MagicMock()
+    run_repo.find_active_run = AsyncMock(return_value=None)
     svc = ProgrammeOnboardingService(
         postgres_service=postgres,
         tenant_repository=repo,
         tenant_git_workspace_client=git,
+        github_pat_probe=probe,
+        run_repository=run_repo,
     )
     return svc, repo, git
 

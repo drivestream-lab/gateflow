@@ -47,10 +47,9 @@ def main() -> int:
         or Path(tempfile.mkdtemp(prefix="gateflow-tenant-ws-")).resolve()
     )
 
-    register_body = {
+    register_body: dict[str, object] = {
         "name": name,
         "pat": pat,
-        "repos": [{"org": org, "repo": repo}],
         "workspace_root": workspace_root,
     }
 
@@ -65,18 +64,17 @@ def main() -> int:
             return 1
         print("[OK] relative workspace_root → 400")
 
-        bad_pat = dict(register_body)
-        bad_pat["repos"] = [{"org": org, "repo": f"no-such-repo-{os.getpid()}-xyz"}]
-        r = client.post("/api/v1/tenants", json=bad_pat)
+        with_repos = dict(register_body)
+        with_repos["repos"] = [{"org": org, "repo": repo}]
+        r = client.post("/api/v1/tenants", json=with_repos)
         if r.status_code != 422:
-            print(f"[ERROR] expected 422 for bad repo probe, got {r.status_code}: {r.text}")
+            print(f"[ERROR] expected 422 for non-empty repos, got {r.status_code}: {r.text}")
             return 1
-        details = r.json().get("details") or {}
-        failures = details.get("failures") or []
-        if not failures:
-            print(f"[ERROR] 422 missing itemized failures: {r.text}")
+        details = r.json().get("details") or r.json().get("error", {}).get("details") or {}
+        if details.get("reason") != "repos_not_allowed":
+            print(f"[ERROR] expected reason=repos_not_allowed: {r.text}")
             return 1
-        print("[OK] probe failure → 422 itemized")
+        print("[OK] non-empty repos[] → 422 repos_not_allowed")
 
         r = client.post("/api/v1/tenants", json=register_body)
         if r.status_code != 200:
@@ -86,12 +84,15 @@ def main() -> int:
         if "pat" in data:
             print("[ERROR] register response must not include pat")
             return 1
+        if data.get("repos"):
+            print(f"[ERROR] register must return empty repos, got {data.get('repos')}")
+            return 1
         token = data.get("bearer_token")
         tenant_id = data.get("tenant_id")
         if not token or not tenant_id:
             print(f"[ERROR] register missing token/tenant_id: {data}")
             return 1
-        print("[OK] register 200 + one-time bearer_token")
+        print("[OK] register 200 + one-time bearer_token (no repos)")
 
         headers = {"Authorization": f"Bearer {token}"}
 
