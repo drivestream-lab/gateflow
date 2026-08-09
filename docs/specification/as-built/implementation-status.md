@@ -33,6 +33,18 @@
 
 **INIT-GATEFLOW-013 W0 status:** **human_approved** at wave-acceptance — Draft PR [#205](https://github.com/drivestream-lab/gateflow/pull/205) @ `4b9bd69` label `wave-accepted` (+ Pass-2 docs on tip); Ground-Report W0 **pass**. Board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-013 W1 — select/deselect + retire repos[])
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Retire `repos[]` at registration | REQ-12, REQ-13 | `TenantRegisterRequest` / `TenantService.register_tenant` | `test_tenant_service` | `verify_repo_selection`, `verify_tenant_registry` | Non-empty → 422 `repos_not_allowed`; empty/absent OK |
+| Select catalogue subset | REQ-08–10 | `POST …/programme/repos/select` | `test_programme_selection` | `verify_repo_selection` | Current catalogue only; out-of-catalogue 422 |
+| PAT probe on new admits | REQ-11 | `GithubPatProbe` at select | `test_programme_selection` | `verify_repo_selection` | Probe fail → 422; 0 active-list change |
+| Deselect membership | REQ-26, REQ-27 | `POST …/programme/repos/deselect` | `test_programme_selection` | `verify_repo_selection` | ACTIVE run → 422; clone/readiness not cleared via update path |
+| Per-repo pending_setup | TDD / W1 | select response outcomes | `test_programme_selection` | `verify_repo_selection` | Setup batch wiring is W2 |
+
+**INIT-GATEFLOW-013 W1 status:** **human_approved** at wave-acceptance — Draft PR [#206](https://github.com/drivestream-lab/gateflow/pull/206) @ `7d8fefc` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W1 **pass**. Board [#201](https://github.com/drivestream-lab/gateflow/issues/201). PM-1: `verify_workspace_lifecycle` / `verify_branch_lifecycle` updated to register→connect→select. Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

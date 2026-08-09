@@ -4,7 +4,7 @@ from datetime import datetime, UTC
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.postgres.repository.base_repository import BasePostgresRepository
@@ -306,3 +306,61 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
             row.last_synced_at = synced
         await session.flush()
         return self._connection_to_read(row)
+
+    async def list_tenant_repos(
+        self, session: AsyncSession, tenant_id: UUID
+    ) -> list[TenantRepoRef]:
+        """Active-list membership for a tenant (INIT-GATEFLOW-013 CAP-03)."""
+        return await self._repos_for_tenant(session, tenant_id)
+
+    async def add_tenant_repos(
+        self,
+        session: AsyncSession,
+        *,
+        tenant_id: UUID,
+        repos: list[TenantRepoRef],
+    ) -> None:
+        """Admit org/repo pairs onto the tenant active list (selection path only)."""
+        for ref in repos:
+            session.add(
+                TenantRepoSchema(
+                    tenant_id=tenant_id,
+                    org=ref.org,
+                    repo=ref.repo,
+                    harness_verified=False,
+                )
+            )
+        await session.flush()
+
+    async def remove_tenant_repo(
+        self,
+        session: AsyncSession,
+        *,
+        tenant_id: UUID,
+        org: str,
+        repo: str,
+    ) -> bool:
+        """Remove active-list membership only — does not touch workspace files.
+
+        Deletes the ``tenant_repos`` row (membership). Clone on disk and any
+        prior readiness cache on that row are not updated in place; callers must
+        not clear harness_verified separately (REQ-26).
+        """
+        existing = await session.execute(
+            select(TenantRepoSchema.id).where(
+                TenantRepoSchema.tenant_id == tenant_id,
+                TenantRepoSchema.org == org,
+                TenantRepoSchema.repo == repo,
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            return False
+        await session.execute(
+            delete(TenantRepoSchema).where(
+                TenantRepoSchema.tenant_id == tenant_id,
+                TenantRepoSchema.org == org,
+                TenantRepoSchema.repo == repo,
+            )
+        )
+        await session.flush()
+        return True

@@ -39,7 +39,7 @@ def tenant_client(
             tenant_id=uuid4(),
             name="acme",
             bearer_token="tenant-token-once",
-            repos=[TenantRepoRef(org="acme", repo="widget")],
+            repos=[],
             workspace_root="/tmp/ws/acme",
             board=None,
         )
@@ -93,13 +93,13 @@ def test_register_200_no_pat_in_body(tenant_client: tuple[TestClient, MagicMock]
         json={
             "name": "acme",
             "pat": "ghp_secret",
-            "repos": [{"org": "acme", "repo": "widget"}],
             "workspace_root": "/tmp/ws/acme",
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["bearer_token"] == "tenant-token-once"
+    assert data["repos"] == []
     assert "pat" not in data
 
 
@@ -116,7 +116,6 @@ def test_register_relative_workspace_400(tenant_client: tuple[TestClient, MagicM
         json={
             "name": "acme",
             "pat": "ghp_secret",
-            "repos": [{"org": "acme", "repo": "widget"}],
             "workspace_root": "relative/path",
         },
     )
@@ -152,16 +151,12 @@ def test_list_401_invalid_token(tenant_client: tuple[TestClient, MagicMock]) -> 
     assert response.status_code == 401
 
 
-def test_register_422_probe_failure(tenant_client: tuple[TestClient, MagicMock]) -> None:
+def test_register_422_repos_not_allowed(tenant_client: tuple[TestClient, MagicMock]) -> None:
     client, service = tenant_client
     service.register_tenant = AsyncMock(
         side_effect=UnprocessableEntityError(
-            message="PAT failed",
-            details={
-                "failures": [
-                    {"org": "acme", "repo": "bad", "reason": "not_found"},
-                ]
-            },
+            message="repos is retired; admit repos via programme selection only",
+            details={"reason": "repos_not_allowed"},
         )
     )
     response = client.post(
@@ -175,5 +170,4 @@ def test_register_422_probe_failure(tenant_client: tuple[TestClient, MagicMock])
     )
     assert response.status_code == 422
     body = response.json()
-    failures = body["error"]["details"]["failures"]
-    assert failures[0]["repo"] == "bad"
+    assert body["error"]["details"]["reason"] == "repos_not_allowed"

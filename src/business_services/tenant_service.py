@@ -1,4 +1,4 @@
-"""Tenant registry business service (INIT-GATEFLOW-012 W0)."""
+"""Tenant registry business service (INIT-GATEFLOW-012 W0 / INIT-GATEFLOW-013 W1)."""
 
 import secrets
 from pathlib import Path
@@ -15,7 +15,6 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
-from src.infra_services.github_pat_probe import GithubPatProbe
 from src.infra_services.postgres_service import PostgresService
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
@@ -23,7 +22,6 @@ from src.models.tenant_models import (
     TenantReadModel,
     TenantRegisterRequest,
     TenantRegisterResponse,
-    TenantRepoProbeFailure,
     TenantResolvedContext,
     TenantUserAttachRequest,
     TenantUserAttachResponse,
@@ -38,12 +36,10 @@ class TenantService(BaseBusinessService):
         self,
         postgres_service: PostgresService,
         tenant_repository: TenantRepository,
-        github_pat_probe: GithubPatProbe,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._tenant_repository = tenant_repository
-        self._github_pat_probe = github_pat_probe
 
     async def register_tenant(self, request: TenantRegisterRequest) -> TenantRegisterResponse:
         if not Path(request.workspace_root).is_absolute():
@@ -51,33 +47,14 @@ class TenantService(BaseBusinessService):
                 message="workspace_root must be an absolute path",
                 field_errors={"workspace_root": "must_be_absolute"},
             )
-        if not request.repos:
-            raise ValidationError(
-                message="repos must contain at least one org/repo pair",
-                field_errors={"repos": "required"},
-            )
-
-        failures: list[TenantRepoProbeFailure] = []
-        for ref in request.repos:
-            probe = await self._github_pat_probe.verify_read_access(request.pat, ref.org, ref.repo)
-            if not probe.ok:
-                failures.append(
-                    TenantRepoProbeFailure(
-                        org=ref.org,
-                        repo=ref.repo,
-                        reason=probe.reason or "unknown",
-                    )
-                )
-        if failures:
+        if request.repos:
             self.logger.warning(
-                "Tenant registration rejected by PAT probe",
-                failure_count=len(failures),
+                "Tenant registration rejected non-empty repos",
+                repo_count=len(request.repos),
             )
             raise UnprocessableEntityError(
-                message="PAT failed read-access verification for one or more repos",
-                details={
-                    "failures": [f.model_dump(mode="json") for f in failures],
-                },
+                message="repos is retired; admit repos via programme selection only",
+                details={"reason": "repos_not_allowed"},
             )
 
         bearer_token = secrets.token_urlsafe(32)
@@ -88,7 +65,7 @@ class TenantService(BaseBusinessService):
                 pat=request.pat,
                 bearer_token=bearer_token,
                 workspace_root=request.workspace_root,
-                repos=request.repos,
+                repos=[],
                 board=request.board,
             )
 

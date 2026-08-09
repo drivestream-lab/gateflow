@@ -25,13 +25,20 @@ class TenantBoardDefault(BaseModel):
 
 
 class TenantRegisterRequest(BaseModel):
-    """POST /api/v1/tenants body."""
+    """POST /api/v1/tenants body.
+
+    ``repos`` is retired (INIT-GATEFLOW-013 REQ-12): must be absent or empty.
+    Active repos are admitted only via programme selection.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, description="Tenant display name")
     pat: str = Field(min_length=1, description="GitHub PAT (never echoed in responses)")
-    repos: list[TenantRepoRef] = Field(min_length=1)
+    repos: Optional[list[TenantRepoRef]] = Field(
+        default=None,
+        description="Retired — must be absent or empty; non-empty is rejected (REQ-12)",
+    )
     workspace_root: str = Field(
         min_length=1,
         description="Absolute path for tenant workspaces",

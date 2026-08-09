@@ -57,6 +57,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
 # .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
+# .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1 select/deselect + repos[] retire
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -617,18 +618,29 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_connect` (API + human DDL for `tenant_programme_connections` + PAT with read on programme meta; env `GATEFLOW_PROGRAMME_ORG`/`REPO`/`REF` optional).
 
+## Feature map (INIT-GATEFLOW-013 W1 — select/deselect + retire repos[])
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Registration rejects non-empty `repos[]` (REQ-12) | `verify_repo_selection` / `verify_tenant_registry` | `test_tenant_service` |
+| Select catalogue subset + PAT probe (REQ-08–11) | `verify_repo_selection` | `test_programme_selection` |
+| Out-of-catalogue → 422, 0 change (REQ-09) | `verify_repo_selection` | `test_programme_selection` |
+| Deselect membership-only (REQ-26); ACTIVE-run unit (REQ-27) | `verify_repo_selection` | `test_programme_selection` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` (API + programme DDL + PAT; connect then select/deselect). Setup batch is W2 (`pending_setup` in select results).
+
 ## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Register + one-time tenant bearer (REQ-01/03/09) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
 | PAT never in responses (REQ-02/32) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
-| Eager PAT probe itemized 422 (REQ-06) | `verify_tenant_registry` | `test_github_pat_probe`, `test_tenant_service` |
+| Registration rejects `repos[]` (INIT-013 REQ-12) | `verify_tenant_registry` | `test_tenant_service` |
 | Absolute `workspace_root` → 400 (REQ-07) | `verify_tenant_registry` | `test_tenant_service` |
 | Tenant token 401 + attach boundary (REQ-04; ADR-011) | `verify_tenant_registry` | `test_tenant_token`, `test_tenant_routes` |
 | Board default when project omitted (REQ-08) | secondary | `test_board_service` (`test_resolve_board_default_*`) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables + PAT with read access to `gateflow.org`/`gateflow.repo`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables). PAT probe at registration retired — probe runs on programme select (INIT-013 W1).
 
 ### Tenant registry (INIT-GATEFLOW-012 W0)
 

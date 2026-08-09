@@ -1,4 +1,4 @@
-"""Programme connect + catalogue read (INIT-GATEFLOW-013 W0)."""
+"""Programme connect, catalogue, and repo selection (INIT-GATEFLOW-013 W0/W1)."""
 
 import shutil
 from pathlib import Path
@@ -7,6 +7,7 @@ from uuid import UUID
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.database.postgres.repository.run_store_repository import RunRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
 from src.engine.catalogue_parser import CatalogueParseError, parse_candidates
 from src.exceptions.app_exceptions import (
@@ -14,6 +15,7 @@ from src.exceptions.app_exceptions import (
     UnauthorizedError,
     UnprocessableEntityError,
 )
+from src.infra_services.github_pat_probe import GithubPatProbe
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -25,12 +27,20 @@ from src.models.programme_connection_models import (
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
 )
+from src.models.programme_selection_models import (
+    ProgrammeDeselectRequest,
+    ProgrammeDeselectResponse,
+    ProgrammeRepoAdmitOutcomeType,
+    ProgrammeRepoAdmitResult,
+    ProgrammeSelectRequest,
+    ProgrammeSelectResponse,
+)
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
-from src.models.tenant_models import TenantResolvedContext
+from src.models.tenant_models import TenantRepoProbeFailure, TenantRepoRef, TenantResolvedContext
 
 
 class ProgrammeOnboardingService(BaseBusinessService):
-    """Connect tenant to programme meta and expose catalogue candidates."""
+    """Connect tenant to programme meta, catalogue, and select/deselect repos."""
 
     @inject
     def __init__(
@@ -38,11 +48,15 @@ class ProgrammeOnboardingService(BaseBusinessService):
         postgres_service: PostgresService,
         tenant_repository: TenantRepository,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
+        github_pat_probe: GithubPatProbe,
+        run_repository: RunRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._tenant_repository = tenant_repository
         self._git_client = tenant_git_workspace_client
+        self._github_pat_probe = github_pat_probe
+        self._run_repository = run_repository
 
     async def connect_programme(
         self,
@@ -170,6 +184,175 @@ class ProgrammeOnboardingService(BaseBusinessService):
                 details={"reason": "programme_not_connected"},
             )
         return connection
+
+    async def select_repos(
+        self,
+        tenant_id: UUID,
+        request: ProgrammeSelectRequest,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeSelectResponse:
+        """Admit catalogue-gated repos; PAT probe on new admits; setup deferred (W2)."""
+        self._assert_tenant_match(tenant_id, resolved)
+
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
+            auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+            active = await self._tenant_repository.list_tenant_repos(session, tenant_id)
+
+        if connection is None:
+            raise UnprocessableEntityError(
+                message="Tenant has no programme connection",
+                details={"reason": "programme_not_connected"},
+            )
+        if auth is None:
+            raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+
+        workspace_root, pat = auth
+        meta_root = Path(workspace_root) / connection.org / connection.repo
+        try:
+            candidates = parse_candidates(meta_root, org=connection.org)
+        except CatalogueParseError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": exc.reason},
+            ) from exc
+
+        candidate_keys = {(c.org, c.repo) for c in candidates}
+        requested = [TenantRepoRef(org=r.org.strip(), repo=r.repo.strip()) for r in request.repos]
+        out_of_catalogue = [r for r in requested if (r.org, r.repo) not in candidate_keys]
+        if out_of_catalogue:
+            self.logger.warning(
+                "Select rejected out-of-catalogue repos",
+                tenant_id=str(tenant_id),
+                rejected_count=len(out_of_catalogue),
+            )
+            raise UnprocessableEntityError(
+                message="One or more repos are not on the current catalogue",
+                details={
+                    "reason": "out_of_catalogue",
+                    "repos": [r.model_dump(mode="json") for r in out_of_catalogue],
+                },
+            )
+
+        active_keys = {(r.org, r.repo) for r in active}
+        new_admits = [r for r in requested if (r.org, r.repo) not in active_keys]
+
+        probe_failures: list[TenantRepoProbeFailure] = []
+        for ref in new_admits:
+            probe = await self._github_pat_probe.verify_read_access(pat, ref.org, ref.repo)
+            if not probe.ok:
+                probe_failures.append(
+                    TenantRepoProbeFailure(
+                        org=ref.org,
+                        repo=ref.repo,
+                        reason=probe.reason or "unknown",
+                    )
+                )
+        if probe_failures:
+            self.logger.warning(
+                "Select rejected by PAT probe",
+                tenant_id=str(tenant_id),
+                failure_count=len(probe_failures),
+            )
+            raise UnprocessableEntityError(
+                message="PAT failed read-access verification for one or more repos",
+                details={
+                    "reason": "probe_failed",
+                    "failures": [f.model_dump(mode="json") for f in probe_failures],
+                },
+            )
+
+        if new_admits:
+            async with self._postgres_service.transaction() as session:
+                await self._tenant_repository.add_tenant_repos(
+                    session, tenant_id=tenant_id, repos=new_admits
+                )
+                active = await self._tenant_repository.list_tenant_repos(session, tenant_id)
+
+        results: list[ProgrammeRepoAdmitResult] = []
+        new_keys = {(r.org, r.repo) for r in new_admits}
+        for ref in requested:
+            if (ref.org, ref.repo) in new_keys:
+                results.append(
+                    ProgrammeRepoAdmitResult(
+                        org=ref.org,
+                        repo=ref.repo,
+                        outcome=ProgrammeRepoAdmitOutcomeType.PENDING_SETUP,
+                        reason="setup_deferred_w2",
+                    )
+                )
+            else:
+                results.append(
+                    ProgrammeRepoAdmitResult(
+                        org=ref.org,
+                        repo=ref.repo,
+                        outcome=ProgrammeRepoAdmitOutcomeType.ALREADY_SELECTED,
+                    )
+                )
+
+        self.logger.info(
+            "Programme repos selected",
+            tenant_id=str(tenant_id),
+            requested_count=len(requested),
+            new_admit_count=len(new_admits),
+        )
+        return ProgrammeSelectResponse(results=results, active_repos=active)
+
+    async def deselect_repo(
+        self,
+        tenant_id: UUID,
+        request: ProgrammeDeselectRequest,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeDeselectResponse:
+        """Remove active-list membership; block when ACTIVE run exists (REQ-26/27)."""
+        self._assert_tenant_match(tenant_id, resolved)
+        org = request.org.strip()
+        repo = request.repo.strip()
+
+        async with self._postgres_service.transaction() as session:
+            active_before = await self._tenant_repository.list_tenant_repos(session, tenant_id)
+            if not any(r.org == org and r.repo == repo for r in active_before):
+                raise UnprocessableEntityError(
+                    message="Repo is not on the tenant active list",
+                    details={"reason": "not_selected", "org": org, "repo": repo},
+                )
+            active_run = await self._run_repository.find_active_run(session, org, repo)
+            if active_run is not None:
+                self.logger.warning(
+                    "Deselect blocked by active run",
+                    tenant_id=str(tenant_id),
+                    org=org,
+                    repo=repo,
+                    run_id=str(active_run.id),
+                )
+                raise UnprocessableEntityError(
+                    message="Cannot deselect repo while an ACTIVE run exists",
+                    details={
+                        "reason": "active_run",
+                        "org": org,
+                        "repo": repo,
+                        "run_id": str(active_run.id),
+                    },
+                )
+            removed = await self._tenant_repository.remove_tenant_repo(
+                session, tenant_id=tenant_id, org=org, repo=repo
+            )
+            if not removed:
+                raise UnprocessableEntityError(
+                    message="Repo is not on the tenant active list",
+                    details={"reason": "not_selected", "org": org, "repo": repo},
+                )
+            active = await self._tenant_repository.list_tenant_repos(session, tenant_id)
+
+        self.logger.info(
+            "Programme repo deselected",
+            tenant_id=str(tenant_id),
+            org=org,
+            repo=repo,
+        )
+        return ProgrammeDeselectResponse(org=org, repo=repo, active_repos=active)
 
     @staticmethod
     def _assert_tenant_match(tenant_id: UUID, resolved: TenantResolvedContext) -> None:

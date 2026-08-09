@@ -166,17 +166,40 @@ def main() -> int:
             print(f"[ERROR] could not clear probe branch {head}")
             return 1
 
+        programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
+        programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
         register = {
             "name": f"verify-brl-{os.getpid()}",
             "pat": pat,
-            "repos": [{"org": org, "repo": repo}],
             "workspace_root": str(workspace_root),
         }
         r = client.post(f"{base}/api/v1/tenants", json=register)
         if r.status_code != 200:
             print(f"[ERROR] tenant register failed {r.status_code}: {r.text}")
             return 1
-        print("[OK] tenant registered for branch lifecycle")
+        tenant_token = r.json()["bearer_token"]
+        tenant_id = r.json()["tenant_id"]
+        tenant_headers = {"Authorization": f"Bearer {tenant_token}"}
+        conn = client.put(
+            f"{base}/api/v1/tenants/{tenant_id}/programme/connect",
+            json={"org": programme_org, "repo": programme_repo},
+            headers=tenant_headers,
+        )
+        if conn.status_code != 200:
+            print(f"[ERROR] programme connect failed {conn.status_code}: {conn.text}")
+            return 1
+        sel = client.post(
+            f"{base}/api/v1/tenants/{tenant_id}/programme/repos/select",
+            json={"repos": [{"org": org, "repo": repo}]},
+            headers=tenant_headers,
+        )
+        if sel.status_code != 200:
+            print(
+                f"[ERROR] select {org}/{repo} failed {sel.status_code}: {sel.text} "
+                "(repo must be on the programme catalogue)"
+            )
+            return 1
+        print("[OK] tenant registered + repo selected for branch lifecycle")
 
         if target.exists():
             shutil.rmtree(target)
