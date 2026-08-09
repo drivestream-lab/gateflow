@@ -1,5 +1,6 @@
-"""Tenant registry repository (INIT-GATEFLOW-012 W0)."""
+"""Tenant registry repository (INIT-GATEFLOW-012 W0 / INIT-GATEFLOW-013 W0)."""
 
+from datetime import datetime, UTC
 from typing import Optional
 from uuid import UUID
 
@@ -8,11 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.postgres.repository.base_repository import BasePostgresRepository
 from src.database.postgres.schema.tenant_schema import (
+    TenantProgrammeConnectionSchema,
     TenantRepoSchema,
     TenantSchema,
     TenantUserSchema,
 )
 from src.di.qualified_types import PostgresSessionFactory
+from src.models.programme_connection_models import ProgrammeConnectionReadModel
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantBoardDefault,
@@ -233,3 +236,73 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
             )
         rows[0].harness_verified = verified
         await session.flush()
+
+    async def get_tenant_workspace_auth(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+    ) -> Optional[tuple[str, str]]:
+        """Return (workspace_root, pat) for a tenant — never for API responses."""
+        row = await session.get(TenantSchema, tenant_id)
+        if row is None:
+            return None
+        return row.workspace_root, row.pat
+
+    def _connection_to_read(
+        self, row: TenantProgrammeConnectionSchema
+    ) -> ProgrammeConnectionReadModel:
+        return ProgrammeConnectionReadModel(
+            tenant_id=row.tenant_id,
+            org=row.org,
+            repo=row.repo,
+            ref=row.ref,
+            last_synced_at=row.last_synced_at,
+        )
+
+    async def get_programme_connection(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+    ) -> Optional[ProgrammeConnectionReadModel]:
+        stmt = select(TenantProgrammeConnectionSchema).where(
+            TenantProgrammeConnectionSchema.tenant_id == tenant_id
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return self._connection_to_read(row)
+
+    async def upsert_programme_connection(
+        self,
+        session: AsyncSession,
+        *,
+        tenant_id: UUID,
+        org: str,
+        repo: str,
+        ref: Optional[str],
+        last_synced_at: Optional[datetime] = None,
+    ) -> ProgrammeConnectionReadModel:
+        """Insert or update the single programme connection for a tenant (REQ-28)."""
+        synced = last_synced_at or datetime.now(UTC)
+        stmt = select(TenantProgrammeConnectionSchema).where(
+            TenantProgrammeConnectionSchema.tenant_id == tenant_id
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is None:
+            row = TenantProgrammeConnectionSchema(
+                tenant_id=tenant_id,
+                org=org,
+                repo=repo,
+                ref=ref,
+                last_synced_at=synced,
+            )
+            session.add(row)
+        else:
+            row.org = org
+            row.repo = repo
+            row.ref = ref
+            row.last_synced_at = synced
+        await session.flush()
+        return self._connection_to_read(row)

@@ -71,9 +71,12 @@ class TenantGitWorkspaceClient(BaseInfraService):
     async def resolve_workspace(
         self,
         credential: TenantWorkspaceCredential,
+        *,
+        ref: Optional[str] = None,
     ) -> WorkspaceResolveResult:
         """Clone or fetch the registered repo under the tenant workspace_root.
 
+        When ``ref`` is set, check out that ref after clone/fetch (INIT-013 FF-05).
         Never logs ``credential.pat``. Holds a per-org+repo lock for the call (TF-01).
         """
         org = credential.org.strip()
@@ -93,6 +96,7 @@ class TenantGitWorkspaceClient(BaseInfraService):
                 org=org,
                 repo=repo,
             )
+        cleaned_ref = ref.strip() if ref is not None and ref.strip() else None
         target = (root / org / repo).resolve()
         lock = await self._lock_for(org, repo)
         async with lock:
@@ -102,6 +106,7 @@ class TenantGitWorkspaceClient(BaseInfraService):
                 org=org,
                 repo=repo,
                 target=target,
+                ref=cleaned_ref,
             )
 
     async def _resolve_locked(
@@ -112,6 +117,7 @@ class TenantGitWorkspaceClient(BaseInfraService):
         org: str,
         repo: str,
         target: Path,
+        ref: Optional[str] = None,
     ) -> WorkspaceResolveResult:
         rel_path = f"{org}/{repo}"
         if target.exists():
@@ -123,6 +129,8 @@ class TenantGitWorkspaceClient(BaseInfraService):
                     repo=repo,
                 )
             await self._git_fetch(target, pat=pat, org=org, repo=repo)
+            if ref is not None:
+                await self._checkout_ref(target, ref=ref, org=org, repo=repo)
             logger.info(
                 "Tenant workspace fetched",
                 tenant_id=str(tenant_id),
@@ -130,6 +138,7 @@ class TenantGitWorkspaceClient(BaseInfraService):
                 repo=repo,
                 mode=WorkspaceResolveModeType.FETCHED.value,
                 path=rel_path,
+                ref=ref,
             )
             return WorkspaceResolveResult(
                 path=str(target),
@@ -138,6 +147,8 @@ class TenantGitWorkspaceClient(BaseInfraService):
 
         target.parent.mkdir(parents=True, exist_ok=True)
         await self._git_clone(target, pat=pat, org=org, repo=repo)
+        if ref is not None:
+            await self._checkout_ref(target, ref=ref, org=org, repo=repo)
         logger.info(
             "Tenant workspace cloned",
             tenant_id=str(tenant_id),
@@ -145,11 +156,44 @@ class TenantGitWorkspaceClient(BaseInfraService):
             repo=repo,
             mode=WorkspaceResolveModeType.CLONED.value,
             path=rel_path,
+            ref=ref,
         )
         return WorkspaceResolveResult(
             path=str(target),
             mode=WorkspaceResolveModeType.CLONED,
         )
+
+    async def _checkout_ref(
+        self,
+        target: Path,
+        *,
+        ref: str,
+        org: str,
+        repo: str,
+    ) -> None:
+        """Check out ``ref`` or ``origin/{ref}`` in an existing checkout."""
+        code, stderr = await self._run_git(["git", "-C", str(target), "checkout", "--force", ref])
+        if code == 0:
+            return
+        code2, stderr2 = await self._run_git(
+            [
+                "git",
+                "-C",
+                str(target),
+                "checkout",
+                "--force",
+                "-B",
+                ref,
+                f"origin/{ref}",
+            ]
+        )
+        if code2 != 0:
+            raise TenantGitWorkspaceError(
+                f"git checkout failed for ref {ref!r}",
+                reason=f"checkout_failed:{self._classify_git_failure(stderr2 or stderr)}",
+                org=org,
+                repo=repo,
+            )
 
     async def _lock_for(self, org: str, repo: str) -> asyncio.Lock:
         key = f"{org.lower()}/{repo.lower()}"

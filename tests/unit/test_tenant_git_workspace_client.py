@@ -171,6 +171,45 @@ def test_no_python_git_dependency_in_module_source() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_with_ref_checks_out_after_clone(tmp_path: Path) -> None:
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+
+    async def fake_clone(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = pat
+        path.mkdir(parents=True, exist_ok=True)
+        _init_remote_like_checkout(path, org=org, repo=repo)
+
+    with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)):
+        with patch.object(client, "_checkout_ref", new=AsyncMock()) as checkout:
+            result = await client.resolve_workspace(cred, ref="main")
+
+    assert result.mode == WorkspaceResolveModeType.CLONED
+    checkout.assert_awaited_once()
+    assert checkout.await_args is not None
+    assert checkout.await_args.kwargs["ref"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_resolve_without_ref_skips_checkout(tmp_path: Path) -> None:
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+
+    async def fake_clone(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = pat
+        path.mkdir(parents=True, exist_ok=True)
+        _init_remote_like_checkout(path, org=org, repo=repo)
+
+    with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)):
+        with patch.object(client, "_checkout_ref", new=AsyncMock()) as checkout:
+            await client.resolve_workspace(cred)
+
+    checkout.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_checkout_branch_invokes_origin_tracking(tmp_path: Path) -> None:
     """REQ-19 companion: checkout uses origin/{branch} after clone/fetch."""
     client = TenantGitWorkspaceClient()

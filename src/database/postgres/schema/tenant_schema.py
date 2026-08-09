@@ -1,9 +1,10 @@
-"""ORM schemas for tenant registry (INIT-GATEFLOW-012 W0)."""
+"""ORM schemas for tenant registry (INIT-GATEFLOW-012 W0 / INIT-GATEFLOW-013 W0)."""
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -62,3 +63,26 @@ class TenantUserSchema(PostgresBaseModel):
         index=True,
     )
     identity: Mapped[str] = mapped_column(String(512), nullable=False)
+
+
+class TenantProgrammeConnectionSchema(PostgresBaseModel):
+    """Exactly one programme meta connection per tenant (INIT-GATEFLOW-013 REQ-28)."""
+
+    __tablename__ = "tenant_programme_connections"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenant_programme_connections_tenant_id"),
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    org: Mapped[str] = mapped_column(String(255), nullable=False)
+    repo: Mapped[str] = mapped_column(String(255), nullable=False)
+    ref: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    last_synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

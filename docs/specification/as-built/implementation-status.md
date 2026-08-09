@@ -23,6 +23,16 @@
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
+## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Programme connect (upsert) | REQ-01–04, REQ-28 | `programme_routes`, `programme_onboarding_service`, `tenant_programme_connections` | `test_programme_onboarding` | `verify_programme_connect` (human; P15) | Same git client + optional `ref`; fail-closed cleanup; ADR-011 tenant bearer |
+| Catalogue from synced meta | REQ-05–07 | `engine/catalogue_parser` (ADR-012 discovery-input) | `test_catalogue_parser` | `verify_programme_connect` | Fail closed on malformed; no partial list |
+| Optional git ref checkout | REQ-01 / FF-05 | `TenantGitWorkspaceClient.resolve_workspace(..., ref=)` | `test_tenant_git_workspace_client` | secondary | Default-branch path unchanged when omitted |
+
+**INIT-GATEFLOW-013 W0 status:** **in_progress** (loop-spec) — board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL required: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Live verify not yet human-run.
+
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
