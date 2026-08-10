@@ -64,7 +64,7 @@
 | On-demand refresh | REQ-23 | `POST …/repos/readiness/refresh` | unit via service | `verify_harness_status` | status-sourced only |
 | Dual gate | REQ-21, REQ-22 | wave-start + orchestrator | `test_harness_dual_gate` | filesystem verify retained | never_checked fail-closed |
 
-**INIT-GATEFLOW-013 W3 status:** **implemented** (Pass-1) — board [#203](https://github.com/drivestream-lab/gateflow/issues/203); live smoke pending human wave-acceptance. Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-readiness-source.md`. Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`.
+**INIT-GATEFLOW-013 W3 status:** **human_approved** at wave-acceptance — Draft PR [#208](https://github.com/drivestream-lab/gateflow/pull/208) @ `b693bdb` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W3 **pass**. Board [#203](https://github.com/drivestream-lab/gateflow/issues/203). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-readiness-source.md`. Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`. Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
