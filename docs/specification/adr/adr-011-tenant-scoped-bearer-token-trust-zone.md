@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Accepted |
+| Status | Superseded |
 | Initiative | INIT-GATEFLOW-012 |
 | Feasibility finding | FF-02 (`Initiative-Feasibility-Report-INIT-GATEFLOW-012.md`) |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-012.md` |
@@ -12,7 +12,7 @@
 | changes_user_visible_behavior | `false` |
 | spec_amendment_required | `false` |
 | supersedes | none |
-| superseded_by | none |
+| superseded_by | [`adr-014`](adr-014-jwt-only-product-edge-trust-zone.md) — JWT-only product edge; tenant-bearer zone retired (INIT-GATEFLOW-014, Accepted 2026-08-10) |
 | Relates to | Extends [`adr-002`](adr-002-edge-trust-model.md) (three-zone model) and [`adr-005`](adr-005-programme-token-control-plane-mutations.md) (widened programme-token zone) — adds a fourth zone; the existing three are unchanged |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-08 via Cursor chat, Draft spec PR [#183](https://github.com/drivestream-lab/gateflow/pull/183) |

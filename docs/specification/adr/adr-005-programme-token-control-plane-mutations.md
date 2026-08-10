@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Accepted |
+| Status | Superseded |
 | Initiative | INIT-GATEFLOW-002 |
 | Feasibility finding | C-1, F13-1, Q-6 |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-002.md` |
@@ -10,6 +10,7 @@
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-07-24 via Cursor chat (https://github.com/drivestream-lab/gateflow/pull/10); architecture package tip after ADR hygiene `13a734dfa7a5fa8352e5d9f3ef939d49912ab07f` |
 | Approved head | `ff73cddf93f5d81f7b3585f59ea9b57e9410991b` |
 | Relates to | Supersedes ADR-002 programme-token zone wording (JWT + webhook zones unchanged) |
+| superseded_by | [`adr-014`](adr-014-jwt-only-product-edge-trust-zone.md) — JWT-only product edge; programme-token zone retired (INIT-GATEFLOW-014, Accepted 2026-08-10) |
 
 ## Context
 
