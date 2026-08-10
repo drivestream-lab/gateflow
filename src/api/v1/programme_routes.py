@@ -16,6 +16,10 @@ from src.models.programme_connection_models import (
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
 )
+from src.models.programme_readiness_models import (
+    ProgrammeReadinessRefreshRequest,
+    ProgrammeReadinessRefreshResponse,
+)
 from src.models.programme_selection_models import (
     ProgrammeDeselectRequest,
     ProgrammeDeselectResponse,
@@ -65,6 +69,21 @@ async def select_programme_repos(
 ) -> ProgrammeSelectResponse:
     """Admit catalogue-gated repos onto the tenant active list (PAT probe on new)."""
     return await service.select_repos(tenant_id, body, resolved=resolved)
+
+
+@router.post(
+    "/repos/readiness/refresh",
+    response_model=ProgrammeReadinessRefreshResponse,
+    status_code=200,
+)
+async def refresh_programme_repo_readiness(
+    tenant_id: UUID,
+    body: ProgrammeReadinessRefreshRequest,
+    resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
+    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+) -> ProgrammeReadinessRefreshResponse:
+    """On-demand Launchpad status refresh for status-sourced active repos (REQ-23)."""
+    return await service.refresh_readiness(tenant_id, body, resolved=resolved)
 
 
 @router.post("/repos/deselect", response_model=ProgrammeDeselectResponse, status_code=200)

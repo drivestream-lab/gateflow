@@ -199,9 +199,11 @@ def _service(
             get_workspace_credential_for_repo=AsyncMock(return_value=None),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
+            get_readiness_source=AsyncMock(return_value=None),
         ),
         tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
         launchpad_client=MagicMock(sync_harness=AsyncMock()),
+        launchpad_status_client=MagicMock(inspect_status=AsyncMock()),
     )
 
 

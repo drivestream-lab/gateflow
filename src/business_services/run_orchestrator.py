@@ -38,6 +38,10 @@ from src.infra_services.launchpad_client import (
     HarnessReadinessError,
     LaunchpadClient,
 )
+from src.infra_services.launchpad_status_client import (
+    LaunchpadStatusClient,
+    LaunchpadStatusError,
+)
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -48,6 +52,7 @@ from src.models.dispatch_plan_models import DispatchPlan, ResolvedNodeDispatch
 from src.models.forge_models import merge_pin_and_handoff_forge
 from src.models.forge_types import CommitWorkspaceModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
+from src.models.programme_readiness_models import ReadinessSourceType
 from src.models.policy_types import PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import (
     BranchResolveModeType,
@@ -92,6 +97,7 @@ class RunOrchestrator(BaseBusinessService):
         notifier: Notifier,
         metrics_emitter: MetricsEmitter,
         launchpad_client: LaunchpadClient,
+        launchpad_status_client: LaunchpadStatusClient,
         cursor_agent_runner: CursorAgentRunner,
         forge_client: ForgeClient,
         forge_action_service: ForgeActionService,
@@ -113,6 +119,7 @@ class RunOrchestrator(BaseBusinessService):
         self._notifier = notifier
         self._metrics_emitter = metrics_emitter
         self._launchpad_client = launchpad_client
+        self._launchpad_status_client = launchpad_status_client
         self._cursor_agent_runner = cursor_agent_runner
         self._forge_client = forge_client
         self._forge_action_service = forge_action_service
@@ -931,17 +938,23 @@ class RunOrchestrator(BaseBusinessService):
         workspace_path: str,
         force: bool = False,
     ) -> None:
-        """Probe harness artifacts after workspace resolve; honor verified cache (REQ-20–22).
+        """Probe harness after workspace resolve; honor verified cache (REQ-20–22).
 
-        When the org/repo is Tenant-registered and ``harness_verified`` is true,
-        skip the filesystem probe unless ``force`` (re-check). Unregistered
-        workspaces always probe. Successful probes for registered repos set the
-        cache flag.
+        Provenance switch (ADR-013): ``launchpad_status`` → status client;
+        NULL/filesystem → ``sync_harness``. Legacy force-recheck never calls status.
         """
         registered = await self._tenant_service.get_workspace_credential_for_repo(
             org=org,
             repo=repo,
         )
+        readiness_source = (
+            await self._tenant_service.get_readiness_source(org=org, repo=repo)
+            if registered is not None
+            else None
+        )
+        use_status = readiness_source == ReadinessSourceType.LAUNCHPAD_STATUS
+        evaluator = "launchpad_status" if use_status else "filesystem"
+
         if registered is not None and not force:
             if await self._tenant_service.is_harness_verified(org=org, repo=repo):
                 self.logger.info(
@@ -949,12 +962,61 @@ class RunOrchestrator(BaseBusinessService):
                     org=org,
                     repo=repo,
                     workspace_path=workspace_path,
+                    evaluator=evaluator,
+                    cache_hit=True,
                 )
                 return
 
+        if use_status:
+            assert registered is not None
+            if not force:
+                raise UnprocessableEntityError(
+                    message="Selected repo has not passed Launchpad status readiness",
+                    details={
+                        "org": org,
+                        "repo": repo,
+                        "reason": "never_checked",
+                        "evaluator": evaluator,
+                    },
+                )
+            connection = await self._tenant_service.get_programme_connection(registered.tenant_id)
+            if connection is None:
+                raise UnprocessableEntityError(
+                    message="Tenant has no programme connection for status readiness",
+                    details={"org": org, "repo": repo, "reason": "programme_not_connected"},
+                )
+            meta_config_dir = str(
+                Path(registered.workspace_root) / connection.org / connection.repo
+            )
+            try:
+                verdict = await self._launchpad_status_client.inspect_status(
+                    repo_workspace=workspace_path,
+                    meta_config_dir=meta_config_dir,
+                    org=org,
+                    repo=repo,
+                )
+            except LaunchpadStatusError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={"org": org, "repo": repo, "reason": exc.reason},
+                ) from exc
+            if not verdict.ready:
+                await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=False)
+                raise UnprocessableEntityError(
+                    message="Launchpad status reported repo not ready",
+                    details={
+                        "org": org,
+                        "repo": repo,
+                        "reason": verdict.reason or "repo_not_ready",
+                        "evaluator": evaluator,
+                    },
+                )
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=True)
+            return
+
         await self._launchpad_client.sync_harness(workspace_path)
         if registered is not None:
-            await self._tenant_service.mark_harness_verified(org=org, repo=repo)
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=True)
 
     async def _ensure_run_handoff_path(
         self,

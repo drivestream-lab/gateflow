@@ -173,6 +173,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "notifier": notifier,
         "metrics_emitter": metrics_emitter,
         "launchpad_client": launchpad_client,
+        "launchpad_status_client": MagicMock(inspect_status=AsyncMock()),
         "cursor_agent_runner": cursor_agent_runner,
         "forge_client": forge_client,
         "forge_action_service": forge_action_service,
@@ -187,6 +188,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             get_workspace_credential_for_repo=AsyncMock(return_value=None),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
+            get_readiness_source=AsyncMock(return_value=None),
         ),
         "tenant_git_workspace_client": MagicMock(
             resolve_workspace=AsyncMock(),
@@ -1375,6 +1377,7 @@ async def test_omitted_workspace_registered_resolves_via_client(tmp_path: Path) 
             repo="widget",
         )
     )
+    tenant_service.get_readiness_source = AsyncMock(return_value=None)
     tenant_service.is_harness_verified = AsyncMock(return_value=False)
     tenant_service.mark_harness_verified = AsyncMock()
     git_client = MagicMock()
@@ -1609,6 +1612,7 @@ async def test_harness_cache_skips_sync_before_enter_at(tmp_path: Path) -> None:
             repo="widget",
         )
     )
+    tenant_service.get_readiness_source = AsyncMock(return_value=None)
     tenant_service.is_harness_verified = AsyncMock(return_value=True)
     tenant_service.mark_harness_verified = AsyncMock()
     orchestrator = _build_orchestrator(
@@ -1666,6 +1670,7 @@ async def test_harness_force_recheck_probes_when_cached(tmp_path: Path) -> None:
             repo="widget",
         )
     )
+    tenant_service.get_readiness_source = AsyncMock(return_value=None)
     tenant_service.is_harness_verified = AsyncMock(return_value=True)
     tenant_service.mark_harness_verified = AsyncMock()
     orchestrator = _build_orchestrator(

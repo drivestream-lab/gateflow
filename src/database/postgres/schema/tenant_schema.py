@@ -44,7 +44,12 @@ class TenantRepoSchema(PostgresBaseModel):
         Boolean,
         nullable=False,
         default=False,
-        # W3 cache (REQ-22): set true after LaunchpadClient.sync_harness succeeds.
+        # Cache: filesystem sync_harness or launchpad status (ADR-013 provenance).
+    )
+    readiness_source: Mapped[Optional[str]] = mapped_column(
+        String(32),
+        nullable=True,
+        # NULL = pre-INIT / filesystem; "launchpad_status" | "filesystem" when set (W3).
     )
 
 

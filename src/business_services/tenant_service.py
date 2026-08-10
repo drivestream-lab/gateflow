@@ -16,6 +16,8 @@ from src.exceptions.app_exceptions import (
     ValidationError,
 )
 from src.infra_services.postgres_service import PostgresService
+from src.models.programme_readiness_models import ReadinessSourceType
+from src.models.programme_connection_models import ProgrammeConnectionReadModel
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantListResponse,
@@ -150,6 +152,13 @@ class TenantService(BaseBusinessService):
                 details={"org": org, "repo": repo, "reason": "ambiguous_tenant_registration"},
             ) from exc
 
+    async def get_programme_connection(
+        self, tenant_id: UUID
+    ) -> Optional[ProgrammeConnectionReadModel]:
+        """Return programme connection for tenant, or None."""
+        async with self._postgres_service.transaction() as session:
+            return await self._tenant_repository.get_programme_connection(session, tenant_id)
+
     async def is_harness_verified(self, *, org: str, repo: str) -> bool:
         """Return True when tenant_repos.harness_verified is set (REQ-22)."""
         try:
@@ -164,12 +173,31 @@ class TenantService(BaseBusinessService):
             ) from exc
         return bool(flag)
 
-    async def mark_harness_verified(self, *, org: str, repo: str) -> None:
+    async def get_readiness_source(self, *, org: str, repo: str) -> Optional[ReadinessSourceType]:
+        """Return durable evaluator provenance (ADR-013); None if unregistered."""
+        try:
+            async with self._postgres_service.transaction() as session:
+                raw = await self._tenant_repository.get_readiness_source(
+                    session, org=org, repo=repo
+                )
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"org": org, "repo": repo, "reason": "ambiguous_tenant_registration"},
+            ) from exc
+        if raw is None:
+            return None
+        try:
+            return ReadinessSourceType(raw)
+        except ValueError:
+            return ReadinessSourceType.FILESYSTEM
+
+    async def mark_harness_verified(self, *, org: str, repo: str, verified: bool = True) -> None:
         """Cache harness readiness after a successful probe (REQ-22)."""
         try:
             async with self._postgres_service.transaction() as session:
                 await self._tenant_repository.set_harness_verified(
-                    session, org=org, repo=repo, verified=True
+                    session, org=org, repo=repo, verified=verified
                 )
         except ValueError as exc:
             raise UnprocessableEntityError(
@@ -177,9 +205,10 @@ class TenantService(BaseBusinessService):
                 details={"org": org, "repo": repo, "reason": "harness_cache_update_failed"},
             ) from exc
         self.logger.info(
-            "Tenant repo marked harness verified",
+            "Tenant repo harness verified updated",
             org=org,
             repo=repo,
+            harness_verified=verified,
         )
 
     async def resolve_tenant_by_token(self, bearer_token: str) -> Optional[TenantResolvedContext]:

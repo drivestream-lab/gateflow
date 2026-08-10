@@ -55,6 +55,17 @@
 
 **INIT-GATEFLOW-013 W2 status:** **human_approved** at wave-acceptance — Draft PR [#207](https://github.com/drivestream-lab/gateflow/pull/207) @ `96be30f` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W2 **pass**. Board [#202](https://github.com/drivestream-lab/gateflow/issues/202). Launchpad status readiness is W3. Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-013 W3 — Launchpad status + dual evaluators)
+
+| Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
+|------------|----------|------------|-------------------|-------------|-------|
+| Inspect-only status client | REQ-17, REQ-18, REQ-20 | `LaunchpadStatusClient.inspect_status` | `test_launchpad_status_client` | `verify_harness_status` | argv guard; `tool_unavailable` |
+| Status-on-select + provenance | REQ-19, REQ-21, REQ-22 | `select_repos` + `readiness_source` | `test_programme_selection` | `verify_harness_status` | after setup `ok` only |
+| On-demand refresh | REQ-23 | `POST …/repos/readiness/refresh` | unit via service | `verify_harness_status` | status-sourced only |
+| Dual gate | REQ-21, REQ-22 | wave-start + orchestrator | `test_harness_dual_gate` | filesystem verify retained | never_checked fail-closed |
+
+**INIT-GATEFLOW-013 W3 status:** **human_approved** at wave-acceptance — Draft PR [#208](https://github.com/drivestream-lab/gateflow/pull/208) @ `b693bdb` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W3 **pass**. Board [#203](https://github.com/drivestream-lab/gateflow/issues/203). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-readiness-source.md`. Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`. Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

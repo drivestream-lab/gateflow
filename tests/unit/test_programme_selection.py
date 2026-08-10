@@ -11,6 +11,10 @@ from src.exceptions.app_exceptions import UnprocessableEntityError
 from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
 from src.models.programme_catalogue_models import CatalogueCandidate
 from src.models.programme_connection_models import ProgrammeConnectionReadModel
+from src.models.programme_readiness_models import (
+    LaunchpadStatusVerdict,
+    LaunchpadStatusVerdictType,
+)
 from src.models.programme_selection_models import (
     ProgrammeDeselectRequest,
     ProgrammeRepoAdmitOutcomeType,
@@ -68,7 +72,7 @@ def _service(
     active_list = list(active or [])
     repo.list_tenant_repos = AsyncMock(side_effect=lambda *_a, **_k: list(active_list))
 
-    async def _add(_session, *, tenant_id, repos):  # noqa: ARG001
+    async def _add(_session, *, tenant_id, repos, readiness_source=None):  # noqa: ARG001
         active_list.extend(repos)
 
     async def _remove(_session, *, tenant_id, org, repo):  # noqa: ARG001
@@ -78,6 +82,8 @@ def _service(
 
     repo.add_tenant_repos = AsyncMock(side_effect=_add)
     repo.remove_tenant_repo = AsyncMock(side_effect=_remove)
+    repo.set_harness_verified = AsyncMock()
+    repo.get_readiness_source = AsyncMock(return_value=None)
 
     probe = MagicMock()
     results = probe_results or [PatProbeResult(ok=True)]
@@ -96,14 +102,23 @@ def _service(
         )
     else:
         git.resolve_workspace = AsyncMock(side_effect=resolve_side_effect)
+
+    status = MagicMock()
+    status.inspect_status = AsyncMock(
+        return_value=LaunchpadStatusVerdict(
+            verdict_type=LaunchpadStatusVerdictType.READY,
+            ready=True,
+        )
+    )
     svc = ProgrammeOnboardingService(
         postgres_service=postgres,
         tenant_repository=repo,
         tenant_git_workspace_client=git,
         github_pat_probe=probe,
         run_repository=run_repo,
+        launchpad_status_client=status,
     )
-    return svc, repo, probe, run_repo, active_list, git
+    return svc, repo, probe, run_repo, active_list, git, status
 
 
 def _candidates() -> list[CatalogueCandidate]:
@@ -125,7 +140,7 @@ def _candidates() -> list[CatalogueCandidate]:
 
 @pytest.mark.asyncio
 async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
-    svc, repo, probe, _, active, git = _service(tenant_id=tenant_id)
+    svc, repo, probe, _, active, git, status = _service(tenant_id=tenant_id)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -140,12 +155,13 @@ async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
     repo.add_tenant_repos.assert_awaited_once()
     probe.verify_read_access.assert_awaited_once()
     git.resolve_workspace.assert_awaited_once()
+    status.inspect_status.assert_awaited_once()
     assert len(active) == 1
 
 
 @pytest.mark.asyncio
 async def test_select_rejects_out_of_catalogue_zero_change(tenant_id, resolved) -> None:
-    svc, repo, probe, _, active, git = _service(tenant_id=tenant_id)
+    svc, repo, probe, _, active, git, status = _service(tenant_id=tenant_id)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -160,12 +176,13 @@ async def test_select_rejects_out_of_catalogue_zero_change(tenant_id, resolved) 
     repo.add_tenant_repos.assert_not_called()
     probe.verify_read_access.assert_not_called()
     git.resolve_workspace.assert_not_called()
+    status.inspect_status.assert_not_called()
     assert active == []
 
 
 @pytest.mark.asyncio
 async def test_select_probe_failure_zero_change(tenant_id, resolved) -> None:
-    svc, repo, _, _, active, git = _service(
+    svc, repo, _, _, active, git, status = _service(
         tenant_id=tenant_id,
         probe_results=[PatProbeResult(ok=False, reason="not_found")],
     )
@@ -184,13 +201,14 @@ async def test_select_probe_failure_zero_change(tenant_id, resolved) -> None:
     assert exc_info.value.details["reason"] == "probe_failed"
     repo.add_tenant_repos.assert_not_called()
     git.resolve_workspace.assert_not_called()
+    status.inspect_status.assert_not_called()
     assert active == []
 
 
 @pytest.mark.asyncio
 async def test_select_already_selected_skips_probe(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
-    svc, repo, probe, _, _, git = _service(tenant_id=tenant_id, active=existing)
+    svc, repo, probe, _, _, git, status = _service(tenant_id=tenant_id, active=existing)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -204,6 +222,7 @@ async def test_select_already_selected_skips_probe(tenant_id, resolved) -> None:
     repo.add_tenant_repos.assert_not_called()
     probe.verify_read_access.assert_not_called()
     git.resolve_workspace.assert_not_called()
+    status.inspect_status.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -223,7 +242,7 @@ async def test_select_setup_isolation_mixed_batch(tenant_id, resolved) -> None:
             mode=WorkspaceResolveModeType.CLONED,
         )
 
-    svc, repo, _, _, active, git = _service(
+    svc, repo, _, _, active, git, status = _service(
         tenant_id=tenant_id,
         probe_results=[PatProbeResult(ok=True), PatProbeResult(ok=True)],
         resolve_side_effect=_resolve,
@@ -251,13 +270,14 @@ async def test_select_setup_isolation_mixed_batch(tenant_id, resolved) -> None:
     assert TenantRepoRef(org="drivestream-lab", repo="other") in result.active_repos
     assert len(active) == 2
     assert git.resolve_workspace.await_count == 2
+    assert status.inspect_status.await_count == 1
     repo.add_tenant_repos.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_deselect_removes_membership(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
-    svc, repo, _, run_repo, active, _ = _service(tenant_id=tenant_id, active=existing)
+    svc, repo, _, run_repo, active, _, _ = _service(tenant_id=tenant_id, active=existing)
     result = await svc.deselect_repo(
         tenant_id,
         ProgrammeDeselectRequest(org="drivestream-lab", repo="gateflow"),
@@ -280,7 +300,7 @@ async def test_deselect_blocked_by_active_run(tenant_id, resolved) -> None:
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    svc, repo, _, _, active, _ = _service(tenant_id=tenant_id, active=existing, active_run=run)
+    svc, repo, _, _, active, _, _ = _service(tenant_id=tenant_id, active=existing, active_run=run)
     with pytest.raises(UnprocessableEntityError) as exc_info:
         await svc.deselect_repo(
             tenant_id,

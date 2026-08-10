@@ -28,6 +28,10 @@ class AppSettings(BaseSettings):
     log_format: str = Field(default="text", description="'json' in production, 'text' locally")
     log_to_console: bool = Field(default=True)
     log_dir: str = Field(default="logs")
+    launchpad_cli_path: str = Field(
+        default="launchpad",
+        description="Launchpad CLI binary path or name on PATH (INIT-013 FF-06; preinstall)",
+    )
 
     @field_validator("log_format")
     @classmethod

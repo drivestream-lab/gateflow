@@ -1,4 +1,4 @@
-"""Programme repo selection DTOs (INIT-GATEFLOW-013 CAP-03/04 / REQ-08–16, 26–27)."""
+"""Programme repo selection DTOs (INIT-GATEFLOW-013 CAP-03/04/05 / REQ-08–23, 26–27)."""
 
 from enum import Enum
 
@@ -8,11 +8,12 @@ from src.models.tenant_models import TenantRepoRef
 
 
 class ProgrammeRepoAdmitOutcomeType(str, Enum):
-    """Per-repo outcome on select (setup-on-select; status deferred to W3)."""
+    """Per-repo outcome on select (setup + status on same request)."""
 
     OK = "ok"
     ALREADY_SELECTED = "already_selected"
     SETUP_FAILED = "setup_failed"
+    STATUS_FAILED = "status_failed"
     PROBE_FAILED = "probe_failed"
     OUT_OF_CATALOGUE = "out_of_catalogue"
 
