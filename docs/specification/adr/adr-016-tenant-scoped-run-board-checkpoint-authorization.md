@@ -15,7 +15,7 @@
 | superseded_by | none |
 | Decision owner | @nikd10x |
 | Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-10 via Cursor chat, Draft spec PR [#212](https://github.com/drivestream-lab/gateflow/pull/212) |
-| Approved head | Recorded at publish — see `/commit-workspace` result for the exact spec PR head containing this Accepted metadata |
+| Approved head | `ae67a38cf79de838ed2f80cbb46b2efaca4888ab` |
 | Lint evidence | adr_boundary_lint.py 1/1, PASS, sha256:e68a20da519bfc1647f917407fe2e891162b8e9964c77ae47e12f1233eef5439 |
 
 > If `changes_user_visible_behavior` or `spec_amendment_required` would be
