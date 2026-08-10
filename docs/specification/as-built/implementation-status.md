@@ -41,9 +41,19 @@
 | Select catalogue subset | REQ-08–10 | `POST …/programme/repos/select` | `test_programme_selection` | `verify_repo_selection` | Current catalogue only; out-of-catalogue 422 |
 | PAT probe on new admits | REQ-11 | `GithubPatProbe` at select | `test_programme_selection` | `verify_repo_selection` | Probe fail → 422; 0 active-list change |
 | Deselect membership | REQ-26, REQ-27 | `POST …/programme/repos/deselect` | `test_programme_selection` | `verify_repo_selection` | ACTIVE run → 422; clone/readiness not cleared via update path |
-| Per-repo pending_setup | TDD / W1 | select response outcomes | `test_programme_selection` | `verify_repo_selection` | Setup batch wiring is W2 |
+| Per-repo pending_setup (W1 placeholder) | TDD / W1 | select response outcomes | `test_programme_selection` | `verify_repo_selection` | Replaced by W2 `ok` / `setup_failed` |
 
 **INIT-GATEFLOW-013 W1 status:** **human_approved** at wave-acceptance — Draft PR [#206](https://github.com/drivestream-lab/gateflow/pull/206) @ `7d8fefc` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W1 **pass**. Board [#201](https://github.com/drivestream-lab/gateflow/issues/201). PM-1: `verify_workspace_lifecycle` / `verify_branch_lifecycle` updated to register→connect→select. Merge/publish at `wave-signoff` only.
+
+## Capability matrix (INIT-GATEFLOW-013 W2 — setup chosen repos)
+
+| Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
+|------------|----------|------------|-------------------|-------------|-------|
+| Setup-on-select | REQ-14 | `select_repos` → `TenantGitWorkspaceClient.resolve_workspace` | `test_programme_selection` | `verify_repo_selection` | Same request as admit; ADR-010 layout |
+| Setup isolation | REQ-15 | per-repo try/except `TenantGitWorkspaceError` | `test_select_setup_isolation_mixed_batch` | unit (unsafe live) | Peer admits proceed; membership kept |
+| Per-repo setup results | REQ-16 | `ProgrammeRepoAdmitOutcomeType` `ok` / `setup_failed` | `test_programme_selection` | `verify_repo_selection` | Named `reason` on failure |
+
+**INIT-GATEFLOW-013 W2 status:** **implemented** (Pass-1) — board [#202](https://github.com/drivestream-lab/gateflow/issues/202); live smoke pending human wave-acceptance on Draft PR tip. Launchpad status readiness is W3.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 

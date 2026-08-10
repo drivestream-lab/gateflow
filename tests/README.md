@@ -57,7 +57,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
 # .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
-# .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1 select/deselect + repos[] retire
+# .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -627,7 +627,17 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_connect` (
 | Out-of-catalogue → 422, 0 change (REQ-09) | `verify_repo_selection` | `test_programme_selection` |
 | Deselect membership-only (REQ-26); ACTIVE-run unit (REQ-27) | `verify_repo_selection` | `test_programme_selection` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` (API + programme DDL + PAT; connect then select/deselect). Setup batch is W2 (`pending_setup` in select results).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` (API + programme DDL + PAT; connect then select/deselect).
+
+## Feature map (INIT-GATEFLOW-013 W2 — setup chosen repos)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Setup-on-select via `resolve_workspace` (REQ-14) | `verify_repo_selection` | `test_programme_selection` |
+| Per-repo setup isolation + `setup_failed` reason (REQ-15, REQ-16) | mixed-fail unit (unsafe live) | `test_programme_selection` |
+| Select outcome `ok` / workspace under `{root}/{org}/{repo}` | `verify_repo_selection` | `test_programme_selection` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` — asserts selected repo checkout under tenant workspace. Mixed setup failure is unit-covered.
 
 ## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
 
