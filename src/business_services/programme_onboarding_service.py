@@ -1,4 +1,4 @@
-"""Programme connect, catalogue, and repo selection (INIT-GATEFLOW-013 W0/W1)."""
+"""Programme connect, catalogue, selection, and setup-on-select (INIT-GATEFLOW-013)."""
 
 import shutil
 from pathlib import Path
@@ -192,7 +192,7 @@ class ProgrammeOnboardingService(BaseBusinessService):
         *,
         resolved: TenantResolvedContext,
     ) -> ProgrammeSelectResponse:
-        """Admit catalogue-gated repos; PAT probe on new admits; setup deferred (W2)."""
+        """Admit catalogue-gated repos; PAT probe; setup each new admit independently."""
         self._assert_tenant_match(tenant_id, resolved)
 
         async with self._postgres_service.transaction() as session:
@@ -273,16 +273,7 @@ class ProgrammeOnboardingService(BaseBusinessService):
         results: list[ProgrammeRepoAdmitResult] = []
         new_keys = {(r.org, r.repo) for r in new_admits}
         for ref in requested:
-            if (ref.org, ref.repo) in new_keys:
-                results.append(
-                    ProgrammeRepoAdmitResult(
-                        org=ref.org,
-                        repo=ref.repo,
-                        outcome=ProgrammeRepoAdmitOutcomeType.PENDING_SETUP,
-                        reason="setup_deferred_w2",
-                    )
-                )
-            else:
+            if (ref.org, ref.repo) not in new_keys:
                 results.append(
                     ProgrammeRepoAdmitResult(
                         org=ref.org,
@@ -290,6 +281,52 @@ class ProgrammeOnboardingService(BaseBusinessService):
                         outcome=ProgrammeRepoAdmitOutcomeType.ALREADY_SELECTED,
                     )
                 )
+                continue
+
+            credential = TenantWorkspaceCredential(
+                tenant_id=tenant_id,
+                workspace_root=workspace_root,
+                pat=pat,
+                org=ref.org,
+                repo=ref.repo,
+            )
+            target = Path(workspace_root) / ref.org / ref.repo
+            existed_before = target.exists()
+            try:
+                await self._git_client.resolve_workspace(credential)
+            except TenantGitWorkspaceError as exc:
+                if not existed_before and target.exists():
+                    shutil.rmtree(target, ignore_errors=True)
+                self.logger.warning(
+                    "Programme repo setup failed",
+                    tenant_id=str(tenant_id),
+                    org=ref.org,
+                    repo=ref.repo,
+                    reason=exc.reason,
+                )
+                results.append(
+                    ProgrammeRepoAdmitResult(
+                        org=ref.org,
+                        repo=ref.repo,
+                        outcome=ProgrammeRepoAdmitOutcomeType.SETUP_FAILED,
+                        reason=exc.reason,
+                    )
+                )
+                continue
+
+            self.logger.info(
+                "Programme repo setup ok",
+                tenant_id=str(tenant_id),
+                org=ref.org,
+                repo=ref.repo,
+            )
+            results.append(
+                ProgrammeRepoAdmitResult(
+                    org=ref.org,
+                    repo=ref.repo,
+                    outcome=ProgrammeRepoAdmitOutcomeType.OK,
+                )
+            )
 
         self.logger.info(
             "Programme repos selected",

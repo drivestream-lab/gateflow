@@ -1,11 +1,11 @@
-"""Live smoke: catalogue select/deselect + repos[] retirement (INIT-GATEFLOW-013 W1).
+"""Live smoke: select/deselect + setup-on-select workspace (INIT-GATEFLOW-013 W1/W2).
 
 Human-run at wave-acceptance:
   .venv/bin/python -m tests.verify.verify_repo_selection
 
 Requires API+Postgres (tenant + programme connection DDL), tenant PAT with read
 access to programme meta and at least one catalogue candidate repo, and
-tests/config.yaml.
+tests/config.yaml. Asserts selected repo directory under tenant workspace (REQ-14).
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ def main() -> int:
     org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
     repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
     ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
-    workspace = Path(tempfile.mkdtemp(prefix="gf013-w1-"))
-    name = f"verify-013-w1-{uuid4().hex[:8]}"
+    workspace = Path(tempfile.mkdtemp(prefix="gf013-w2-"))
+    name = f"verify-013-w2-{uuid4().hex[:8]}"
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         # REQ-12: registration with repos rejected
@@ -103,7 +103,11 @@ def main() -> int:
         if not candidates:
             print("[ERROR] catalogue empty — cannot select")
             return 1
-        pick = candidates[0]
+        # Prefer a candidate that is not the programme meta checkout (already present).
+        pick = next(
+            (c for c in candidates if not (c.get("org") == org and c.get("repo") == repo)),
+            candidates[0],
+        )
         pick_org, pick_repo = pick["org"], pick["repo"]
         print(f"[OK] catalogue has candidates; pick {pick_org}/{pick_repo}")
 
@@ -130,11 +134,28 @@ def main() -> int:
         if not any(r.get("org") == pick_org and r.get("repo") == pick_repo for r in active):
             print(f"[ERROR] selected repo missing from active_repos: {sel_body}")
             return 1
-        outcomes = {r.get("outcome") for r in sel_body.get("results") or []}
-        if "pending_setup" not in outcomes and "already_selected" not in outcomes:
-            print(f"[ERROR] unexpected select outcomes: {sel_body}")
+        results = sel_body.get("results") or []
+        pick_result = next(
+            (r for r in results if r.get("org") == pick_org and r.get("repo") == pick_repo),
+            None,
+        )
+        if pick_result is None:
+            print(f"[ERROR] missing per-repo result for pick: {sel_body}")
             return 1
-        print("[OK] select in-catalogue → 200 with active membership")
+        outcome = pick_result.get("outcome")
+        if outcome not in ("ok", "already_selected"):
+            print(f"[ERROR] unexpected select outcome for pick: {pick_result}")
+            return 1
+        print(f"[OK] select in-catalogue → 200 outcome={outcome}")
+
+        checkout = workspace / pick_org / pick_repo
+        if outcome == "ok":
+            if not checkout.is_dir() or not (checkout / ".git").exists():
+                print(f"[ERROR] expected workspace checkout missing: {checkout}")
+                return 1
+            print(f"[OK] setup workspace present at {checkout}")
+        else:
+            print("[OK] already_selected — skip fresh-setup dir assert")
 
         des = client.post(
             f"/api/v1/tenants/{tenant_id}/programme/repos/deselect",

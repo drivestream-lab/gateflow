@@ -1,4 +1,4 @@
-"""Unit tests for programme select/deselect (INIT-GATEFLOW-013 W1)."""
+"""Unit tests for programme select/deselect/setup (INIT-GATEFLOW-013 W1/W2)."""
 
 from datetime import datetime, UTC
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,6 +8,7 @@ import pytest
 
 from src.business_services.programme_onboarding_service import ProgrammeOnboardingService
 from src.exceptions.app_exceptions import UnprocessableEntityError
+from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
 from src.models.programme_catalogue_models import CatalogueCandidate
 from src.models.programme_connection_models import ProgrammeConnectionReadModel
 from src.models.programme_selection_models import (
@@ -17,6 +18,7 @@ from src.models.programme_selection_models import (
 )
 from src.models.run_store_models import RunModel
 from src.models.run_store_types import RunStatusType
+from src.models.tenant_git_workspace_models import WorkspaceResolveModeType, WorkspaceResolveResult
 from src.models.tenant_models import PatProbeResult, TenantRepoRef, TenantResolvedContext
 
 
@@ -46,6 +48,7 @@ def _service(
     active: list[TenantRepoRef] | None = None,
     probe_results: list[PatProbeResult] | None = None,
     active_run: RunModel | None = None,
+    resolve_side_effect=None,
 ):
     postgres = MagicMock()
     session = MagicMock()
@@ -84,6 +87,15 @@ def _service(
     run_repo.find_active_run = AsyncMock(return_value=active_run)
 
     git = MagicMock()
+    if resolve_side_effect is None:
+        git.resolve_workspace = AsyncMock(
+            return_value=WorkspaceResolveResult(
+                path="/tmp/ws/org/repo",
+                mode=WorkspaceResolveModeType.CLONED,
+            )
+        )
+    else:
+        git.resolve_workspace = AsyncMock(side_effect=resolve_side_effect)
     svc = ProgrammeOnboardingService(
         postgres_service=postgres,
         tenant_repository=repo,
@@ -91,7 +103,7 @@ def _service(
         github_pat_probe=probe,
         run_repository=run_repo,
     )
-    return svc, repo, probe, run_repo, active_list
+    return svc, repo, probe, run_repo, active_list, git
 
 
 def _candidates() -> list[CatalogueCandidate]:
@@ -113,7 +125,7 @@ def _candidates() -> list[CatalogueCandidate]:
 
 @pytest.mark.asyncio
 async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
-    svc, repo, probe, _, active = _service(tenant_id=tenant_id)
+    svc, repo, probe, _, active, git = _service(tenant_id=tenant_id)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -123,16 +135,17 @@ async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
             ProgrammeSelectRequest(repos=[TenantRepoRef(org="drivestream-lab", repo="gateflow")]),
             resolved=resolved,
         )
-    assert any(r.outcome == ProgrammeRepoAdmitOutcomeType.PENDING_SETUP for r in result.results)
+    assert any(r.outcome == ProgrammeRepoAdmitOutcomeType.OK for r in result.results)
     assert TenantRepoRef(org="drivestream-lab", repo="gateflow") in result.active_repos
     repo.add_tenant_repos.assert_awaited_once()
     probe.verify_read_access.assert_awaited_once()
+    git.resolve_workspace.assert_awaited_once()
     assert len(active) == 1
 
 
 @pytest.mark.asyncio
 async def test_select_rejects_out_of_catalogue_zero_change(tenant_id, resolved) -> None:
-    svc, repo, probe, _, active = _service(tenant_id=tenant_id)
+    svc, repo, probe, _, active, git = _service(tenant_id=tenant_id)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -146,12 +159,13 @@ async def test_select_rejects_out_of_catalogue_zero_change(tenant_id, resolved) 
     assert exc_info.value.details["reason"] == "out_of_catalogue"
     repo.add_tenant_repos.assert_not_called()
     probe.verify_read_access.assert_not_called()
+    git.resolve_workspace.assert_not_called()
     assert active == []
 
 
 @pytest.mark.asyncio
 async def test_select_probe_failure_zero_change(tenant_id, resolved) -> None:
-    svc, repo, _, _, active = _service(
+    svc, repo, _, _, active, git = _service(
         tenant_id=tenant_id,
         probe_results=[PatProbeResult(ok=False, reason="not_found")],
     )
@@ -169,13 +183,14 @@ async def test_select_probe_failure_zero_change(tenant_id, resolved) -> None:
             )
     assert exc_info.value.details["reason"] == "probe_failed"
     repo.add_tenant_repos.assert_not_called()
+    git.resolve_workspace.assert_not_called()
     assert active == []
 
 
 @pytest.mark.asyncio
 async def test_select_already_selected_skips_probe(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
-    svc, repo, probe, _, _ = _service(tenant_id=tenant_id, active=existing)
+    svc, repo, probe, _, _, git = _service(tenant_id=tenant_id, active=existing)
     with patch(
         "src.business_services.programme_onboarding_service.parse_candidates",
         return_value=_candidates(),
@@ -188,12 +203,61 @@ async def test_select_already_selected_skips_probe(tenant_id, resolved) -> None:
     assert result.results[0].outcome == ProgrammeRepoAdmitOutcomeType.ALREADY_SELECTED
     repo.add_tenant_repos.assert_not_called()
     probe.verify_read_access.assert_not_called()
+    git.resolve_workspace.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_select_setup_isolation_mixed_batch(tenant_id, resolved) -> None:
+    """REQ-15/16: one setup failure does not block peers; membership kept."""
+
+    async def _resolve(credential, *, ref=None):  # noqa: ARG001
+        if credential.repo == "other":
+            raise TenantGitWorkspaceError(
+                "clone failed",
+                reason="clone_failed:auth",
+                org=credential.org,
+                repo=credential.repo,
+            )
+        return WorkspaceResolveResult(
+            path=f"/tmp/ws/{credential.org}/{credential.repo}",
+            mode=WorkspaceResolveModeType.CLONED,
+        )
+
+    svc, repo, _, _, active, git = _service(
+        tenant_id=tenant_id,
+        probe_results=[PatProbeResult(ok=True), PatProbeResult(ok=True)],
+        resolve_side_effect=_resolve,
+    )
+    with patch(
+        "src.business_services.programme_onboarding_service.parse_candidates",
+        return_value=_candidates(),
+    ):
+        result = await svc.select_repos(
+            tenant_id,
+            ProgrammeSelectRequest(
+                repos=[
+                    TenantRepoRef(org="drivestream-lab", repo="gateflow"),
+                    TenantRepoRef(org="drivestream-lab", repo="other"),
+                ]
+            ),
+            resolved=resolved,
+        )
+
+    by_repo = {r.repo: r for r in result.results}
+    assert by_repo["gateflow"].outcome == ProgrammeRepoAdmitOutcomeType.OK
+    assert by_repo["other"].outcome == ProgrammeRepoAdmitOutcomeType.SETUP_FAILED
+    assert by_repo["other"].reason == "clone_failed:auth"
+    assert TenantRepoRef(org="drivestream-lab", repo="gateflow") in result.active_repos
+    assert TenantRepoRef(org="drivestream-lab", repo="other") in result.active_repos
+    assert len(active) == 2
+    assert git.resolve_workspace.await_count == 2
+    repo.add_tenant_repos.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_deselect_removes_membership(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
-    svc, repo, _, run_repo, active = _service(tenant_id=tenant_id, active=existing)
+    svc, repo, _, run_repo, active, _ = _service(tenant_id=tenant_id, active=existing)
     result = await svc.deselect_repo(
         tenant_id,
         ProgrammeDeselectRequest(org="drivestream-lab", repo="gateflow"),
@@ -216,7 +280,7 @@ async def test_deselect_blocked_by_active_run(tenant_id, resolved) -> None:
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
     )
-    svc, repo, _, _, active = _service(tenant_id=tenant_id, active=existing, active_run=run)
+    svc, repo, _, _, active, _ = _service(tenant_id=tenant_id, active=existing, active_run=run)
     with pytest.raises(UnprocessableEntityError) as exc_info:
         await svc.deselect_repo(
             tenant_id,
