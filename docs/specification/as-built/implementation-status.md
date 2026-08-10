@@ -66,6 +66,15 @@
 
 **INIT-GATEFLOW-013 W3 status:** **human_approved** at wave-acceptance — Draft PR [#208](https://github.com/drivestream-lab/gateflow/pull/208) @ `b693bdb` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W3 **pass**. Board [#203](https://github.com/drivestream-lab/gateflow/issues/203). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-readiness-source.md`. Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`. Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-013 W4 — catalogue refresh)
+
+| Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
+|------------|----------|------------|-------------------|-------------|-------|
+| Catalogue refresh re-sync | REQ-07, REQ-24 | `POST …/programme/catalogue/refresh` | `test_programme_onboarding` | `verify_catalogue_refresh` | bumps `last_synced_at`; ADR-012 |
+| Selections / readiness untouched | REQ-25 | `refresh_catalogue` | `test_refresh_catalogue_*` | `verify_catalogue_refresh` | no membership writers |
+
+**INIT-GATEFLOW-013 W4 status:** **human_approved** at wave-acceptance — Draft PR [#209](https://github.com/drivestream-lab/gateflow/pull/209) @ `670799e` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W4 **pass**. Board [#204](https://github.com/drivestream-lab/gateflow/issues/204). Last eng wave for INIT-013 on gateflow — merge/publish at `wave-signoff` only; then initiative closure.
+
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

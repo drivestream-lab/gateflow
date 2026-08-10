@@ -199,3 +199,80 @@ async def test_catalogue_happy(tenant_id, resolved, monkeypatch, tmp_path: Path)
     resp = await svc.get_catalogue(tenant_id, resolved=resolved)
     assert len(resp.candidates) == 1
     assert resp.candidates[0].repo == "gateflow"
+
+
+@pytest.mark.asyncio
+async def test_refresh_catalogue_resyncs_without_selection_writers(
+    tenant_id, resolved, tmp_path: Path
+) -> None:
+    """REQ-24/25: refresh re-syncs meta; never touches tenant_repos writers."""
+    conn = ProgrammeConnectionReadModel(
+        tenant_id=tenant_id,
+        org="drivestream-lab",
+        repo="prayog-meta",
+        ref="main",
+        last_synced_at=datetime.now(UTC),
+    )
+    updated = ProgrammeConnectionReadModel(
+        tenant_id=tenant_id,
+        org="drivestream-lab",
+        repo="prayog-meta",
+        ref="main",
+        last_synced_at=datetime.now(UTC),
+    )
+    svc, repo, git = _service(auth=(str(tmp_path), "ghp_x"), connection=conn)
+    repo.upsert_programme_connection = AsyncMock(return_value=updated)
+    repo.list_tenant_repos = AsyncMock()
+    repo.add_tenant_repos = AsyncMock()
+    repo.remove_tenant_repo = AsyncMock()
+
+    resp = await svc.refresh_catalogue(tenant_id, resolved=resolved)
+    git.resolve_workspace.assert_awaited_once()
+    assert git.resolve_workspace.await_args.kwargs.get("ref") == "main"
+    repo.upsert_programme_connection.assert_awaited_once()
+    call_kw = repo.upsert_programme_connection.await_args.kwargs
+    assert call_kw["org"] == "drivestream-lab"
+    assert call_kw["repo"] == "prayog-meta"
+    assert call_kw["ref"] == "main"
+    repo.list_tenant_repos.assert_not_awaited()
+    repo.add_tenant_repos.assert_not_awaited()
+    repo.remove_tenant_repo.assert_not_awaited()
+    assert resp.connection.org == "drivestream-lab"
+    assert "pat" not in resp.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_refresh_catalogue_git_fail_skips_upsert_and_membership(
+    tenant_id, resolved, tmp_path: Path
+) -> None:
+    """REQ-24: git failure named; selections/readiness path writers untouched."""
+    conn = ProgrammeConnectionReadModel(
+        tenant_id=tenant_id,
+        org="drivestream-lab",
+        repo="prayog-meta",
+        ref=None,
+        last_synced_at=datetime.now(UTC),
+    )
+    err = TenantGitWorkspaceError(
+        "fetch failed",
+        reason="fetch_failed:network",
+        org="drivestream-lab",
+        repo="prayog-meta",
+    )
+    svc, repo, _ = _service(auth=(str(tmp_path), "ghp_x"), connection=conn, git_error=err)
+    repo.list_tenant_repos = AsyncMock()
+    repo.add_tenant_repos = AsyncMock()
+    with pytest.raises(UnprocessableEntityError) as exc:
+        await svc.refresh_catalogue(tenant_id, resolved=resolved)
+    assert exc.value.details["reason"] == "fetch_failed:network"
+    repo.upsert_programme_connection.assert_not_awaited()
+    repo.list_tenant_repos.assert_not_awaited()
+    repo.add_tenant_repos.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_refresh_catalogue_requires_connection(tenant_id, resolved) -> None:
+    svc, _, _ = _service(connection=None)
+    with pytest.raises(UnprocessableEntityError) as exc:
+        await svc.refresh_catalogue(tenant_id, resolved=resolved)
+    assert exc.value.details["reason"] == "programme_not_connected"

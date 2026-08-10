@@ -12,6 +12,7 @@ from src.business_services.programme_onboarding_service import (
 )
 from src.models.programme_catalogue_models import ProgrammeCatalogueResponse
 from src.models.programme_connection_models import (
+    ProgrammeCatalogueRefreshResponse,
     ProgrammeConnectRequest,
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
@@ -58,6 +59,20 @@ async def get_programme_catalogue(
     service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
 ) -> ProgrammeCatalogueResponse:
     return await service.get_catalogue(tenant_id, resolved=resolved)
+
+
+@router.post(
+    "/catalogue/refresh",
+    response_model=ProgrammeCatalogueRefreshResponse,
+    status_code=200,
+)
+async def refresh_programme_catalogue(
+    tenant_id: UUID,
+    resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
+    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+) -> ProgrammeCatalogueRefreshResponse:
+    """Re-sync programme meta; selections and readiness answers stay unchanged (REQ-24/25)."""
+    return await service.refresh_catalogue(tenant_id, resolved=resolved)
 
 
 @router.post("/repos/select", response_model=ProgrammeSelectResponse, status_code=200)

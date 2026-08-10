@@ -38,3 +38,11 @@ class ProgrammeConnectResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     connection: ProgrammeConnectionReadModel
+
+
+class ProgrammeCatalogueRefreshResponse(BaseModel):
+    """Catalogue refresh success — programme meta re-synced; selections untouched."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connection: ProgrammeConnectionReadModel

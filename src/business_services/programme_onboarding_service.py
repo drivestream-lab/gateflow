@@ -27,6 +27,7 @@ from src.infra_services.tenant_git_workspace_client import (
 )
 from src.models.programme_catalogue_models import ProgrammeCatalogueResponse
 from src.models.programme_connection_models import (
+    ProgrammeCatalogueRefreshResponse,
     ProgrammeConnectRequest,
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
@@ -195,6 +196,72 @@ class ProgrammeOnboardingService(BaseBusinessService):
                 details={"reason": "programme_not_connected"},
             )
         return connection
+
+    async def refresh_catalogue(
+        self,
+        tenant_id: UUID,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeCatalogueRefreshResponse:
+        """Re-sync programme meta checkout; never mutate selections or readiness (REQ-24/25)."""
+        self._assert_tenant_match(tenant_id, resolved)
+
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
+            auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+
+        if connection is None:
+            raise UnprocessableEntityError(
+                message="Tenant has no programme connection",
+                details={"reason": "programme_not_connected"},
+            )
+        if auth is None:
+            raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+
+        workspace_root, pat = auth
+        credential = TenantWorkspaceCredential(
+            tenant_id=tenant_id,
+            workspace_root=workspace_root,
+            pat=pat,
+            org=connection.org,
+            repo=connection.repo,
+        )
+        try:
+            await self._git_client.resolve_workspace(credential, ref=connection.ref)
+        except TenantGitWorkspaceError as exc:
+            self.logger.error(
+                "Programme catalogue refresh git failed",
+                tenant_id=str(tenant_id),
+                org=connection.org,
+                repo=connection.repo,
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={
+                    "org": connection.org,
+                    "repo": connection.repo,
+                    "reason": exc.reason,
+                },
+            ) from exc
+
+        async with self._postgres_service.transaction() as session:
+            updated = await self._tenant_repository.upsert_programme_connection(
+                session,
+                tenant_id=tenant_id,
+                org=connection.org,
+                repo=connection.repo,
+                ref=connection.ref,
+            )
+
+        self.logger.info(
+            "Programme catalogue refreshed",
+            tenant_id=str(tenant_id),
+            org=updated.org,
+            repo=updated.repo,
+            ref=updated.ref,
+        )
+        return ProgrammeCatalogueRefreshResponse(connection=updated)
 
     async def select_repos(
         self,
