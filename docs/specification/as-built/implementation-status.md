@@ -53,7 +53,7 @@
 | Setup isolation | REQ-15 | per-repo try/except `TenantGitWorkspaceError` | `test_select_setup_isolation_mixed_batch` | unit (unsafe live) | Peer admits proceed; membership kept |
 | Per-repo setup results | REQ-16 | `ProgrammeRepoAdmitOutcomeType` `ok` / `setup_failed` | `test_programme_selection` | `verify_repo_selection` | Named `reason` on failure |
 
-**INIT-GATEFLOW-013 W2 status:** **implemented** (Pass-1) — board [#202](https://github.com/drivestream-lab/gateflow/issues/202); live smoke pending human wave-acceptance on Draft PR tip. Launchpad status readiness is W3.
+**INIT-GATEFLOW-013 W2 status:** **human_approved** at wave-acceptance — Draft PR [#207](https://github.com/drivestream-lab/gateflow/pull/207) @ `96be30f` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W2 **pass**. Board [#202](https://github.com/drivestream-lab/gateflow/issues/202). Launchpad status readiness is W3. Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-012 W0 — tenant registry)
 
