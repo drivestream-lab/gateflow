@@ -58,6 +58,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
 # .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
 # .venv/bin/python -m tests.verify.verify_harness_status       # INIT-013 W3 status readiness
+# .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
 # .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
@@ -649,6 +650,16 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` — 
 | Dual gate provenance (REQ-21/22) | legacy `verify_harness_readiness` | `test_harness_dual_gate` |
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_status` (Launchpad CLI + readiness_source DDL). Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`.
+
+## Feature map (INIT-GATEFLOW-013 W4 — catalogue refresh)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Re-sync programme meta (REQ-24) | `verify_catalogue_refresh` | `test_programme_onboarding` |
+| Selections untouched (REQ-25) | `verify_catalogue_refresh` | `test_refresh_catalogue_*` |
+| Catalogue reflects latest sync (REQ-07) | `verify_catalogue_refresh` | parser + onboarding |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_catalogue_refresh` (connected tenant; catalogue fixture; optional env `GATEFLOW_PROGRAMME_ORG`/`REPO`/`REF`).
 
 ## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
 
