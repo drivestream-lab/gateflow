@@ -3,7 +3,7 @@ delivery_contract: sdd-delivery/v2
 
 rules:
   repo: drivestream-lab/python-services-rules
-  ref: v0.5.10
+  ref: v0.5.11
 
 agent_skills:
   repo: drivestream-lab/prayog-skills
