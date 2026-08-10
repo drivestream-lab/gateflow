@@ -1,4 +1,4 @@
-"""Programme connect, catalogue, selection, and setup-on-select (INIT-GATEFLOW-013)."""
+"""Programme connect, catalogue, selection, setup, and status readiness (INIT-013)."""
 
 import shutil
 from pathlib import Path
@@ -16,6 +16,10 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
 )
 from src.infra_services.github_pat_probe import GithubPatProbe
+from src.infra_services.launchpad_status_client import (
+    LaunchpadStatusClient,
+    LaunchpadStatusError,
+)
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -26,6 +30,11 @@ from src.models.programme_connection_models import (
     ProgrammeConnectRequest,
     ProgrammeConnectResponse,
     ProgrammeConnectionReadModel,
+)
+from src.models.programme_readiness_models import (
+    ProgrammeReadinessRefreshRequest,
+    ProgrammeReadinessRefreshResponse,
+    ReadinessSourceType,
 )
 from src.models.programme_selection_models import (
     ProgrammeDeselectRequest,
@@ -40,7 +49,7 @@ from src.models.tenant_models import TenantRepoProbeFailure, TenantRepoRef, Tena
 
 
 class ProgrammeOnboardingService(BaseBusinessService):
-    """Connect tenant to programme meta, catalogue, and select/deselect repos."""
+    """Connect tenant to programme meta, catalogue, select/setup, and status readiness."""
 
     @inject
     def __init__(
@@ -50,6 +59,7 @@ class ProgrammeOnboardingService(BaseBusinessService):
         tenant_git_workspace_client: TenantGitWorkspaceClient,
         github_pat_probe: GithubPatProbe,
         run_repository: RunRepository,
+        launchpad_status_client: LaunchpadStatusClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -57,6 +67,7 @@ class ProgrammeOnboardingService(BaseBusinessService):
         self._git_client = tenant_git_workspace_client
         self._github_pat_probe = github_pat_probe
         self._run_repository = run_repository
+        self._status_client = launchpad_status_client
 
     async def connect_programme(
         self,
@@ -266,12 +277,16 @@ class ProgrammeOnboardingService(BaseBusinessService):
         if new_admits:
             async with self._postgres_service.transaction() as session:
                 await self._tenant_repository.add_tenant_repos(
-                    session, tenant_id=tenant_id, repos=new_admits
+                    session,
+                    tenant_id=tenant_id,
+                    repos=new_admits,
+                    readiness_source=ReadinessSourceType.LAUNCHPAD_STATUS.value,
                 )
                 active = await self._tenant_repository.list_tenant_repos(session, tenant_id)
 
         results: list[ProgrammeRepoAdmitResult] = []
         new_keys = {(r.org, r.repo) for r in new_admits}
+        meta_config_dir = str(meta_root.resolve())
         for ref in requested:
             if (ref.org, ref.repo) not in new_keys:
                 results.append(
@@ -314,19 +329,14 @@ class ProgrammeOnboardingService(BaseBusinessService):
                 )
                 continue
 
-            self.logger.info(
-                "Programme repo setup ok",
-                tenant_id=str(tenant_id),
+            status_result = await self._run_status_for_repo(
+                tenant_id=tenant_id,
                 org=ref.org,
                 repo=ref.repo,
+                repo_workspace=str(target.resolve()),
+                meta_config_dir=meta_config_dir,
             )
-            results.append(
-                ProgrammeRepoAdmitResult(
-                    org=ref.org,
-                    repo=ref.repo,
-                    outcome=ProgrammeRepoAdmitOutcomeType.OK,
-                )
-            )
+            results.append(status_result)
 
         self.logger.info(
             "Programme repos selected",
@@ -335,6 +345,156 @@ class ProgrammeOnboardingService(BaseBusinessService):
             new_admit_count=len(new_admits),
         )
         return ProgrammeSelectResponse(results=results, active_repos=active)
+
+    async def _run_status_for_repo(
+        self,
+        *,
+        tenant_id: UUID,
+        org: str,
+        repo: str,
+        repo_workspace: str,
+        meta_config_dir: str,
+    ) -> ProgrammeRepoAdmitResult:
+        """Inspect-only status after successful setup; isolates failures (REQ-17/19/20)."""
+        try:
+            verdict = await self._status_client.inspect_status(
+                repo_workspace=repo_workspace,
+                meta_config_dir=meta_config_dir,
+                org=org,
+                repo=repo,
+            )
+        except LaunchpadStatusError as exc:
+            self.logger.warning(
+                "Programme repo status tool failure",
+                tenant_id=str(tenant_id),
+                org=org,
+                repo=repo,
+                reason=exc.reason,
+            )
+            return ProgrammeRepoAdmitResult(
+                org=org,
+                repo=repo,
+                outcome=ProgrammeRepoAdmitOutcomeType.STATUS_FAILED,
+                reason=exc.reason,
+            )
+
+        if verdict.ready:
+            async with self._postgres_service.transaction() as session:
+                await self._tenant_repository.set_harness_verified(
+                    session, org=org, repo=repo, verified=True
+                )
+            self.logger.info(
+                "Programme repo status ok",
+                tenant_id=str(tenant_id),
+                org=org,
+                repo=repo,
+            )
+            return ProgrammeRepoAdmitResult(
+                org=org,
+                repo=repo,
+                outcome=ProgrammeRepoAdmitOutcomeType.OK,
+            )
+
+        self.logger.warning(
+            "Programme repo status not ready",
+            tenant_id=str(tenant_id),
+            org=org,
+            repo=repo,
+            reason=verdict.reason,
+        )
+        return ProgrammeRepoAdmitResult(
+            org=org,
+            repo=repo,
+            outcome=ProgrammeRepoAdmitOutcomeType.STATUS_FAILED,
+            reason=verdict.reason or "repo_not_ready",
+        )
+
+    async def refresh_readiness(
+        self,
+        tenant_id: UUID,
+        request: ProgrammeReadinessRefreshRequest,
+        *,
+        resolved: TenantResolvedContext,
+    ) -> ProgrammeReadinessRefreshResponse:
+        """On-demand status refresh for launchpad_status-sourced repos (REQ-23)."""
+        self._assert_tenant_match(tenant_id, resolved)
+        org = request.org.strip()
+        repo = request.repo.strip()
+
+        async with self._postgres_service.transaction() as session:
+            connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
+            auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+            active = await self._tenant_repository.list_tenant_repos(session, tenant_id)
+            source_raw = await self._tenant_repository.get_readiness_source(
+                session, org=org, repo=repo
+            )
+
+        if connection is None:
+            raise UnprocessableEntityError(
+                message="Tenant has no programme connection",
+                details={"reason": "programme_not_connected"},
+            )
+        if auth is None:
+            raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+        if not any(r.org == org and r.repo == repo for r in active):
+            raise UnprocessableEntityError(
+                message="Repo is not on the tenant active list",
+                details={"reason": "not_selected", "org": org, "repo": repo},
+            )
+        if source_raw != ReadinessSourceType.LAUNCHPAD_STATUS.value:
+            raise UnprocessableEntityError(
+                message="Readiness refresh is only for launchpad_status-sourced repos",
+                details={
+                    "reason": "readiness_source_not_status",
+                    "org": org,
+                    "repo": repo,
+                    "readiness_source": source_raw,
+                },
+            )
+
+        workspace_root, _pat = auth
+        repo_workspace = Path(workspace_root) / org / repo
+        meta_config_dir = Path(workspace_root) / connection.org / connection.repo
+        if not repo_workspace.is_dir():
+            raise UnprocessableEntityError(
+                message="Repo workspace checkout missing for status refresh",
+                details={"reason": "workspace_path_missing", "org": org, "repo": repo},
+            )
+
+        try:
+            verdict = await self._status_client.inspect_status(
+                repo_workspace=str(repo_workspace.resolve()),
+                meta_config_dir=str(meta_config_dir.resolve()),
+                org=org,
+                repo=repo,
+            )
+        except LaunchpadStatusError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": exc.reason, "org": org, "repo": repo},
+            ) from exc
+
+        async with self._postgres_service.transaction() as session:
+            await self._tenant_repository.set_harness_verified(
+                session, org=org, repo=repo, verified=verdict.ready
+            )
+
+        self.logger.info(
+            "Programme repo readiness refreshed",
+            tenant_id=str(tenant_id),
+            org=org,
+            repo=repo,
+            harness_verified=verdict.ready,
+            verdict_type=verdict.verdict_type.value,
+        )
+        return ProgrammeReadinessRefreshResponse(
+            org=org,
+            repo=repo,
+            readiness_source=ReadinessSourceType.LAUNCHPAD_STATUS,
+            harness_verified=verdict.ready,
+            verdict_type=verdict.verdict_type,
+            reason=verdict.reason,
+        )
 
     async def deselect_repo(
         self,

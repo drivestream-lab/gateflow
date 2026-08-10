@@ -15,6 +15,7 @@ from src.infra_services.github_token_provider import (
     PatTokenProvider,
 )
 from src.infra_services.launchpad_client import LaunchpadClient
+from src.infra_services.launchpad_status_client import LaunchpadStatusClient
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.redis_service import RedisService
 from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
@@ -41,6 +42,7 @@ class InfraModule(Module):
         binder.bind(GithubPatProbe, to=GithubPatProbe, scope=singleton)
         binder.bind(TenantGitWorkspaceClient, to=TenantGitWorkspaceClient, scope=singleton)
         binder.bind(LaunchpadClient, to=LaunchpadClient, scope=singleton)
+        binder.bind(LaunchpadStatusClient, to=LaunchpadStatusClient, scope=singleton)
         binder.bind(CursorAgentRunner, to=CursorAgentRunner, scope=singleton)
         binder.bind(OpenCodeAgentRunner, to=OpenCodeAgentRunner, scope=singleton)
         binder.bind(ClaudeCodeAgentRunner, to=ClaudeCodeAgentRunner, scope=singleton)

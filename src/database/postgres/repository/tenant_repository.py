@@ -195,6 +195,46 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         repo: str,
     ) -> Optional[bool]:
         """Return cached harness_verified for org/repo, or None if unregistered."""
+        row = await self._single_repo_row(session, org=org, repo=repo)
+        if row is None:
+            return None
+        return bool(row.harness_verified)
+
+    async def get_readiness_source(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[str]:
+        """Return readiness_source string or None when unregistered / unset."""
+        row = await self._single_repo_row(session, org=org, repo=repo)
+        if row is None:
+            return None
+        return row.readiness_source
+
+    async def set_harness_verified(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+        verified: bool,
+    ) -> None:
+        """Persist harness_verified for a registered org/repo (REQ-22 cache)."""
+        row = await self._single_repo_row(session, org=org, repo=repo)
+        if row is None:
+            raise ValueError(f"No tenant_repos row for {org}/{repo}")
+        row.harness_verified = verified
+        await session.flush()
+
+    async def _single_repo_row(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[TenantRepoSchema]:
         stmt = (
             select(TenantRepoSchema)
             .where(TenantRepoSchema.org == org, TenantRepoSchema.repo == repo)
@@ -209,33 +249,7 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
             raise ValueError(
                 f"Ambiguous tenant registration for {org}/{repo}: multiple tenants match"
             )
-        return bool(rows[0].harness_verified)
-
-    async def set_harness_verified(
-        self,
-        session: AsyncSession,
-        *,
-        org: str,
-        repo: str,
-        verified: bool,
-    ) -> None:
-        """Persist harness_verified for a registered org/repo (REQ-22 cache)."""
-        stmt = (
-            select(TenantRepoSchema)
-            .where(TenantRepoSchema.org == org, TenantRepoSchema.repo == repo)
-            .order_by(TenantRepoSchema.tenant_id.asc())
-            .limit(2)
-        )
-        result = await session.execute(stmt)
-        rows = list(result.scalars().all())
-        if not rows:
-            raise ValueError(f"No tenant_repos row for {org}/{repo}")
-        if len(rows) > 1:
-            raise ValueError(
-                f"Ambiguous tenant registration for {org}/{repo}: multiple tenants match"
-            )
-        rows[0].harness_verified = verified
-        await session.flush()
+        return rows[0]
 
     async def get_tenant_workspace_auth(
         self,
@@ -319,6 +333,7 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         *,
         tenant_id: UUID,
         repos: list[TenantRepoRef],
+        readiness_source: Optional[str] = None,
     ) -> None:
         """Admit org/repo pairs onto the tenant active list (selection path only)."""
         for ref in repos:
@@ -328,6 +343,7 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
                     org=ref.org,
                     repo=ref.repo,
                     harness_verified=False,
+                    readiness_source=readiness_source,
                 )
             )
         await session.flush()

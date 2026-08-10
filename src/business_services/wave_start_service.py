@@ -34,6 +34,10 @@ from src.exceptions.app_exceptions import (
 )
 from src.infra_services.forge_client import ForgeClient
 from src.infra_services.launchpad_client import HarnessReadinessError, LaunchpadClient
+from src.infra_services.launchpad_status_client import (
+    LaunchpadStatusClient,
+    LaunchpadStatusError,
+)
 from src.infra_services.postgres_service import PostgresService
 from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceClient,
@@ -43,6 +47,7 @@ from src.models.board_models import BoardTicketStatusUpdateRequest
 from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.pr_branch_naming import branch_slug_from_head_ref
 from src.models.policy_types import WavePreconditionIdType
+from src.models.programme_readiness_models import ReadinessSourceType
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import (
@@ -74,6 +79,7 @@ class WaveStartService(BaseBusinessService):
         tenant_service: TenantService,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
         launchpad_client: LaunchpadClient,
+        launchpad_status_client: LaunchpadStatusClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -88,6 +94,7 @@ class WaveStartService(BaseBusinessService):
         self._tenant_service = tenant_service
         self._tenant_git_workspace_client = tenant_git_workspace_client
         self._launchpad_client = launchpad_client
+        self._launchpad_status_client = launchpad_status_client
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -155,14 +162,80 @@ class WaveStartService(BaseBusinessService):
             org=org,
             repo=repo,
         )
+        readiness_source = (
+            await self._tenant_service.get_readiness_source(org=org, repo=repo)
+            if registered is not None
+            else None
+        )
+        use_status = readiness_source == ReadinessSourceType.LAUNCHPAD_STATUS
+        evaluator = "launchpad_status" if use_status else "filesystem"
+
         if registered is not None and not force:
             if await self._tenant_service.is_harness_verified(org=org, repo=repo):
                 self.logger.info(
                     "Harness readiness skipped at wave-start (cached verified)",
                     org=org,
                     repo=repo,
+                    evaluator=evaluator,
+                    cache_hit=True,
                 )
                 return
+
+        if use_status:
+            assert registered is not None
+            if not force:
+                raise UnprocessableEntityError(
+                    message="Selected repo has not passed Launchpad status readiness",
+                    details={
+                        "org": org,
+                        "repo": repo,
+                        "reason": "never_checked",
+                        "evaluator": evaluator,
+                    },
+                )
+            connection = await self._tenant_service.get_programme_connection(registered.tenant_id)
+            if connection is None:
+                raise UnprocessableEntityError(
+                    message="Tenant has no programme connection for status readiness",
+                    details={"org": org, "repo": repo, "reason": "programme_not_connected"},
+                )
+            meta_config_dir = str(
+                Path(registered.workspace_root) / connection.org / connection.repo
+            )
+            try:
+                verdict = await self._launchpad_status_client.inspect_status(
+                    repo_workspace=workspace_path,
+                    meta_config_dir=meta_config_dir,
+                    org=org,
+                    repo=repo,
+                )
+            except LaunchpadStatusError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={"org": org, "repo": repo, "reason": exc.reason},
+                ) from exc
+            if not verdict.ready:
+                await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=False)
+                raise UnprocessableEntityError(
+                    message="Launchpad status reported repo not ready",
+                    details={
+                        "org": org,
+                        "repo": repo,
+                        "reason": verdict.reason or "repo_not_ready",
+                        "evaluator": evaluator,
+                    },
+                )
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=True)
+            self.logger.info(
+                "Harness readiness ok at wave-start",
+                org=org,
+                repo=repo,
+                evaluator=evaluator,
+                cache_hit=False,
+            )
+            return
+
+        # Filesystem evaluator (legacy / NULL readiness_source) — including force-recheck.
         try:
             await self._launchpad_client.sync_harness(workspace_path)
         except FileNotFoundError as exc:
@@ -181,7 +254,14 @@ class WaveStartService(BaseBusinessService):
                 },
             ) from exc
         if registered is not None:
-            await self._tenant_service.mark_harness_verified(org=org, repo=repo)
+            await self._tenant_service.mark_harness_verified(org=org, repo=repo, verified=True)
+        self.logger.info(
+            "Harness readiness ok at wave-start",
+            org=org,
+            repo=repo,
+            evaluator=evaluator,
+            cache_hit=False,
+        )
 
     async def _resolve_implement_workspace_path(
         self, request: ImplementWaveStartRequest

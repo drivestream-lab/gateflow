@@ -53,6 +53,7 @@ def configure_container() -> Injector:
     from src.infra_services.forge_client import ForgeClient
     from src.infra_services.github_pat_probe import GithubPatProbe
     from src.infra_services.launchpad_client import LaunchpadClient
+    from src.infra_services.launchpad_status_client import LaunchpadStatusClient
     from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
     from src.infra_services.stub_notifiers import SlackNotifierStub, TeamsNotifierStub
     from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceClient
@@ -78,6 +79,7 @@ def configure_container() -> Injector:
             GithubPatProbe,
             TenantGitWorkspaceClient,
             LaunchpadClient,
+            LaunchpadStatusClient,
             CursorAgentRunner,
             OpenCodeAgentRunner,
             ClaudeCodeAgentRunner,

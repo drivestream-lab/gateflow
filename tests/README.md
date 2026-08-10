@@ -57,6 +57,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
 # .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
+# .venv/bin/python -m tests.verify.verify_harness_status       # INIT-013 W3 status readiness
 # .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
@@ -638,6 +639,16 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` (API
 | Select outcome `ok` / workspace under `{root}/{org}/{repo}` | `verify_repo_selection` | `test_programme_selection` |
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` — asserts selected repo checkout under tenant workspace. Mixed setup failure is unit-covered.
+
+## Feature map (INIT-GATEFLOW-013 W3 — Launchpad status + dual evaluators)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Inspect-only `LaunchpadStatusClient` (REQ-17/18/20) | `verify_harness_status` | `test_launchpad_status_client` |
+| Status-on-select + refresh (REQ-19/21/23) | `verify_harness_status` | `test_programme_selection` |
+| Dual gate provenance (REQ-21/22) | legacy `verify_harness_readiness` | `test_harness_dual_gate` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_status` (Launchpad CLI + readiness_source DDL). Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`.
 
 ## Feature map (INIT-GATEFLOW-012 W0 — tenant registry)
 

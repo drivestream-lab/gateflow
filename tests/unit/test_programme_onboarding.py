@@ -90,6 +90,7 @@ def _service(
         tenant_git_workspace_client=git,
         github_pat_probe=probe,
         run_repository=run_repo,
+        launchpad_status_client=MagicMock(inspect_status=AsyncMock()),
     )
     return svc, repo, git
 
