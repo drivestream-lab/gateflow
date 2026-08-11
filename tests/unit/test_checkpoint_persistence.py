@@ -8,7 +8,7 @@ resolvable from the PR reference.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -50,6 +50,7 @@ def _approved(sha: str = "abc123") -> GithubPullRequestReviewDocument:
 
 def _run(run_id: UUID, initiative_id: str = "INIT-X", wave_id: str = "W0") -> RunModel:
     return RunModel(
+        tenant_id=uuid4(),
         id=run_id,
         org="acme",
         repo="widget",

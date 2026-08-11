@@ -7,7 +7,7 @@ names why. REQ-15: board Feature tickets + runs only — no new store.
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -29,6 +29,7 @@ def _run(
     repo: str = "widget",
 ) -> RunModel:
     return RunModel(
+        tenant_id=uuid4(),
         id=run_id,
         org=org,
         repo=repo,

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from tests._helpers.jwt_test_token import auth_header
 from src.app import create_app
 from src.business_services.closeout_readout_service import get_closeout_readout_service
 from src.business_services.closure_preview_service import get_closure_preview_service
@@ -148,7 +149,7 @@ def test_list_initiatives_200_with_programme_token(initiatives_client: TestClien
     response = initiatives_client.get(
         "/api/v1/initiatives",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -164,21 +165,21 @@ def test_list_initiatives_200_with_programme_token(initiatives_client: TestClien
     assert item["epic_ticket_url"] == "https://github.com/acme/widget/issues/160"
 
 
-def test_list_initiatives_public_paths_bypass_jwt(initiatives_client: TestClient) -> None:
-    """Programme token path must not require JWT (public_paths includes /api/v1/initiatives)."""
+def test_list_initiatives_refuses_old_programme_token(initiatives_client: TestClient) -> None:
+    """REQ-32: old programme token is refused; JWT is required."""
     response = initiatives_client.get(
         "/api/v1/initiatives",
         params={"org": "acme", "repo": "widget"},
         headers={"Authorization": "Bearer test-programme-token"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 401
 
 
 def test_list_initiatives_non_get_rejected(initiatives_client: TestClient) -> None:
     """REQ-28 — POST on the list path (not closure/start) is GET-only → 405."""
     response = initiatives_client.post(
         "/api/v1/initiatives",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -196,7 +197,7 @@ def test_get_initiative_200_with_programme_token(initiatives_client: TestClient)
     response = initiatives_client.get(
         "/api/v1/initiatives/INIT-X",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -211,7 +212,7 @@ def test_get_initiative_404_unknown_initiative(initiatives_client_404: TestClien
     response = initiatives_client_404.get(
         "/api/v1/initiatives/INIT-MISSING",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -222,7 +223,7 @@ def test_get_initiative_non_get_rejected(initiatives_client: TestClient) -> None
     """REQ-28 — non-GET on detail path rejected (GET-only)."""
     response = initiatives_client.post(
         "/api/v1/initiatives/INIT-X",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -326,7 +327,7 @@ def test_get_waves_200_with_programme_token(waves_client: TestClient) -> None:
     response = waves_client.get(
         "/api/v1/initiatives/INIT-X/waves",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -344,7 +345,7 @@ def test_get_waves_404_unknown_initiative(waves_client_404: TestClient) -> None:
     response = waves_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/waves",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -355,7 +356,7 @@ def test_get_waves_non_get_rejected(waves_client: TestClient) -> None:
     """REQ-28 — non-GET on waves path rejected (GET-only)."""
     response = waves_client.post(
         "/api/v1/initiatives/INIT-X/waves",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -437,7 +438,7 @@ def test_get_spec_200_with_programme_token(spec_client: TestClient) -> None:
     response = spec_client.get(
         "/api/v1/initiatives/INIT-X/spec",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -451,7 +452,7 @@ def test_get_spec_404_unknown_initiative(spec_client_404: TestClient) -> None:
     response = spec_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/spec",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -462,7 +463,7 @@ def test_get_spec_non_get_rejected(spec_client: TestClient) -> None:
     """REQ-28 — non-GET on spec path rejected (GET-only)."""
     response = spec_client.post(
         "/api/v1/initiatives/INIT-X/spec",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -558,7 +559,7 @@ def test_get_implementation_200_with_programme_token(
     response = implementation_client.get(
         "/api/v1/initiatives/INIT-X/waves/W6/implementation",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -574,7 +575,7 @@ def test_get_implementation_404_unknown_initiative(
     response = implementation_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/waves/W6/implementation",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -585,7 +586,7 @@ def test_get_implementation_non_get_rejected(implementation_client: TestClient) 
     """REQ-28 — non-GET on implementation path rejected (GET-only)."""
     response = implementation_client.post(
         "/api/v1/initiatives/INIT-X/waves/W6/implementation",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -668,7 +669,7 @@ def test_get_closeout_200_with_programme_token(closeout_client: TestClient) -> N
     response = closeout_client.get(
         "/api/v1/initiatives/INIT-X/waves/W7/closeout",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -683,7 +684,7 @@ def test_get_closeout_404_unknown_initiative(closeout_client_404: TestClient) ->
     response = closeout_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/waves/W7/closeout",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -694,7 +695,7 @@ def test_get_closeout_non_get_rejected(closeout_client: TestClient) -> None:
     """REQ-28 — non-GET on closeout path rejected (GET-only)."""
     response = closeout_client.post(
         "/api/v1/initiatives/INIT-X/waves/W7/closeout",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -840,7 +841,7 @@ def test_get_merge_200_with_programme_token(merge_client: TestClient) -> None:
     response = merge_client.get(
         "/api/v1/initiatives/INIT-X/waves/W8/merge",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -855,7 +856,7 @@ def test_get_merge_404_unknown_initiative(merge_client_404: TestClient) -> None:
     response = merge_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/waves/W8/merge",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -865,7 +866,7 @@ def test_get_merge_404_unknown_initiative(merge_client_404: TestClient) -> None:
 def test_get_merge_non_get_rejected(merge_client: TestClient) -> None:
     response = merge_client.post(
         "/api/v1/initiatives/INIT-X/waves/W8/merge",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -883,7 +884,7 @@ def test_get_completion_200_with_programme_token(completion_client: TestClient) 
     response = completion_client.get(
         "/api/v1/initiatives/INIT-X/completion",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -896,7 +897,7 @@ def test_get_completion_404_unknown_initiative(completion_client_404: TestClient
     response = completion_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/completion",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
 
@@ -904,7 +905,7 @@ def test_get_completion_404_unknown_initiative(completion_client_404: TestClient
 def test_get_completion_non_get_rejected(completion_client: TestClient) -> None:
     response = completion_client.post(
         "/api/v1/initiatives/INIT-X/completion",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -988,7 +989,7 @@ def test_get_closure_200_with_programme_token(closure_client: TestClient) -> Non
     response = closure_client.get(
         "/api/v1/initiatives/INIT-X/closure",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -1004,7 +1005,7 @@ def test_get_closure_404_unknown_initiative(closure_client_404: TestClient) -> N
     response = closure_client_404.get(
         "/api/v1/initiatives/INIT-MISSING/closure",
         params={"org": "acme", "repo": "widget"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()
@@ -1014,7 +1015,7 @@ def test_get_closure_404_unknown_initiative(closure_client_404: TestClient) -> N
 def test_get_closure_non_get_rejected(closure_client: TestClient) -> None:
     response = closure_client.post(
         "/api/v1/initiatives/INIT-X/closure",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405

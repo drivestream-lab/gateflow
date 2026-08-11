@@ -26,6 +26,7 @@ from src.models.meta_pr_models import (
 )
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.wave_start_models import CLOSEOUT_START_NODE, CloseoutWaveStartRequest
 
 
@@ -73,6 +74,23 @@ def _open_wave_pr(
     )
 
 
+def _slot_validator(registry: AdapterRegistry) -> SlotValidator:
+    postgres = MagicMock()
+    catalogue = MagicMock()
+    catalogue.get_credential = AsyncMock(return_value="catalogue-cursor-key")
+
+    @asynccontextmanager
+    async def txn():
+        yield MagicMock()
+
+    postgres.transaction = txn
+    return SlotValidator(
+        adapter_registry=registry,
+        postgres_service=postgres,
+        catalogue_repository=catalogue,
+    )
+
+
 def _service(
     *,
     active: RunModel | None = None,
@@ -96,6 +114,7 @@ def _service(
     run_repo.get_run = AsyncMock(return_value=prior_run)
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -109,6 +128,7 @@ def _service(
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -135,7 +155,7 @@ def _service(
     registry = AdapterRegistry()
     registry.register("cursor", AdapterSlotKindType.RUNNER, implemented=True)
     registry.register("github_comment", AdapterSlotKindType.NOTIFIER, implemented=True)
-    validator = SlotValidator(adapter_registry=registry)
+    validator = _slot_validator(registry)
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
     metrics_emitter = MagicMock()
@@ -159,7 +179,15 @@ def _service(
         forge_client=forge,
         board_service=MagicMock(),
         tenant_service=MagicMock(
-            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            get_workspace_credential_for_repo=AsyncMock(
+                return_value=TenantWorkspaceCredential(
+                    tenant_id=uuid4(),
+                    workspace_root="/tmp/gateflow-unit-ws",
+                    pat="ghp_test_pat_for_unit",
+                    org="acme",
+                    repo="widget",
+                )
+            ),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
             get_readiness_source=AsyncMock(return_value=None),
@@ -248,6 +276,7 @@ async def test_closeout_pr_not_found(tmp_path: Path) -> None:
 async def test_closeout_with_prior_run_id(tmp_path: Path) -> None:
     prior_id = uuid4()
     prior = RunModel(
+        tenant_id=uuid4(),
         id=prior_id,
         org="acme",
         repo="widget",
@@ -320,6 +349,7 @@ async def test_closeout_missing_workspace_dir(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_closeout_concurrent_409(tmp_path: Path) -> None:
     active = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",

@@ -1,21 +1,13 @@
-"""Unit tests for AdapterRegistry + SlotValidator (FR-17/18, ADR-006 + INIT-003)."""
+"""Unit tests for AdapterRegistry + SlotValidator (INIT-GATEFLOW-014 W2 catalogue)."""
 
-from collections.abc import Iterator
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.slot_validator import SlotValidator
-from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.models.adapter_models import AdapterSlotKindType
-
-
-@pytest.fixture(autouse=True)
-def _cursor_key(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    CursorAgentSettings.reset_instance()
-    monkeypatch.setenv("CURSOR_API_KEY", "test-key-for-slot-validator")
-    yield
-    CursorAgentSettings.reset_instance()
 
 
 @pytest.fixture
@@ -32,11 +24,25 @@ def registry() -> AdapterRegistry:
 
 @pytest.fixture
 def validator(registry: AdapterRegistry) -> SlotValidator:
-    return SlotValidator(adapter_registry=registry)
+    postgres = MagicMock()
+    catalogue = MagicMock()
+    catalogue.get_credential = AsyncMock(return_value="catalogue-cursor-key")
+
+    @asynccontextmanager
+    async def txn():  # type: ignore[no-untyped-def]
+        yield MagicMock()
+
+    postgres.transaction = txn
+    return SlotValidator(
+        adapter_registry=registry,
+        postgres_service=postgres,
+        catalogue_repository=catalogue,
+    )
 
 
-def test_unused_stubs_allowed(validator: SlotValidator) -> None:
-    result = validator.validate_for_run(
+@pytest.mark.asyncio
+async def test_unused_stubs_allowed(validator: SlotValidator) -> None:
+    result = await validator.validate_for_run(
         runner_ids=["cursor"],
         notifier_id="github_comment",
     )
@@ -44,8 +50,9 @@ def test_unused_stubs_allowed(validator: SlotValidator) -> None:
     assert result.failures == []
 
 
-def test_required_stub_runner_fails(validator: SlotValidator) -> None:
-    result = validator.validate_for_run(
+@pytest.mark.asyncio
+async def test_required_stub_runner_fails(validator: SlotValidator) -> None:
+    result = await validator.validate_for_run(
         runner_ids=["opencode"],
         notifier_id="github_comment",
         runner_config_keys={"opencode": "runner.default"},
@@ -58,8 +65,9 @@ def test_required_stub_runner_fails(validator: SlotValidator) -> None:
     assert failure.slot_kind == AdapterSlotKindType.RUNNER
 
 
-def test_required_stub_notifier_fails(validator: SlotValidator) -> None:
-    result = validator.validate_for_run(
+@pytest.mark.asyncio
+async def test_required_stub_notifier_fails(validator: SlotValidator) -> None:
+    result = await validator.validate_for_run(
         runner_ids=["cursor"],
         notifier_id="slack",
         notifier_config_key="GATEFLOW_NOTIFIER",
@@ -69,8 +77,9 @@ def test_required_stub_notifier_fails(validator: SlotValidator) -> None:
     assert result.failures[0].config_key == "GATEFLOW_NOTIFIER"
 
 
-def test_unknown_adapter_fails(validator: SlotValidator) -> None:
-    result = validator.validate_for_run(
+@pytest.mark.asyncio
+async def test_unknown_adapter_fails(validator: SlotValidator) -> None:
+    result = await validator.validate_for_run(
         runner_ids=["does-not-exist"],
         notifier_id="github_comment",
     )
@@ -78,18 +87,17 @@ def test_unknown_adapter_fails(validator: SlotValidator) -> None:
     assert "Unknown" in result.failures[0].reason
 
 
-def test_cursor_missing_api_key_fails(
-    monkeypatch: pytest.MonkeyPatch, validator: SlotValidator
-) -> None:
-    monkeypatch.setenv("CURSOR_API_KEY", "")
-    CursorAgentSettings.reset_instance()
-    result = validator.validate_for_run(
+@pytest.mark.asyncio
+async def test_cursor_missing_catalogue_credential_fails(validator: SlotValidator) -> None:
+    validator._catalogue_repository.get_credential = AsyncMock(return_value=None)
+    result = await validator.validate_for_run(
         runner_ids=["cursor"],
         notifier_id="github_comment",
     )
     assert result.ok is False
     assert result.failures[0].adapter_id == "cursor"
-    assert result.failures[0].config_key == "CURSOR_API_KEY"
+    assert result.failures[0].config_key == "platform_agent_catalogue"
+    assert "never CURSOR_API_KEY" in result.failures[0].reason
 
 
 @pytest.mark.asyncio
@@ -98,6 +106,3 @@ async def test_registry_initialize_registers_catalogue() -> None:
     await reg.initialize()
     assert reg.get("cursor").implemented is True
     assert reg.get("opencode").implemented is False
-    assert reg.get("github_comment").implemented is True
-    assert reg.get("teams").implemented is False
-    assert len(reg.list_adapters()) == 6

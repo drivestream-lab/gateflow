@@ -64,6 +64,7 @@ class JobModel(BasePostgresModel):
 class RunCreate(BaseCreateModel):
     org: str
     repo: str
+    tenant_id: UUID = Field(description="Programme-bound tenant that owns this run (ADR-016)")
     status_type: RunStatusType = Field(default=RunStatusType.ACTIVE)
     outcome_type: Optional[RunOutcomeType] = Field(default=None)
     workflow_node: Optional[str] = Field(default=None)
@@ -94,6 +95,7 @@ class RunUpdate(BaseUpdateModel):
 class RunModel(BasePostgresModel):
     org: str
     repo: str
+    tenant_id: UUID
     status_type: RunStatusType
     outcome_type: Optional[RunOutcomeType] = Field(default=None)
     workflow_node: Optional[str] = Field(default=None)

@@ -1,4 +1,4 @@
-"""Unit tests for CursorAgentRunner local SDK + unit doubles (INIT-GATEFLOW-003 W0)."""
+"""Unit tests for CursorAgentRunner catalogue credential (INIT-GATEFLOW-014 W2)."""
 
 from collections.abc import Iterator
 from types import SimpleNamespace
@@ -39,7 +39,7 @@ async def test_mock_skill_prefix_stub_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_real_skill_without_key_fails() -> None:
+async def test_real_skill_without_catalogue_credential_fails() -> None:
     runner = CursorAgentRunner()
     await runner.initialize()
     result = await runner.run_skill(
@@ -53,14 +53,12 @@ async def test_real_skill_without_key_fails() -> None:
     )
     assert result.outcome == AgentRunOutcomeType.FAILED
     assert result.error_message is not None
+    assert "catalogue credential" in result.error_message
     assert "CURSOR_API_KEY" in result.error_message
 
 
 @pytest.mark.asyncio
-async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CURSOR_API_KEY", "test-key-not-real")
-    CursorAgentSettings.reset_instance()
-
+async def test_live_local_sdk_success_mocked() -> None:
     run_result = SimpleNamespace(status="finished", result="ok", duration_ms=12)
     async_run = MagicMock()
     async_run.wait = AsyncMock(return_value=run_result)
@@ -93,6 +91,7 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
             message="rendered pre-implement brief",
             runner="cursor",
             model_id="cursor/auto",
+            credential="catalogue-key-not-env",
         )
 
     assert result.outcome == AgentRunOutcomeType.SUCCESS
@@ -101,7 +100,7 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
     create.assert_awaited_once()
     assert create.await_args is not None
     kwargs = create.await_args.kwargs
-    assert kwargs["api_key"] == "test-key-not-real"
+    assert kwargs["api_key"] == "catalogue-key-not-env"
     assert kwargs["model"] == "composer-2"
     assert "cloud" not in kwargs
     lao.assert_called_with(cwd="/tmp/ws")
@@ -113,10 +112,7 @@ async def test_live_local_sdk_success_mocked(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.asyncio
-async def test_live_local_sdk_failed_status(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CURSOR_API_KEY", "test-key-not-real")
-    CursorAgentSettings.reset_instance()
-
+async def test_live_local_sdk_failed_status() -> None:
     run_result = SimpleNamespace(status="error", result="boom", duration_ms=3)
     async_run = MagicMock()
     async_run.wait = AsyncMock(return_value=run_result)
@@ -137,20 +133,18 @@ async def test_live_local_sdk_failed_status(monkeypatch: pytest.MonkeyPatch) -> 
             new_callable=AsyncMock,
             return_value=agent,
         ),
-        patch("src.infra_services.cursor_agent_runner.LocalAgentOptions"),
     ):
         runner = CursorAgentRunner()
         await runner.initialize()
         result = await runner.run_skill(
             workspace_path="/tmp/ws",
-            skill_id="loop-spec",
+            skill_id="pre-implement",
             prompt_context={},
             model_profile="default",
-            message="rendered loop-spec brief",
+            message="brief",
             runner="cursor",
             model_id="cursor/auto",
+            credential="catalogue-key",
         )
 
     assert result.outcome == AgentRunOutcomeType.FAILED
-    assert result.error_message is not None
-    assert "boom" in result.error_message

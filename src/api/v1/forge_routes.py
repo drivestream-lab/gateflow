@@ -4,7 +4,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from src.api.v1.programme_token import verify_programme_service_token
+from src.common.auth.dependencies import require_role
+from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 from src.business_services.forge_action_service import (
     ForgeActionService,
     get_forge_action_service,
@@ -21,7 +23,7 @@ router = APIRouter()
 async def authorize_forge_action(
     run_id: UUID,
     body: ForgeAuthorizeRequest,
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: ForgeActionService = Depends(get_forge_action_service),
 ) -> ForgeAuthorizeResponse:
     """Execute pending external-action forge after explicit authorization.

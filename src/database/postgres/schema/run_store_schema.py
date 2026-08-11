@@ -28,6 +28,12 @@ class RunSchema(PostgresBaseModel):
 
     org: Mapped[str] = mapped_column(String(255), nullable=False)
     repo: Mapped[str] = mapped_column(String(255), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     status_type: Mapped[str] = mapped_column(String(64), nullable=False)
     outcome_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     workflow_node: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

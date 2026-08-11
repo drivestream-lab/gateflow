@@ -165,9 +165,11 @@ class MetricsEmitter(BaseBusinessService):
         self,
         session: AsyncSession,
         run_id: UUID,
+        *,
+        tenant_id: Optional[UUID] = None,
     ) -> RunStatusResponse:
         """Load run header + stage/event timeline for programme-token status API."""
-        run = await self._run_repository.get_run(session, run_id)
+        run = await self._run_repository.get_run(session, run_id, tenant_id=tenant_id)
         if run is None or run.id is None:
             raise NotFoundError(resource_type="run", resource_id=run_id)
         stages = await self._stage_repository.list_stages_for_run(session, run.id)
@@ -223,6 +225,7 @@ class MetricsEmitter(BaseBusinessService):
         self,
         session: AsyncSession,
         *,
+        tenant_id: Optional[UUID] = None,
         initiative_id: Optional[str] = None,
         wave_id: Optional[str] = None,
         status_type: Optional[str] = None,
@@ -244,6 +247,7 @@ class MetricsEmitter(BaseBusinessService):
             )
         runs = await self._run_repository.list_runs(
             session,
+            tenant_id=tenant_id,
             initiative_id=initiative_id,
             wave_id=wave_id,
             status_type=status_type,

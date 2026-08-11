@@ -91,6 +91,7 @@ def _service(repo: Any | None = None) -> LearningIngestService:
 def _run(**overrides: Any) -> RunModel:
     data: dict[str, Any] = {
         "id": uuid4(),
+        "tenant_id": uuid4(),
         "org": "drivestream-lab",
         "repo": "gateflow",
         "status_type": RunStatusType.ACTIVE,
@@ -245,6 +246,7 @@ async def test_orchestrator_calls_learning_ingest_after_handoff() -> None:
     run_id = uuid4()
     handoff_path = f"/tmp/gateflow-test-handoffs/{run_id}/handoff.md"
     run = RunModel(
+        tenant_id=uuid4(),
         id=run_id,
         org="acme",
         repo="widget",

@@ -46,6 +46,7 @@ def _write_canonical_plan(workspace: Path, content: str = PRAYOG_V1_BOARD_FIXTUR
 def _run(**kwargs: object) -> RunModel:
     base = {
         "id": uuid4(),
+        "tenant_id": uuid4(),
         "org": "acme",
         "repo": "widget",
         "status_type": RunStatusType.STOPPED,

@@ -1,7 +1,7 @@
 """ClosureStartService — initiative-closure Enter-at (ADR-010 §7 / INIT-GATEFLOW-010 W4)."""
 
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from injector import inject
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +11,7 @@ from src.business_services.board_service import BoardService
 from src.business_services.closure_done_gate import assert_closure_done_gate
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.slot_validator import SlotValidator
+from src.business_services.tenant_service import TenantService
 from src.business_services.trigger_router import API_TRIGGER_EVENT
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
@@ -21,6 +22,7 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
+from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import BoardTicketStatusUpdateRequest
 from src.models.closure_models import (
     CLOSURE_START_NODE,
@@ -30,7 +32,6 @@ from src.models.closure_models import (
 )
 from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
-from src.infra_services.postgres_service import PostgresService
 
 
 class ClosureStartService(BaseBusinessService):
@@ -46,6 +47,7 @@ class ClosureStartService(BaseBusinessService):
         run_repository: RunRepository,
         job_repository: JobRepository,
         board_service: BoardService,
+        tenant_service: TenantService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -55,6 +57,7 @@ class ClosureStartService(BaseBusinessService):
         self._run_repository = run_repository
         self._job_repository = job_repository
         self._board_service = board_service
+        self._tenant_service = tenant_service
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_closure(self, request: ClosureStartRequest) -> ClosureStartResponse:
@@ -138,7 +141,7 @@ class ClosureStartService(BaseBusinessService):
                 ) from exc
 
         dispatch_plan = request.build_dispatch_plan()
-        slot_result = self._slot_validator.validate_for_run(
+        slot_result = await self._slot_validator.validate_for_run(
             runner_ids=[request.runner],
             notifier_id=self._orchestration.notifier,
             runner_config_keys={request.runner: "runner"},
@@ -176,6 +179,9 @@ class ClosureStartService(BaseBusinessService):
                     RunCreate(
                         org=request.org,
                         repo=request.repo,
+                        tenant_id=await self._require_tenant_id_for_repo(
+                            org=request.org, repo=request.repo
+                        ),
                         status_type=RunStatusType.ACTIVE,
                         issue_number=issue_number,
                         initiative_id=request.initiative_id,
@@ -270,6 +276,17 @@ class ClosureStartService(BaseBusinessService):
                 message=f"{field} must be an existing directory",
                 field_errors={field: "not an existing directory"},
             )
+
+    async def _require_tenant_id_for_repo(self, *, org: str, repo: str) -> UUID:
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org, repo=repo
+        )
+        if credential is None:
+            raise UnprocessableEntityError(
+                message="No tenant registration for org/repo — cannot attribute run",
+                details={"org": org, "repo": repo, "reason": "tenant_not_registered"},
+            )
+        return credential.tenant_id
 
 
 def get_closure_start_service() -> ClosureStartService:

@@ -185,9 +185,19 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         row = await self.create(session, obj_in)
         return self._to_model(row)
 
-    async def get_run(self, session: AsyncSession, run_id: UUID) -> Optional[RunModel]:
+    async def get_run(
+        self,
+        session: AsyncSession,
+        run_id: UUID,
+        *,
+        tenant_id: Optional[UUID] = None,
+    ) -> Optional[RunModel]:
         row = await self.get(session, run_id)
-        return self._to_model(row) if row is not None else None
+        if row is None:
+            return None
+        if tenant_id is not None and row.tenant_id != tenant_id:
+            return None
+        return self._to_model(row)
 
     async def update_run(
         self, session: AsyncSession, run_id: UUID, obj_in: RunUpdate
@@ -241,6 +251,7 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         self,
         session: AsyncSession,
         *,
+        tenant_id: Optional[UUID] = None,
         initiative_id: Optional[str] = None,
         wave_id: Optional[str] = None,
         status_type: Optional[str] = None,
@@ -249,8 +260,10 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         limit: int = 50,
         skip: int = 0,
     ) -> list[RunModel]:
-        """List runs with optional filters (FR-20)."""
+        """List runs with optional filters (FR-20). tenant_id scopes when set (ADR-016)."""
         stmt = select(RunSchema).order_by(RunSchema.created_at.desc())
+        if tenant_id is not None:
+            stmt = stmt.where(RunSchema.tenant_id == tenant_id)
         if initiative_id is not None:
             stmt = stmt.where(RunSchema.initiative_id == initiative_id)
         if wave_id is not None:

@@ -81,6 +81,7 @@ async def test_ff06_find_active_run_returns_any_active_on_repo() -> None:
     session.execute = AsyncMock(return_value=result)
     repo = _repo()
     model = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",

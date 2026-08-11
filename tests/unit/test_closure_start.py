@@ -20,6 +20,7 @@ from src.exceptions.app_exceptions import ConflictError, UnprocessableEntityErro
 from src.models.adapter_models import AdapterSlotKindType
 from src.models.board_models import BoardTicketResource
 from src.models.closure_models import CLOSURE_START_NODE, ClosureStartRequest
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 
@@ -67,6 +68,23 @@ def _ticket(ticket_id: str, *, column: str) -> BoardTicketResource:
     )
 
 
+def _slot_validator(registry: AdapterRegistry) -> SlotValidator:
+    postgres = MagicMock()
+    catalogue = MagicMock()
+    catalogue.get_credential = AsyncMock(return_value="catalogue-cursor-key")
+
+    @asynccontextmanager
+    async def txn():
+        yield MagicMock()
+
+    postgres.transaction = txn
+    return SlotValidator(
+        adapter_registry=registry,
+        postgres_service=postgres,
+        catalogue_repository=catalogue,
+    )
+
+
 def _service(
     *,
     active: RunModel | None = None,
@@ -87,6 +105,7 @@ def _service(
     run_repo.find_active_run = AsyncMock(return_value=active)
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -99,6 +118,7 @@ def _service(
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -124,7 +144,7 @@ def _service(
     registry = AdapterRegistry()
     registry.register("cursor", AdapterSlotKindType.RUNNER, implemented=True)
     registry.register("github_comment", AdapterSlotKindType.NOTIFIER, implemented=True)
-    validator = SlotValidator(adapter_registry=registry)
+    validator = _slot_validator(registry)
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
     metrics_emitter = MagicMock()
@@ -142,6 +162,17 @@ def _service(
         return_value=_ticket("137", column="Done"),
     )
 
+    tenant = MagicMock(
+        get_workspace_credential_for_repo=AsyncMock(
+            return_value=TenantWorkspaceCredential(
+                tenant_id=uuid4(),
+                workspace_root="/tmp/gateflow-unit-ws",
+                pat="ghp_test_pat_for_unit",
+                org="acme",
+                repo="widget",
+            )
+        )
+    )
     return ClosureStartService(
         postgres_service=postgres,
         slot_validator=validator,
@@ -150,6 +181,7 @@ def _service(
         run_repository=run_repo,
         job_repository=job_repo,
         board_service=board,
+        tenant_service=tenant,
     )
 
 
@@ -235,6 +267,7 @@ async def test_closure_missing_workspace_dir(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_closure_concurrent_409(tmp_path: Path) -> None:
     active = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",

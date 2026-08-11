@@ -75,11 +75,15 @@ class CursorAgentRunner(BaseInfraService):
         runner: Optional[str] = None,
         model_id: Optional[str] = None,
         model_provider: Optional[str] = None,
+        credential: Optional[str] = None,
     ) -> AgentRunResult:
         """Execute skill via local Cursor SDK or unit test double.
 
-        Packaged-skill automate must pass ``message`` (PromptResolver render).
-        Invent-prose ``_build_prompt`` is not used on that path (ADR-007).
+        ``credential`` is the catalogue-resolved API key (REQ-26/41). When
+        omitted or blank, live dispatch fails closed — env CURSOR_API_KEY is
+        not consulted. Packaged-skill automate must pass ``message``
+        (PromptResolver render); invent-prose ``_build_prompt`` is not used
+        on that path (ADR-007).
         """
         resolved_runner, resolved_model_id, resolved_provider = self._resolve_dispatch(
             runner=runner,
@@ -139,9 +143,10 @@ class CursorAgentRunner(BaseInfraService):
                 ),
             )
 
-        if not self._settings.has_api_key():
+        resolved_credential = credential.strip() if credential and credential.strip() else None
+        if resolved_credential is None:
             logger.error(
-                "Agent run rejected — CURSOR_API_KEY missing",
+                "Agent run rejected — catalogue credential missing",
                 skill_id=skill_id,
                 workspace_path=workspace_path,
             )
@@ -152,8 +157,8 @@ class CursorAgentRunner(BaseInfraService):
                 model_id=resolved_model_id,
                 model_provider=resolved_provider,
                 error_message=(
-                    "Cursor AgentRunner unavailable — CURSOR_API_KEY required for live "
-                    "local cursor-sdk"
+                    "Cursor AgentRunner unavailable — catalogue credential required "
+                    "(never CURSOR_API_KEY / CursorAgentSettings)"
                 ),
             )
 
@@ -165,6 +170,7 @@ class CursorAgentRunner(BaseInfraService):
             resolved_runner=resolved_runner,
             resolved_model_id=resolved_model_id,
             resolved_provider=resolved_provider,
+            api_key=resolved_credential,
         )
 
     async def _run_local_sdk(
@@ -177,9 +183,9 @@ class CursorAgentRunner(BaseInfraService):
         resolved_runner: str,
         resolved_model_id: Optional[str],
         resolved_provider: str,
+        api_key: str,
     ) -> AgentRunResult:
         """Call official local cursor-sdk; never pass cloud agent options."""
-        api_key = self._settings.require_api_key()
         local_options = LocalAgentOptions(cwd=workspace_path)
         client: Optional[AsyncClient] = None
         agent: Any = None

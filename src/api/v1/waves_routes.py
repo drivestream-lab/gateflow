@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, Depends
 
-from src.api.v1.programme_token import verify_programme_service_token
+from src.common.auth.dependencies import require_role
+from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 from src.business_services.wave_start_service import WaveStartService, get_wave_start_service
 from src.models.wave_start_models import (
     CloseoutWaveStartRequest,
@@ -17,7 +19,7 @@ router = APIRouter()
 @router.post("/waves/implement/start", response_model=WaveStartResponse)
 async def start_implement_wave(
     body: ImplementWaveStartRequest,
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: WaveStartService = Depends(get_wave_start_service),
 ) -> WaveStartResponse:
     """Enqueue an authenticated implement-lane run; label triggers are not accepted."""
@@ -27,7 +29,7 @@ async def start_implement_wave(
 @router.post("/waves/spec/start", response_model=WaveStartResponse)
 async def start_spec_wave(
     body: SpecWaveStartRequest,
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: WaveStartService = Depends(get_wave_start_service),
 ) -> WaveStartResponse:
     """Enqueue an authenticated spec-lane run after meta accept-gate."""
@@ -37,7 +39,7 @@ async def start_spec_wave(
 @router.post("/waves/closeout/start", response_model=WaveStartResponse)
 async def start_closeout_wave(
     body: CloseoutWaveStartRequest,
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: WaveStartService = Depends(get_wave_start_service),
 ) -> WaveStartResponse:
     """Enqueue Pass-2 closeout: fixed Enter-at learning-extract; bind existing PR."""

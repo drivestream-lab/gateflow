@@ -3,7 +3,9 @@
 from fastapi import APIRouter, Depends
 
 import src.api.dependencies as api_deps
-from src.api.v1.programme_token import verify_programme_service_token
+from src.common.auth.dependencies import require_role
+from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.infra_services.postgres_service import PostgresService
 from src.models.control_plane_models import RunMetricsResponse
@@ -21,7 +23,7 @@ def _get_postgres_service() -> PostgresService:
 
 @router.get("/metrics/runs", response_model=RunMetricsResponse)
 async def get_run_metrics(
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     metrics_emitter: MetricsEmitter = Depends(_get_metrics_emitter),
     postgres_service: PostgresService = Depends(_get_postgres_service),
 ) -> RunMetricsResponse:

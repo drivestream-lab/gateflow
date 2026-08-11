@@ -16,6 +16,7 @@ from src.models.control_plane_models import AgentRunResult
 from src.models.policy_types import AgentRunOutcomeType
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 
 
 def _gate_stop_handoff(stage: str = "loop-spec") -> dict[str, object]:
@@ -86,6 +87,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     run_repo = MagicMock()
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -99,6 +101,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -185,7 +188,15 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
             ingest_after_learning_extract=AsyncMock(return_value=None)
         ),
         "tenant_service": MagicMock(
-            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            get_workspace_credential_for_repo=AsyncMock(
+                return_value=TenantWorkspaceCredential(
+                    tenant_id=uuid4(),
+                    workspace_root="/tmp/gateflow-orch-ws",
+                    pat="ghp_test_pat_for_unit",
+                    org="acme",
+                    repo="widget",
+                )
+            ),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
             get_readiness_source=AsyncMock(return_value=None),
@@ -193,6 +204,9 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "tenant_git_workspace_client": MagicMock(
             resolve_workspace=AsyncMock(),
             checkout_branch=AsyncMock(),
+        ),
+        "catalogue_repository": MagicMock(
+            get_credential=AsyncMock(return_value="catalogue-cursor-key"),
         ),
     }
     defaults.update(overrides)
@@ -324,6 +338,7 @@ async def test_agent_failure_marks_run_failed() -> None:
     run_id = uuid4()
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -337,6 +352,7 @@ async def test_agent_failure_marks_run_failed() -> None:
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -464,6 +480,7 @@ async def test_ensure_branch_before_stage_when_run_has_no_pr() -> None:
     run_repo = MagicMock()
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -477,6 +494,7 @@ async def test_ensure_branch_before_stage_when_run_has_no_pr() -> None:
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -921,6 +939,7 @@ async def test_publish_stage_workspace_required_empty_fails(
         lambda *_a, **_k: [],
     )
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
@@ -980,6 +999,7 @@ async def test_publish_stage_workspace_optional_commits(
         _collect,
     )
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
@@ -1302,7 +1322,12 @@ def test_src_has_no_retired_checkpoint_transition_ids() -> None:
 
 @pytest.mark.asyncio
 async def test_omitted_workspace_unregistered_fails_without_cwd() -> None:
-    """REQ-15 / FF-01: orchestrator must not fall back to Path.cwd()."""
+    """REQ-15 / FF-01: orchestrator must not fall back to Path.cwd().
+
+    Unregistered org/repo now fails closed at run attribution (tenant_id required)
+    before workspace resolve — still never uses Path.cwd().
+    """
+    from src.exceptions.app_exceptions import UnprocessableEntityError
     from src.models.control_plane_models import TriggerAuthorizationResult, TriggerContext
 
     trigger_router = MagicMock()
@@ -1320,23 +1345,33 @@ async def test_omitted_workspace_unregistered_fails_without_cwd() -> None:
             failures=[],
         )
     )
-    orchestrator = _build_orchestrator(trigger_router=trigger_router)
+    tenant_service = MagicMock(
+        get_workspace_credential_for_repo=AsyncMock(return_value=None),
+        is_harness_verified=AsyncMock(return_value=False),
+        mark_harness_verified=AsyncMock(),
+        get_readiness_source=AsyncMock(return_value=None),
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        tenant_service=tenant_service,
+    )
     raw = _job_payload().model_dump()
     raw.pop("workspace_path", None)
-    summary = await orchestrator.process_job(
-        JobModel(
-            id=uuid4(),
-            status_type=JobStatusType.CLAIMED,
-            payload=JobPayloadDocument.model_validate(raw),
-            delivery_id="d-run",
+    with pytest.raises(UnprocessableEntityError, match="tenant"):
+        await orchestrator.process_job(
+            JobModel(
+                id=uuid4(),
+                status_type=JobStatusType.CLAIMED,
+                payload=JobPayloadDocument.model_validate(raw),
+                delivery_id="d-run",
+            )
         )
-    )
-    assert summary.dispatched is False
-    assert summary.terminal_status == "failed"
-    assert "Path.cwd()" in (summary.stop_reason or "")
     launchpad = orchestrator._launchpad_client
     assert isinstance(launchpad.sync_harness, AsyncMock)
     launchpad.sync_harness.assert_not_awaited()
+    git_client = orchestrator._tenant_git_workspace_client
+    assert isinstance(git_client.resolve_workspace, AsyncMock)
+    git_client.resolve_workspace.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -1431,6 +1466,7 @@ async def test_resolve_branch_new_wave_calls_ensure_from_base() -> None:
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     orch = _build_orchestrator(forge_client=forge_client)
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
@@ -1469,6 +1505,7 @@ async def test_resolve_branch_continuation_reuses_without_ensure() -> None:
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     orch = _build_orchestrator(forge_client=forge_client)
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
@@ -1505,6 +1542,7 @@ async def test_resolve_branch_explicit_head_missing_named_422_reason() -> None:
     forge_client.ensure_branch_from_base = AsyncMock(return_value=True)
     orch = _build_orchestrator(forge_client=forge_client)
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
