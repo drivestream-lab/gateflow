@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-014-gateflow.md` |
 | Initiative | INIT-GATEFLOW-014 |
 | Date | 2026-08-11 |
-| Wave head (exact) | Accept tip `f96edc7394e7b61cd759028c048da6c942a0486a` (`wave-accepted`); Pass-2 docs tip recorded after `/commit-workspace` |
+| Wave head (exact) | Accept tip `f96edc7394e7b61cd759028c048da6c942a0486a` (`wave-accepted`); Pass-2 docs tip `6156d121dfe62e98ded33ef2f30f8e06f06b3ae1` |
 | PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/220 — read-only context |
 | Status | Draft |
 | Review deadline | 2026-08-13 |
@@ -86,7 +86,7 @@ N/A — profile/`ground_command` is N/A for this repo. Manual scan performed.
 
 - PR URL: https://github.com/drivestream-lab/gateflow/pull/220
 - Accept tip (`wave-accepted`): `f96edc7394e7b61cd759028c048da6c942a0486a`
-- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): **see handoff `signals.reviewed_head_sha` after `/commit-workspace`**
+- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): `6156d121dfe62e98ded33ef2f30f8e06f06b3ae1` — merge PR tip if a follow-up SHA-stamp commit lands on the same branch
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-014-W0.md`
 - Accept evidence: `wave-accepted` on accept tip — human approved already
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-014-W0.md`
@@ -143,7 +143,7 @@ handoff:
       - REQ-07
       - REQ-43
       - REQ-47
-    reviewed_head_sha: f96edc7394e7b61cd759028c048da6c942a0486a
+    reviewed_head_sha: 6156d121dfe62e98ded33ef2f30f8e06f06b3ae1
     pr_url: https://github.com/drivestream-lab/gateflow/pull/220
   next_candidates:
     - wave-done-action

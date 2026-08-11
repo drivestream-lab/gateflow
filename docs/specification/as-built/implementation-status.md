@@ -34,7 +34,7 @@
 | Login API | REQ-02, REQ-03, REQ-43 | `POST /api/auth/login` | `test_auth_identity_service` | `verify_jwt_login` | No UI |
 | Claim shape round-trip | REQ-04, REQ-06, REQ-07 | middleware claim extraction | `test_auth_middleware` (-k claim_shape) | `verify_jwt_login` | `public_paths` product prefixes unchanged (W2) |
 
-**INIT-GATEFLOW-014 W0 status:** **human_approved** at wave-acceptance — Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) @ `f96edc7` label `wave-accepted` (+ Pass-2 Learning/Ground on tip after commit-workspace); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-014 W0 status:** **human_approved** at wave-acceptance — Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) @ `f96edc7` label `wave-accepted` (+ Pass-2 tip `6156d12`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 

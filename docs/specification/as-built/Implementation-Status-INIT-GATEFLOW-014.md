@@ -10,7 +10,7 @@
 
 | Wave | Goal | Status | Evidence |
 |------|------|--------|----------|
-| W0 | Seed platform_admin + JWT mint/login edge | **human_approved** | Board [#215](https://github.com/drivestream-lab/gateflow/issues/215); Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) @ `f96edc7` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
+| W0 | Seed platform_admin + JWT mint/login edge | **human_approved** | Board [#215](https://github.com/drivestream-lab/gateflow/issues/215); Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) accept `f96edc7` / Pass-2 `6156d12` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Programme validate-then-create + tenant_admin attach + agent catalogue | not started | — |
 | W2 | Cut over under JWT; refuse old doors | not started | — |
 | W3 | Dead-door deletion + wipe | not started | — |
