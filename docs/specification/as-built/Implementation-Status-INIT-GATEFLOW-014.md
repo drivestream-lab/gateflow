@@ -13,7 +13,7 @@
 | W0 | Seed platform_admin + JWT mint/login edge | **human_approved** | Board [#215](https://github.com/drivestream-lab/gateflow/issues/215); Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) accept `f96edc7` / Pass-2 `6156d12` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Programme validate-then-create + tenant_admin attach + agent catalogue | **human_approved** | Board [#216](https://github.com/drivestream-lab/gateflow/issues/216); Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) accept `ecb7fbd` / Pass-2 `6b926c6` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Cut over under JWT; refuse old doors | **human_approved** | Board [#217](https://github.com/drivestream-lab/gateflow/issues/217); Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) accept `0c8e8a5` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 `items: []` — Pass-2 tip `eb51e9f`|
-| W3 | Dead-door deletion + wipe | not started | — |
+| W3 | Dead-door deletion + wipe | **human_approved** | Board [#218](https://github.com/drivestream-lab/gateflow/issues/218); Draft PR [#224](https://github.com/drivestream-lab/gateflow/pull/224) accept `52b969d` / Pass-2 `6ad5c96` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
 | W4 | Prove absence + teaching rewrite | not started | — |
 
 ## W0 capability detail
@@ -49,3 +49,10 @@
 | Tenant-scoped runs | REQ-23,24,31 | `RunSchema.tenant_id` + repo filters | metrics/run tenant_scope units | `verify_cross_programme_isolation` | Squashed Alembic `5e85268f844f` |
 | Catalogue-only agents | REQ-26,41 | SlotValidator + CursorAgentRunner | slot/cursor unit tests | — | No env key gate |
 | Webhooks untouched | REQ-28 | `github_routes` inspect | webhook ingress units | — | Still signature public |
+
+## W3 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Dead-door deletion | REQ-34 | delete `programme_token`/`tenant_token`; remove `POST /tenants` | `test_tenant_routes` (-k register) | `verify_dead_doors_deleted` | Gone (404/405 with JWT), not refuse-only |
+| Wipe cutover | REQ-35, REQ-46 | `ProgrammeWipeService` + `POST /programmes/{id}/wipe` | `test_programme_wipe_service` | `verify_wipe_cutover` | ACTIVE → 409 `active_run`; idle clears programme+tenant |

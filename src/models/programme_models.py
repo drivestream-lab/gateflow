@@ -108,3 +108,13 @@ class ProgrammeLaneDefaultsUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     defaults: dict[LaneType, LaneRunnerDefault] = Field(default_factory=dict)
+
+
+class ProgrammeWipeResult(BaseModel):
+    """Outcome of a successful programme cutover wipe (REQ-35)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    programme_id: UUID
+    tenant_id: UUID
+    wiped: bool = Field(default=True, description="True when durable rows were cleared")

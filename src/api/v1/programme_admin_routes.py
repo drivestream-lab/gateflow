@@ -10,6 +10,10 @@ from src.business_services.platform_agent_catalogue_service import (
     get_platform_agent_catalogue_service,
 )
 from src.business_services.programme_service import ProgrammeService, get_programme_service
+from src.business_services.programme_wipe_service import (
+    ProgrammeWipeService,
+    get_programme_wipe_service,
+)
 from src.common.auth.dependencies import require_role
 from src.models.agent_catalogue_models import (
     AgentCatalogueEntryReadModel,
@@ -25,6 +29,7 @@ from src.models.programme_models import (
     ProgrammeLaneDefaultsUpdateRequest,
     ProgrammeOnboardRequest,
     ProgrammeReadModel,
+    ProgrammeWipeResult,
 )
 from src.models.role_types import RoleType
 
@@ -56,6 +61,16 @@ async def get_programme(
     service: ProgrammeService = Depends(get_programme_service),
 ) -> ProgrammeReadModel:
     return await service.get_programme(programme_id)
+
+
+@programme_router.post("/{programme_id}/wipe", response_model=ProgrammeWipeResult)
+async def wipe_programme(
+    programme_id: UUID,
+    _auth: AuthContext = Depends(require_role(RoleType.PLATFORM_ADMIN)),
+    service: ProgrammeWipeService = Depends(get_programme_wipe_service),
+) -> ProgrammeWipeResult:
+    """Wipe programme + child tenant + shared secrets (REQ-35); refuse mid-run (REQ-46)."""
+    return await service.wipe_programme(programme_id)
 
 
 @programme_router.post("/{programme_id}/tenant-admins", response_model=AttachTenantAdminResponse)

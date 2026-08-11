@@ -61,3 +61,13 @@ class UserIdentityRepository(BasePostgresRepository[UserIdentitySchema]):
         if row is None:
             return None
         return self._to_read_model(row)
+
+    async def delete_for_tenant(self, session: AsyncSession, tenant_id: UUID) -> int:
+        """Remove identities bound to a tenant (tenant_admin cutover wipe)."""
+        stmt = select(UserIdentitySchema).where(UserIdentitySchema.tenant_id == tenant_id)
+        result = await session.execute(stmt)
+        rows = list(result.scalars().all())
+        for row in rows:
+            await session.delete(row)
+        await session.flush()
+        return len(rows)

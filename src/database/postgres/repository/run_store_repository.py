@@ -279,6 +279,34 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         rows = result.scalars().all()
         return [self._to_model(row) for row in rows]
 
+    async def find_active_run_for_tenant(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+    ) -> Optional[RunModel]:
+        """Return any ACTIVE run for a tenant (wipe mid-run guard — REQ-46)."""
+        stmt = (
+            select(RunSchema)
+            .where(
+                RunSchema.tenant_id == tenant_id,
+                RunSchema.status_type == RunStatusType.ACTIVE.value,
+            )
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        return self._to_model(row) if row is not None else None
+
+    async def delete_runs_for_tenant(self, session: AsyncSession, tenant_id: UUID) -> int:
+        """Delete all runs for a tenant (stages/events cascade). Caller must guard ACTIVE."""
+        stmt = select(RunSchema).where(RunSchema.tenant_id == tenant_id)
+        result = await session.execute(stmt)
+        rows = list(result.scalars().all())
+        for row in rows:
+            await session.delete(row)
+        await session.flush()
+        return len(rows)
+
 
 class StageRepository(BasePostgresRepository[StageSchema]):
     def __init__(self, session_factory: PostgresSessionFactory) -> None:
