@@ -70,8 +70,12 @@ class TenantUserSchema(PostgresBaseModel):
     identity: Mapped[str] = mapped_column(String(512), nullable=False)
 
 
-class TenantProgrammeConnectionSchema(PostgresBaseModel):
-    """Exactly one programme meta connection per tenant (INIT-GATEFLOW-013 REQ-28)."""
+class MetaCatalogueConnectionSchema(PostgresBaseModel):
+    """Exactly one meta-catalogue connection per tenant (INIT-GATEFLOW-013 REQ-28).
+
+    Renamed from TenantProgrammeConnectionSchema (INIT-GATEFLOW-014 W1 AF-1).
+    Table name ``tenant_programme_connections`` is unchanged.
+    """
 
     __tablename__ = "tenant_programme_connections"
     __table_args__ = (

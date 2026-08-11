@@ -1,4 +1,7 @@
-"""Programme connect, catalogue, selection, setup, and status readiness (INIT-013)."""
+"""Meta-catalogue connection: connect, catalogue, selection, setup (INIT-013).
+
+Renamed from ProgrammeOnboardingService (INIT-GATEFLOW-014 W1 AF-1).
+"""
 
 import shutil
 from pathlib import Path
@@ -49,8 +52,8 @@ from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import TenantRepoProbeFailure, TenantRepoRef, TenantResolvedContext
 
 
-class ProgrammeOnboardingService(BaseBusinessService):
-    """Connect tenant to programme meta, catalogue, select/setup, and status readiness."""
+class CatalogueConnectionService(BaseBusinessService):
+    """Connect tenant to meta-repo catalogue, select/setup, and status readiness."""
 
     @inject
     def __init__(
@@ -624,7 +627,7 @@ class ProgrammeOnboardingService(BaseBusinessService):
             raise UnauthorizedError(message="Tenant token does not match path tenant_id")
 
 
-def get_programme_onboarding_service() -> ProgrammeOnboardingService:
+def get_catalogue_connection_service() -> CatalogueConnectionService:
     from src.di.dependency_container import provide_service
 
-    return provide_service(ProgrammeOnboardingService)
+    return provide_service(CatalogueConnectionService)

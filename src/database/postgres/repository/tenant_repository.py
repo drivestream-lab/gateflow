@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.postgres.repository.base_repository import BasePostgresRepository
 from src.database.postgres.schema.tenant_schema import (
-    TenantProgrammeConnectionSchema,
+    MetaCatalogueConnectionSchema,
     TenantRepoSchema,
     TenantSchema,
     TenantUserSchema,
@@ -263,7 +263,7 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         return row.workspace_root, row.pat
 
     def _connection_to_read(
-        self, row: TenantProgrammeConnectionSchema
+        self, row: MetaCatalogueConnectionSchema
     ) -> ProgrammeConnectionReadModel:
         return ProgrammeConnectionReadModel(
             tenant_id=row.tenant_id,
@@ -278,8 +278,8 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         session: AsyncSession,
         tenant_id: UUID,
     ) -> Optional[ProgrammeConnectionReadModel]:
-        stmt = select(TenantProgrammeConnectionSchema).where(
-            TenantProgrammeConnectionSchema.tenant_id == tenant_id
+        stmt = select(MetaCatalogueConnectionSchema).where(
+            MetaCatalogueConnectionSchema.tenant_id == tenant_id
         )
         result = await session.execute(stmt)
         row = result.scalar_one_or_none()
@@ -299,13 +299,13 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
     ) -> ProgrammeConnectionReadModel:
         """Insert or update the single programme connection for a tenant (REQ-28)."""
         synced = last_synced_at or datetime.now(UTC)
-        stmt = select(TenantProgrammeConnectionSchema).where(
-            TenantProgrammeConnectionSchema.tenant_id == tenant_id
+        stmt = select(MetaCatalogueConnectionSchema).where(
+            MetaCatalogueConnectionSchema.tenant_id == tenant_id
         )
         result = await session.execute(stmt)
         row = result.scalar_one_or_none()
         if row is None:
-            row = TenantProgrammeConnectionSchema(
+            row = MetaCatalogueConnectionSchema(
                 tenant_id=tenant_id,
                 org=org,
                 repo=repo,

@@ -20,8 +20,10 @@ from src.business_services.merge_readout_service import MergeReadoutService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.notifier import Notifier
+from src.business_services.platform_agent_catalogue_service import PlatformAgentCatalogueService
 from src.business_services.policy_engine import PolicyEngine
-from src.business_services.programme_onboarding_service import ProgrammeOnboardingService
+from src.business_services.catalogue_connection_service import CatalogueConnectionService
+from src.business_services.programme_service import ProgrammeService
 from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
@@ -53,7 +55,9 @@ class BusinessServicesModule(Module):
         binder.bind(BoardService, scope=singleton)
         binder.bind(TenantService, scope=singleton)
         binder.bind(AuthIdentityService, scope=singleton)
-        binder.bind(ProgrammeOnboardingService, scope=singleton)
+        binder.bind(ProgrammeService, scope=singleton)
+        binder.bind(PlatformAgentCatalogueService, scope=singleton)
+        binder.bind(CatalogueConnectionService, scope=singleton)
         binder.bind(CheckpointEvidenceService, scope=singleton)
         binder.bind(InitiativeReadoutService, scope=singleton)
         binder.bind(WaveMapService, scope=singleton)

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.business_services.programme_onboarding_service import ProgrammeOnboardingService
+from src.business_services.catalogue_connection_service import CatalogueConnectionService
 from src.exceptions.app_exceptions import UnprocessableEntityError
 from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
 from src.models.programme_catalogue_models import CatalogueCandidate
@@ -110,7 +110,7 @@ def _service(
             ready=True,
         )
     )
-    svc = ProgrammeOnboardingService(
+    svc = CatalogueConnectionService(
         postgres_service=postgres,
         tenant_repository=repo,
         tenant_git_workspace_client=git,
@@ -142,7 +142,7 @@ def _candidates() -> list[CatalogueCandidate]:
 async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
     svc, repo, probe, _, active, git, status = _service(tenant_id=tenant_id)
     with patch(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         return_value=_candidates(),
     ):
         result = await svc.select_repos(
@@ -163,7 +163,7 @@ async def test_select_admits_in_catalogue(tenant_id, resolved) -> None:
 async def test_select_rejects_out_of_catalogue_zero_change(tenant_id, resolved) -> None:
     svc, repo, probe, _, active, git, status = _service(tenant_id=tenant_id)
     with patch(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         return_value=_candidates(),
     ):
         with pytest.raises(UnprocessableEntityError) as exc_info:
@@ -187,7 +187,7 @@ async def test_select_probe_failure_zero_change(tenant_id, resolved) -> None:
         probe_results=[PatProbeResult(ok=False, reason="not_found")],
     )
     with patch(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         return_value=_candidates(),
     ):
         with pytest.raises(UnprocessableEntityError) as exc_info:
@@ -210,7 +210,7 @@ async def test_select_already_selected_skips_probe(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
     svc, repo, probe, _, _, git, status = _service(tenant_id=tenant_id, active=existing)
     with patch(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         return_value=_candidates(),
     ):
         result = await svc.select_repos(
@@ -248,7 +248,7 @@ async def test_select_setup_isolation_mixed_batch(tenant_id, resolved) -> None:
         resolve_side_effect=_resolve,
     )
     with patch(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         return_value=_candidates(),
     ):
         result = await svc.select_repos(

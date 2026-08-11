@@ -36,6 +36,17 @@
 
 **INIT-GATEFLOW-014 W0 status:** **human_approved** at wave-acceptance — Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) @ `f96edc7` label `wave-accepted` (+ Pass-2 tip `6156d12`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Programme validate-then-create | REQ-08–10,13 | `programme_service`, `programme_admin_routes` | `test_programme_service`, `test_programme_admin_routes` | `verify_programme_onboarding` | PAT/meta fail-closed |
+| Attach tenant_admin | REQ-15,16,44,47 | `ProgrammeService.attach_tenant_admin` | `test_programme_service` | `verify_programme_onboarding` | Idempotent |
+| Agent catalogue + resolve | REQ-19–22,40–42,45 | `platform_agent_catalogue_*` | catalogue unit tests | `verify_agent_catalogue` | No `CursorAgentSettings` |
+| Meta-connection rename | AF-1 | `catalogue_connection_routes/service` | onboarding/selection units | — | Table name unchanged |
+
+**INIT-GATEFLOW-014 W1 status:** **human_approved** at wave-acceptance — Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) @ `ecb7fbd` label `wave-accepted` (+ Pass-2 tip `6b926c6`); Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
