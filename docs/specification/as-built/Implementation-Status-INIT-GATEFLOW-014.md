@@ -12,7 +12,7 @@
 |------|------|--------|----------|
 | W0 | Seed platform_admin + JWT mint/login edge | **human_approved** | Board [#215](https://github.com/drivestream-lab/gateflow/issues/215); Draft PR [#220](https://github.com/drivestream-lab/gateflow/pull/220) accept `f96edc7` / Pass-2 `6156d12` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Programme validate-then-create + tenant_admin attach + agent catalogue | **human_approved** | Board [#216](https://github.com/drivestream-lab/gateflow/issues/216); Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) accept `ecb7fbd` / Pass-2 `6b926c6` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
-| W2 | Cut over under JWT; refuse old doors | not started | — |
+| W2 | Cut over under JWT; refuse old doors | **human_approved** | Board [#217](https://github.com/drivestream-lab/gateflow/issues/217); Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) accept `0c8e8a5` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 `items: []` — Pass-2 tip stamped after publish |
 | W3 | Dead-door deletion + wipe | not started | — |
 | W4 | Prove absence + teaching rewrite | not started | — |
 
@@ -38,3 +38,14 @@
 | Agent catalogue | REQ-19,20,40,45 | catalogue schema/repo/service | catalogue unit tests | `verify_agent_catalogue` | No env fallback |
 | Effective runner | REQ-21,22,41,42 | `resolve_effective_runner` | `test_platform_agent_catalogue_service` | `verify_agent_catalogue` | |
 | Meta-connection rename | REQ-08 / AF-1 | `catalogue_connection_*` | existing onboarding/selection units | — | URLs unchanged |
+
+## W2 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| JWT product edge | REQ-04,29,32,33 | `app.py` public_paths + route deps | programme/tenant token tests flipped | `verify_jwt_cutover` | Old doors refused, not deleted |
+| Role / programme scope | REQ-23,24,30,31 | `require_role` / `require_programme_scope` | `test_auth_dependencies` | isolation verify | Path tenant mismatch → 403 |
+| Per-programme ForgeClient | REQ-25 | `ForgeClientFactory` + `ProgrammePatTokenProvider` | `test_forge_client_factory` | — | ADR-015 |
+| Tenant-scoped runs | REQ-23,24,31 | `RunSchema.tenant_id` + repo filters | metrics/run tenant_scope units | `verify_cross_programme_isolation` | Squashed Alembic `5e85268f844f` |
+| Catalogue-only agents | REQ-26,41 | SlotValidator + CursorAgentRunner | slot/cursor unit tests | — | No env key gate |
+| Webhooks untouched | REQ-28 | `github_routes` inspect | webhook ingress units | — | Still signature public |
