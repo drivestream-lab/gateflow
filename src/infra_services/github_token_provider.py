@@ -173,3 +173,18 @@ class AppInstallationTokenProvider:
             expires_at=expires_at.isoformat(),
         )
         return token
+
+
+class ProgrammePatTokenProvider:
+    """Bearer from a Programme-stored PAT — never falls back to env/App install (ADR-015)."""
+
+    def __init__(self, pat: str) -> None:
+        cleaned = pat.strip()
+        if not cleaned:
+            raise ValueError(
+                "Programme PAT is blank — refusing App-installation or env credential fallback"
+            )
+        self._pat = cleaned
+
+    async def get_token(self) -> str:
+        return self._pat

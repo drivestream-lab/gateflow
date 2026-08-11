@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from tests._helpers.jwt_test_token import auth_header
 from src.app import create_app
 from src.business_services.checkpoint_evidence_service import get_checkpoint_evidence_service
 from src.di.dependency_container import configure_container, reset_container
@@ -109,7 +110,7 @@ def test_checkpoint_status_200_with_programme_token(checkpoints_client: TestClie
             "repo": "widget",
             "pr_number": 42,
         },
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -118,25 +119,25 @@ def test_checkpoint_status_200_with_programme_token(checkpoints_client: TestClie
     assert body["checked_sha"] == "abc123"
 
 
-def test_checkpoint_status_public_paths_bypass_jwt(checkpoints_client: TestClient) -> None:
-    """Programme token path must not require JWT (public_paths includes /api/v1/checkpoints)."""
+def test_checkpoint_status_refuses_old_programme_token(checkpoints_client: TestClient) -> None:
+    """REQ-32: old programme token is refused; JWT is required."""
     response = checkpoints_client.get(
         "/api/v1/checkpoints/status",
         params={
-            "checkpoint_id": "coding-readiness",
+            "checkpoint_id": "wave-acceptance",
             "owner": "acme",
             "repo": "widget",
             "pr_number": 42,
         },
         headers={"Authorization": "Bearer test-programme-token"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 401
 
 
 def test_checkpoint_non_get_rejected(checkpoints_client: TestClient) -> None:
     response = checkpoints_client.post(
         "/api/v1/checkpoints/status",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -153,7 +154,7 @@ def test_checkpoint_status_composed_resolves_via_initiative_wave(
             "initiative_id": "INIT-X",
             "wave_id": "W0",
         },
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -168,7 +169,7 @@ def test_checkpoint_status_neither_raw_nor_composed_is_400(
     response = checkpoints_client.get(
         "/api/v1/checkpoints/status",
         params={"checkpoint_id": "wave-acceptance"},
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 400
 
@@ -184,7 +185,7 @@ def test_checkpoint_history_200_marks_records_historical(
             "repo": "widget",
             "pr_number": 42,
         },
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 200
     body = response.json()
@@ -215,7 +216,7 @@ def test_checkpoint_history_non_get_rejected(checkpoints_client: TestClient) -> 
     """REQ-28 — non-GET on /history rejected (GET-only)."""
     response = checkpoints_client.post(
         "/api/v1/checkpoints/history",
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
         json={},
     )
     assert response.status_code == 405
@@ -264,7 +265,7 @@ def test_checkpoint_status_composed_404_no_run_found_for_wave(
             "initiative_id": "INIT-X",
             "wave_id": "W0",
         },
-        headers={"Authorization": "Bearer test-programme-token"},
+        headers=auth_header(),
     )
     assert response.status_code == 404
     body = response.json()

@@ -1,4 +1,4 @@
-"""Unit tests for tenant_token dependency (ADR-011)."""
+"""Unit tests — old tenant bearer refused; JWT deps own the door (INIT-GATEFLOW-014 W2)."""
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -36,7 +36,8 @@ async def test_unknown_token_401() -> None:
 
 
 @pytest.mark.asyncio
-async def test_valid_token_resolves() -> None:
+async def test_valid_token_still_resolves_helper() -> None:
+    """Helper still works for W3 delete wave; product routes no longer call it."""
     tenant_id = uuid4()
     service = MagicMock()
     service.resolve_tenant_by_token = AsyncMock(

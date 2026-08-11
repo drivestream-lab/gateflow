@@ -4,7 +4,10 @@ from injector import inject
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.base_business_service import BaseBusinessService
-from src.configs.cursor_agent_settings import CursorAgentSettings
+from src.database.postgres.repository.platform_agent_catalogue_repository import (
+    PlatformAgentCatalogueRepository,
+)
+from src.infra_services.postgres_service import PostgresService
 from src.models.adapter_models import (
     AdapterSlotKindType,
     SlotValidationFailure,
@@ -16,11 +19,18 @@ class SlotValidator(BaseBusinessService):
     """Validate required runner/notifier ids resolve to implemented backends."""
 
     @inject
-    def __init__(self, adapter_registry: AdapterRegistry) -> None:
+    def __init__(
+        self,
+        adapter_registry: AdapterRegistry,
+        postgres_service: PostgresService,
+        catalogue_repository: PlatformAgentCatalogueRepository,
+    ) -> None:
         super().__init__()
         self._registry = adapter_registry
+        self._postgres_service = postgres_service
+        self._catalogue_repository = catalogue_repository
 
-    def validate_for_run(
+    async def validate_for_run(
         self,
         runner_ids: list[str],
         notifier_id: str,
@@ -31,7 +41,8 @@ class SlotValidator(BaseBusinessService):
         """Return ok or structured failures for any unimplemented required slot.
 
         Unused registered stubs are ignored when not present in runner_ids /
-        notifier_id.
+        notifier_id. Cursor credential comes from the platform agent catalogue
+        only — never CursorAgentSettings/env (REQ-26 / REQ-41).
         """
         failures: list[SlotValidationFailure] = []
         key_map = runner_config_keys or {}
@@ -43,7 +54,7 @@ class SlotValidator(BaseBusinessService):
             seen_runners.add(runner_id)
             config_key = key_map.get(runner_id, "runner.default")
             failures.extend(
-                self._check_adapter(
+                await self._check_adapter(
                     adapter_id=runner_id,
                     expected_kind=AdapterSlotKindType.RUNNER,
                     config_key=config_key,
@@ -51,7 +62,7 @@ class SlotValidator(BaseBusinessService):
             )
 
         failures.extend(
-            self._check_adapter(
+            await self._check_adapter(
                 adapter_id=notifier_id,
                 expected_kind=AdapterSlotKindType.NOTIFIER,
                 config_key=notifier_config_key,
@@ -67,7 +78,7 @@ class SlotValidator(BaseBusinessService):
             )
         return SlotValidationResult(ok=ok, failures=failures)
 
-    def _check_adapter(
+    async def _check_adapter(
         self,
         adapter_id: str,
         expected_kind: AdapterSlotKindType,
@@ -104,22 +115,21 @@ class SlotValidator(BaseBusinessService):
                     reason=f"Required adapter {adapter_id!r} is a stub (not implemented)",
                 )
             ]
-        if (
-            expected_kind == AdapterSlotKindType.RUNNER
-            and adapter_id == "cursor"
-            and not CursorAgentSettings.get_instance().has_api_key()
-        ):
-            return [
-                SlotValidationFailure(
-                    slot_kind=expected_kind,
-                    adapter_id=adapter_id,
-                    config_key="CURSOR_API_KEY",
-                    reason=(
-                        "Required runner 'cursor' needs CURSOR_API_KEY "
-                        "(env-backed CursorAgentSettings; never programme.yaml)"
-                    ),
-                )
-            ]
+        if expected_kind == AdapterSlotKindType.RUNNER and adapter_id == "cursor":
+            async with self._postgres_service.transaction() as session:
+                credential = await self._catalogue_repository.get_credential(session, "cursor")
+            if credential is None or not credential.strip():
+                return [
+                    SlotValidationFailure(
+                        slot_kind=expected_kind,
+                        adapter_id=adapter_id,
+                        config_key="platform_agent_catalogue",
+                        reason=(
+                            "Required runner 'cursor' needs a provisioned catalogue "
+                            "credential (never CURSOR_API_KEY / CursorAgentSettings)"
+                        ),
+                    )
+                ]
         return []
 
 

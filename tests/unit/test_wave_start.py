@@ -26,6 +26,7 @@ from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.board_models import BoardTicketResource
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.wave_start_models import ImplementWaveStartRequest, SpecWaveStartRequest
 
 
@@ -93,6 +94,23 @@ def _meta_accept() -> MetaPrAcceptResult:
     )
 
 
+def _slot_validator(registry: AdapterRegistry) -> SlotValidator:
+    postgres = MagicMock()
+    catalogue = MagicMock()
+    catalogue.get_credential = AsyncMock(return_value="catalogue-cursor-key")
+
+    @asynccontextmanager
+    async def txn():
+        yield MagicMock()
+
+    postgres.transaction = txn
+    return SlotValidator(
+        adapter_registry=registry,
+        postgres_service=postgres,
+        catalogue_repository=catalogue,
+    )
+
+
 def _service(
     *,
     active: RunModel | None = None,
@@ -113,6 +131,7 @@ def _service(
     run_repo.find_active_run = AsyncMock(return_value=active)
     run_repo.create_run = AsyncMock(
         return_value=RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -125,6 +144,7 @@ def _service(
     )
     run_repo.update_run = AsyncMock(
         side_effect=lambda _s, _id, update: RunModel(
+            tenant_id=uuid4(),
             id=run_id,
             org="acme",
             repo="widget",
@@ -152,7 +172,7 @@ def _service(
     registry.register("opencode", AdapterSlotKindType.RUNNER, implemented=False)
     registry.register("github_comment", AdapterSlotKindType.NOTIFIER, implemented=True)
     registry.register("slack", AdapterSlotKindType.NOTIFIER, implemented=False)
-    validator = SlotValidator(adapter_registry=registry)
+    validator = _slot_validator(registry)
     workflow_engine = WorkflowEngine()
     workflow_engine.load_pin()
     metrics_emitter = MagicMock()
@@ -196,7 +216,15 @@ def _service(
         forge_client=MagicMock(),
         board_service=board,
         tenant_service=MagicMock(
-            get_workspace_credential_for_repo=AsyncMock(return_value=None),
+            get_workspace_credential_for_repo=AsyncMock(
+                return_value=TenantWorkspaceCredential(
+                    tenant_id=uuid4(),
+                    workspace_root="/tmp/gateflow-unit-ws",
+                    pat="ghp_test_pat_for_unit",
+                    org="acme",
+                    repo="widget",
+                )
+            ),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
             get_readiness_source=AsyncMock(return_value=None),
@@ -365,21 +393,21 @@ async def test_implement_stub_notifier_422(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_implement_missing_cursor_api_key_422(
+async def test_implement_missing_catalogue_credential_422(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("CURSOR_API_KEY", "")
-    CursorAgentSettings.reset_instance()
     service = _service()
+    service._slot_validator._catalogue_repository.get_credential = AsyncMock(return_value=None)
     with pytest.raises(UnprocessableEntityError) as exc_info:
         await service.start_implement_wave(_implement_req())
     failures = exc_info.value.details.get("failures", [])
-    assert any(f.get("config_key") == "CURSOR_API_KEY" for f in failures)
+    assert any(f.get("config_key") == "platform_agent_catalogue" for f in failures)
 
 
 @pytest.mark.asyncio
 async def test_implement_concurrent_409() -> None:
     active = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",
@@ -471,6 +499,7 @@ async def test_spec_rejects_manual_start_node(tmp_path: Path) -> None:
 async def test_implement_omitted_path_unregistered_422_zero_enqueue() -> None:
     """REQ-15: omitted workspace_path + unregistered org/repo → 422; 0 enqueue."""
     service = _service()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(return_value=None)
     with pytest.raises(UnprocessableEntityError, match="not Tenant-registered"):
         await service.start_implement_wave(_implement_req(workspace_path=None))
     enqueue = service._job_repository.enqueue

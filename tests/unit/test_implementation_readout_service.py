@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -36,6 +36,7 @@ def _run(
     handoff_path: str | None = None,
 ) -> RunModel:
     return RunModel(
+        tenant_id=uuid4(),
         id=run_id,
         org="acme",
         repo="widget",

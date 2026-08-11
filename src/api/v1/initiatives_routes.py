@@ -4,7 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.api.v1.programme_token import verify_programme_service_token
+from src.common.auth.dependencies import require_role
+from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 from src.business_services.closure_preview_service import (
     ClosurePreviewService,
     get_closure_preview_service,
@@ -61,7 +63,7 @@ router = APIRouter()
 )
 async def start_initiative_closure(
     body: ClosureStartRequest,
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: ClosureStartService = Depends(get_closure_start_service),
 ) -> ClosureStartResponse:
     """Enqueue initiative-closure: Done-gate, EPIC Done, fixed Enter-at purge-app."""
@@ -72,7 +74,7 @@ async def start_initiative_closure(
 async def list_initiatives(
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: InitiativeReadoutService = Depends(get_initiative_readout_service),
     limit: Annotated[int, Query(ge=1, le=200, description="Max initiatives to return")] = 50,
     skip: Annotated[int, Query(ge=0, description="Initiatives to skip")] = 0,
@@ -90,7 +92,7 @@ async def get_initiative(
     initiative_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: InitiativeReadoutService = Depends(get_initiative_readout_service),
 ) -> InitiativeReadout:
     """Detail for one initiative composed from Gateflow-owned data (runs + board EPIC).
@@ -108,7 +110,7 @@ async def get_initiative_waves(
     initiative_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the Feature tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the Feature tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: WaveMapService = Depends(get_wave_map_service),
 ) -> WaveMapResult:
     """Per-wave status map from board Feature tickets + runs (CAP-05).
@@ -128,7 +130,7 @@ async def get_wave_implementation(
     wave_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: ImplementationReadoutService = Depends(get_implementation_readout_service),
 ) -> ImplementationReadoutResult:
     """Wave implement-lane progress from run timeline (CAP-06).
@@ -148,7 +150,7 @@ async def get_wave_closeout(
     wave_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: CloseoutReadoutService = Depends(get_closeout_readout_service),
 ) -> CloseoutReadoutResult:
     """Wave closeout additions + advisory drift (CAP-07).
@@ -168,7 +170,7 @@ async def get_wave_merge(
     wave_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: MergeReadoutService = Depends(get_merge_readout_service),
 ) -> MergeReadoutResult:
     """Wave merge confirm via CAP-01 wave-signoff (CAP-08).
@@ -187,7 +189,7 @@ async def get_initiative_completion(
     initiative_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the Feature tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the Feature tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: CompletionReadoutService = Depends(get_completion_readout_service),
 ) -> CompletionReadoutResult:
     """Completion eligibility as CAP-05 wave-map rollup (CAP-09).
@@ -206,7 +208,7 @@ async def get_initiative_closure_preview(
     initiative_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: ClosurePreviewService = Depends(get_closure_preview_service),
 ) -> ClosurePreviewResult:
     """Closure preview from purge skill plan + CAP-01 signoffs (CAP-10).
@@ -225,7 +227,7 @@ async def get_initiative_spec(
     initiative_id: str,
     org: Annotated[str, Query(description="Forge org whose board holds the EPIC tickets")],
     repo: Annotated[str, Query(description="Forge repo whose board holds the EPIC tickets")],
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: SpecReadoutService = Depends(get_spec_readout_service),
 ) -> SpecReadoutResult:
     """Spec-lane readout from pin + run state (CAP-04).

@@ -7,7 +7,7 @@ from src.configs.github_settings import GithubSettings
 from src.database.postgres.connection_manager import PostgresConnectionManager
 from src.database.redis.connection_manager import RedisConnectionManager
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClient, ForgeClientFactory
 from src.infra_services.github_pat_probe import GithubPatProbe
 from src.infra_services.github_token_provider import (
     AppInstallationTokenProvider,
@@ -39,6 +39,7 @@ class InfraModule(Module):
         binder.bind(RedisService, to=RedisService, scope=singleton)
         binder.bind(TelemetryService, scope=singleton)
         binder.bind(ForgeClient, to=ForgeClient, scope=singleton)
+        binder.bind(ForgeClientFactory, to=ForgeClientFactory, scope=singleton)
         binder.bind(GithubPatProbe, to=GithubPatProbe, scope=singleton)
         binder.bind(TenantGitWorkspaceClient, to=TenantGitWorkspaceClient, scope=singleton)
         binder.bind(LaunchpadClient, to=LaunchpadClient, scope=singleton)

@@ -3,14 +3,18 @@
 import base64
 from pathlib import Path, PurePosixPath
 from typing import Any, NamedTuple, Optional, Sequence
+from uuid import UUID
 
 import httpx
 from injector import inject
 
 from src.configs.app_settings import AppSettings, Environment
 from src.configs.github_settings import GithubSettings
+from src.database.postgres.repository.programme_repository import ProgrammeRepository
+from src.exceptions.app_exceptions import NotFoundError, UnprocessableEntityError
 from src.infra_services.base_infra_service import BaseInfraService
-from src.infra_services.github_token_provider import GithubTokenProvider
+from src.infra_services.github_token_provider import GithubTokenProvider, ProgrammePatTokenProvider
+from src.infra_services.postgres_service import PostgresService
 from src.logging import get_logger
 from src.models.forge_models import CommitPathsResult
 from src.models.meta_pr_models import (
@@ -1156,7 +1160,49 @@ class ForgeClient(BaseInfraService):
         )
 
 
+class ForgeClientFactory:
+    """Per-programme ForgeClient construction (ADR-015 Option C / TDD §3.5)."""
+
+    @inject
+    def __init__(
+        self,
+        postgres_service: PostgresService,
+        programme_repository: ProgrammeRepository,
+    ) -> None:
+        self._postgres_service = postgres_service
+        self._programme_repository = programme_repository
+
+    def for_pat(self, pat: str) -> ForgeClient:
+        """Construct an uninitialized ForgeClient bound to the given Programme PAT."""
+        return ForgeClient(token_provider=ProgrammePatTokenProvider(pat))
+
+    async def for_programme(self, programme_id: UUID) -> ForgeClient:
+        """Load Programme PAT and return an initialized ForgeClient for that credential."""
+        async with self._postgres_service.transaction() as session:
+            programme = await self._programme_repository.get_by_id(session, programme_id)
+            if programme is None:
+                raise NotFoundError(resource_type="programme", resource_id=programme_id)
+            pat = await self._programme_repository.get_pat(session, programme_id)
+        if pat is None or not pat.strip():
+            raise UnprocessableEntityError(
+                message="Programme has no usable GitHub PAT",
+                details={
+                    "reason": "programme_pat_missing",
+                    "programme_id": str(programme_id),
+                },
+            )
+        client = self.for_pat(pat)
+        await client.initialize()
+        return client
+
+
 def get_forge_client() -> ForgeClient:
     from src.di.dependency_container import provide_service
 
     return provide_service(ForgeClient)
+
+
+def get_forge_client_factory() -> ForgeClientFactory:
+    from src.di.dependency_container import provide_service
+
+    return provide_service(ForgeClientFactory)

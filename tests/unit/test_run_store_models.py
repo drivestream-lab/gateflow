@@ -44,7 +44,7 @@ def test_webhook_delivery_create_shape() -> None:
 
 
 def test_run_create_defaults() -> None:
-    create = RunCreate(org="drivestream-lab", repo="gateflow")
+    create = RunCreate(org="drivestream-lab", repo="gateflow", tenant_id=__import__("uuid").uuid4())
     assert create.status_type == RunStatusType.ACTIVE
     assert create.retry_counter == 0
     assert create.notify_pending is False

@@ -26,6 +26,9 @@ from src.business_services.trigger_router import TriggerRouter
 from src.business_services.workflow_engine import WorkflowEngine
 from src.business_services.workspace_commit_paths import collect_commit_paths
 from src.configs.orchestration_settings import OrchestrationSettings
+from src.database.postgres.repository.platform_agent_catalogue_repository import (
+    PlatformAgentCatalogueRepository,
+)
 from src.database.postgres.repository.run_store_repository import (
     RunEventRepository,
     RunRepository,
@@ -108,6 +111,7 @@ class RunOrchestrator(BaseBusinessService):
         learning_ingest_service: LearningIngestService,
         tenant_service: TenantService,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
+        catalogue_repository: PlatformAgentCatalogueRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -129,6 +133,7 @@ class RunOrchestrator(BaseBusinessService):
         self._prompt_resolver = prompt_resolver
         self._tenant_service = tenant_service
         self._tenant_git_workspace_client = tenant_git_workspace_client
+        self._catalogue_repository = catalogue_repository
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def process_job(self, job: JobModel) -> RunProcessSummary:
@@ -184,6 +189,11 @@ class RunOrchestrator(BaseBusinessService):
                     RunCreate(
                         org=context.org,
                         repo=context.repo,
+                        tenant_id=(
+                            await self._require_tenant_id_for_repo(
+                                org=context.org, repo=context.repo
+                            )
+                        ),
                         status_type=RunStatusType.ACTIVE,
                         pr_number=context.pr_number,
                         issue_number=context.issue_number,
@@ -836,6 +846,11 @@ class RunOrchestrator(BaseBusinessService):
                 "duration_ms": duration_ms,
             }
 
+        catalogue_credential: Optional[str] = None
+        if resolved.runner == "cursor":
+            catalogue_credential = await self._catalogue_repository.get_credential(
+                session, "cursor"
+            )
         t0 = time.monotonic()
         agent_result = await self._cursor_agent_runner.run_skill(
             workspace_path=workspace_path,
@@ -846,6 +861,7 @@ class RunOrchestrator(BaseBusinessService):
             runner=resolved.runner,
             model_id=resolved.model_id,
             model_provider=resolved.model_provider,
+            credential=catalogue_credential,
         )
         duration_ms = int((time.monotonic() - t0) * 1000)
 
@@ -929,6 +945,17 @@ class RunOrchestrator(BaseBusinessService):
             )
         resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
         return resolved.path, True
+
+    async def _require_tenant_id_for_repo(self, *, org: str, repo: str) -> UUID:
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org, repo=repo
+        )
+        if credential is None:
+            raise UnprocessableEntityError(
+                message="No tenant registration for org/repo — cannot attribute run",
+                details={"org": org, "repo": repo, "reason": "tenant_not_registered"},
+            )
+        return credential.tenant_id
 
     async def _ensure_harness_ready(
         self,

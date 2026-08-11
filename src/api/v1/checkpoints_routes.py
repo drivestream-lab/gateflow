@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, Depends, Query
 
-from src.api.v1.programme_token import verify_programme_service_token
+from src.common.auth.dependencies import require_role
+from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 from src.business_services.checkpoint_evidence_service import (
     CheckpointEvidenceService,
     get_checkpoint_evidence_service,
@@ -48,7 +50,7 @@ async def get_checkpoint_status(
     wave_id: str | None = Query(
         default=None, description="Wave id (composed ref — resolves PR from run)"
     ),
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: CheckpointEvidenceService = Depends(get_checkpoint_evidence_service),
 ) -> CheckpointStatusResult:
     """Live CAP-01 status-check — read-only; never mutates GitHub or board.
@@ -83,7 +85,7 @@ async def get_checkpoint_history(
     checkpoint_id: str | None = Query(default=None, description="Optional filter by checkpoint id"),
     limit: int = Query(default=50, ge=1, le=200, description="Max records to return"),
     skip: int = Query(default=0, ge=0, description="Records to skip"),
-    _: None = Depends(verify_programme_service_token),
+    _auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
     service: CheckpointEvidenceService = Depends(get_checkpoint_evidence_service),
 ) -> CheckpointHistoryResult:
     """Historical ``checkpoint_check`` records — never a live verdict (REQ-07)."""

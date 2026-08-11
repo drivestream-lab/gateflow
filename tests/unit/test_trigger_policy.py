@@ -41,6 +41,7 @@ async def test_label_wave_start_disabled() -> None:
 @pytest.mark.asyncio
 async def test_api_trigger_concurrent_active_run_rejected() -> None:
     active = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="acme",
         repo="widget",

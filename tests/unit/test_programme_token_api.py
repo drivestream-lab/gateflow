@@ -1,17 +1,42 @@
-"""Unit tests for programme-token status/metrics API routes."""
+"""Unit tests for JWT-cutover status/metrics API routes (INIT-GATEFLOW-014 W2)."""
 
-import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from jose import jwt
 
 from src.app import create_app
 from src.configs.base_settings import BaseSettings
 from src.di.dependency_container import configure_container, reset_container
 from src.models.control_plane_models import RunMetricsResponse, RunStatusResponse
+from src.models.role_types import RoleType
+
+_SECRET = "test-secret-key-for-ci-only"
+_ISSUER = "gateflow"
+_AUDIENCE = "drivestream"
+
+
+def _mint_jwt(
+    *,
+    role: str = RoleType.TENANT_ADMIN.value,
+    tenant_id: Optional[str] = None,
+) -> str:
+    now = datetime.now(tz=UTC)
+    payload: dict[str, Any] = {
+        "sub": str(uuid4()),
+        "role": role,
+        "iss": _ISSUER,
+        "aud": _AUDIENCE,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=1)).timestamp()),
+    }
+    if tenant_id is not None:
+        payload["tenant_id"] = tenant_id
+    return jwt.encode(payload, _SECRET, algorithm="HS256")
 
 
 @pytest.fixture
@@ -20,8 +45,8 @@ def programme_client(
     mock_redis_service: MagicMock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> TestClient:
-    os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
     BaseSettings._instances.pop("ProgrammeAuthSettings", None)
+    BaseSettings._instances.pop("JWTSettings", None)
 
     reset_container()
     metrics_emitter = MagicMock()
@@ -66,11 +91,22 @@ def test_runs_api_401_without_token(programme_client: TestClient) -> None:
     assert response.status_code == 401
 
 
-def test_runs_api_200_with_programme_token(programme_client: TestClient) -> None:
+def test_runs_api_401_with_old_programme_token(programme_client: TestClient) -> None:
+    """REQ-32: programme service token refused after JWT cutover."""
     run_id = uuid4()
     response = programme_client.get(
         f"/api/v1/runs/{run_id}",
         headers={"Authorization": "Bearer test-programme-token"},
+    )
+    assert response.status_code == 401
+
+
+def test_runs_api_200_with_tenant_admin_jwt(programme_client: TestClient) -> None:
+    run_id = uuid4()
+    token = _mint_jwt(tenant_id=str(uuid4()))
+    response = programme_client.get(
+        f"/api/v1/runs/{run_id}",
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -83,11 +119,30 @@ def test_metrics_api_401_without_token(programme_client: TestClient) -> None:
     assert response.status_code == 401
 
 
-def test_metrics_api_200_with_programme_token(programme_client: TestClient) -> None:
+def test_metrics_api_401_with_old_programme_token(programme_client: TestClient) -> None:
     response = programme_client.get(
         "/api/v1/metrics/runs",
         headers={"Authorization": "Bearer test-programme-token"},
     )
+    assert response.status_code == 401
+
+
+def test_metrics_api_200_with_tenant_admin_jwt(programme_client: TestClient) -> None:
+    token = _mint_jwt(tenant_id=str(uuid4()))
+    response = programme_client.get(
+        "/api/v1/metrics/runs",
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["retention_days"] == 90
+
+
+def test_metrics_api_403_with_platform_admin_jwt(programme_client: TestClient) -> None:
+    """REQ-30: platform_admin cannot call tenant-only control-plane routes."""
+    token = _mint_jwt(role=RoleType.PLATFORM_ADMIN.value)
+    response = programme_client.get(
+        "/api/v1/metrics/runs",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403

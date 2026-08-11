@@ -293,6 +293,7 @@ async def test_deselect_removes_membership(tenant_id, resolved) -> None:
 async def test_deselect_blocked_by_active_run(tenant_id, resolved) -> None:
     existing = [TenantRepoRef(org="drivestream-lab", repo="gateflow")]
     run = RunModel(
+        tenant_id=uuid4(),
         id=uuid4(),
         org="drivestream-lab",
         repo="gateflow",

@@ -513,7 +513,7 @@ class WaveStartService(BaseBusinessService):
                 ) from exc
 
         dispatch_plan = request.build_dispatch_plan()
-        slot_result = self._slot_validator.validate_for_run(
+        slot_result = await self._slot_validator.validate_for_run(
             runner_ids=[request.runner],
             notifier_id=self._orchestration.notifier,
             runner_config_keys={request.runner: "runner"},
@@ -559,6 +559,11 @@ class WaveStartService(BaseBusinessService):
                     RunCreate(
                         org=request.org,
                         repo=request.repo,
+                        tenant_id=(
+                            await self._require_tenant_id_for_repo(
+                                org=request.org, repo=request.repo
+                            )
+                        ),
                         status_type=RunStatusType.ACTIVE,
                         pr_number=request.pr_number,
                         issue_number=issue_number,
@@ -744,6 +749,18 @@ class WaveStartService(BaseBusinessService):
                 ticket_id=board_ticket_id,
                 column=existing.column,
             )
+
+    async def _require_tenant_id_for_repo(self, *, org: str, repo: str) -> UUID:
+        """Resolve tenant_id for RunSchema attribution (ADR-016)."""
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org, repo=repo
+        )
+        if credential is None:
+            raise UnprocessableEntityError(
+                message="No tenant registration for org/repo — cannot attribute run",
+                details={"org": org, "repo": repo, "reason": "tenant_not_registered"},
+            )
+        return credential.tenant_id
 
 
 def get_wave_start_service() -> WaveStartService:
