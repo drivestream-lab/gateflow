@@ -6,9 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from src.api.v1.tenant_token import verify_tenant_bearer_token
-from src.business_services.programme_onboarding_service import (
-    ProgrammeOnboardingService,
-    get_programme_onboarding_service,
+from src.business_services.catalogue_connection_service import (
+    CatalogueConnectionService,
+    get_catalogue_connection_service,
 )
 from src.models.programme_catalogue_models import ProgrammeCatalogueResponse
 from src.models.programme_connection_models import (
@@ -37,7 +37,7 @@ async def connect_programme(
     tenant_id: UUID,
     body: ProgrammeConnectRequest,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeConnectResponse:
     """Connect (or re-sync) the tenant's single programme meta checkout."""
     return await service.connect_programme(tenant_id, body, resolved=resolved)
@@ -47,7 +47,7 @@ async def connect_programme(
 async def get_programme_connection(
     tenant_id: UUID,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeConnectionReadModel:
     return await service.get_connection(tenant_id, resolved=resolved)
 
@@ -56,7 +56,7 @@ async def get_programme_connection(
 async def get_programme_catalogue(
     tenant_id: UUID,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeCatalogueResponse:
     return await service.get_catalogue(tenant_id, resolved=resolved)
 
@@ -69,7 +69,7 @@ async def get_programme_catalogue(
 async def refresh_programme_catalogue(
     tenant_id: UUID,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeCatalogueRefreshResponse:
     """Re-sync programme meta; selections and readiness answers stay unchanged (REQ-24/25)."""
     return await service.refresh_catalogue(tenant_id, resolved=resolved)
@@ -80,7 +80,7 @@ async def select_programme_repos(
     tenant_id: UUID,
     body: ProgrammeSelectRequest,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeSelectResponse:
     """Admit catalogue-gated repos onto the tenant active list (PAT probe on new)."""
     return await service.select_repos(tenant_id, body, resolved=resolved)
@@ -95,7 +95,7 @@ async def refresh_programme_repo_readiness(
     tenant_id: UUID,
     body: ProgrammeReadinessRefreshRequest,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeReadinessRefreshResponse:
     """On-demand Launchpad status refresh for status-sourced active repos (REQ-23)."""
     return await service.refresh_readiness(tenant_id, body, resolved=resolved)
@@ -106,7 +106,7 @@ async def deselect_programme_repo(
     tenant_id: UUID,
     body: ProgrammeDeselectRequest,
     resolved: Annotated[TenantResolvedContext, Depends(verify_tenant_bearer_token)],
-    service: ProgrammeOnboardingService = Depends(get_programme_onboarding_service),
+    service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeDeselectResponse:
     """Remove active-list membership; blocked when an ACTIVE run exists."""
     return await service.deselect_repo(tenant_id, body, resolved=resolved)

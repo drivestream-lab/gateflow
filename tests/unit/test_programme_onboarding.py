@@ -1,4 +1,4 @@
-"""Unit tests for ProgrammeOnboardingService (INIT-GATEFLOW-013 W0)."""
+"""Unit tests for CatalogueConnectionService (INIT-GATEFLOW-013 W0)."""
 
 from datetime import datetime, UTC
 from pathlib import Path
@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.business_services.programme_onboarding_service import ProgrammeOnboardingService
+from src.business_services.catalogue_connection_service import CatalogueConnectionService
 from src.engine.catalogue_parser import CatalogueParseError
 from src.exceptions.app_exceptions import UnauthorizedError, UnprocessableEntityError
 from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
@@ -84,7 +84,7 @@ def _service(
     probe.verify_read_access = AsyncMock(return_value=MagicMock(ok=True, reason=None))
     run_repo = MagicMock()
     run_repo.find_active_run = AsyncMock(return_value=None)
-    svc = ProgrammeOnboardingService(
+    svc = CatalogueConnectionService(
         postgres_service=postgres,
         tenant_repository=repo,
         tenant_git_workspace_client=git,
@@ -167,7 +167,7 @@ async def test_catalogue_parse_failure_named(
         raise CatalogueParseError("bad", reason="service_catalog_malformed")
 
     monkeypatch.setattr(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         boom,
     )
     with pytest.raises(UnprocessableEntityError) as exc:
@@ -186,7 +186,7 @@ async def test_catalogue_happy(tenant_id, resolved, monkeypatch, tmp_path: Path)
     )
     svc, _, _ = _service(auth=(str(tmp_path), "ghp_x"), connection=conn)
     monkeypatch.setattr(
-        "src.business_services.programme_onboarding_service.parse_candidates",
+        "src.business_services.catalogue_connection_service.parse_candidates",
         lambda *_a, **_k: [
             CatalogueCandidate(
                 org="drivestream-lab",

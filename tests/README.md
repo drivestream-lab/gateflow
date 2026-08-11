@@ -61,6 +61,8 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
 # .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
+# .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 Programme onboard/attach
+# .venv/bin/python -m tests.verify.verify_agent_catalogue      # INIT-014 W1 agent catalogue
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -621,6 +623,16 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Claim shape round-trip | `verify_jwt_login` | `test_auth_middleware` (-k claim_shape) |
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured).
+
+## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
+
+| Capability | Verify | Pytest |
+|------------|--------|--------|
+| Validate-then-create + list + role gate | `verify_programme_onboarding` | `test_programme_service`, `test_programme_admin_routes` |
+| Attach tenant_admin (incl. unknown / idempotent) | `verify_programme_onboarding` | `test_programme_service` (-k attach) |
+| Provision + effective runner | `verify_agent_catalogue` | `test_platform_agent_catalogue_service` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_onboarding` then `.venv/bin/python -m tests.verify.verify_agent_catalogue` (API up; human DDL — `DDL-NOTE-INIT-GATEFLOW-014-W1-programmes-agent-catalogue.md`; `GATEFLOW_PROGRAMME_PAT`; JWT seed/login). Distinct from INIT-013 `verify_programme_connect` (meta-catalogue connection).
 
 ## Feature map (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 

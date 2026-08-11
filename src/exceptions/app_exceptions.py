@@ -78,6 +78,22 @@ class UnauthorizedError(BaseAppException):
         )
 
 
+class ForbiddenError(BaseAppException):
+    """Exception raised when the caller is authenticated but not allowed."""
+
+    def __init__(
+        self,
+        message: str = "Forbidden",
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            code="FORBIDDEN",
+            message=message,
+            status_code=403,
+            details=details or {},
+        )
+
+
 class ServiceUnavailableError(BaseAppException):
     """Exception raised when a service is unavailable."""
 

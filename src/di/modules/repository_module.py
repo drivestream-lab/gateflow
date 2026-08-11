@@ -3,6 +3,10 @@
 from injector import Module, provider, singleton
 
 from src.database.postgres.repository.learning_repository import LearningRepository
+from src.database.postgres.repository.platform_agent_catalogue_repository import (
+    PlatformAgentCatalogueRepository,
+)
+from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import (
     JobRepository,
     RunEventRepository,
@@ -61,3 +65,19 @@ class RepositoryModule(Module):
         self, postgres_service: PostgresService
     ) -> UserIdentityRepository:
         return UserIdentityRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_programme_repository(
+        self, postgres_service: PostgresService
+    ) -> ProgrammeRepository:
+        return ProgrammeRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_platform_agent_catalogue_repository(
+        self, postgres_service: PostgresService
+    ) -> PlatformAgentCatalogueRepository:
+        return PlatformAgentCatalogueRepository(
+            session_factory=postgres_service.get_session_factory()
+        )
