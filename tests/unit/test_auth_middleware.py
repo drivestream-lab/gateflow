@@ -17,11 +17,12 @@ from src.common.auth.config import AuthConfig
 from src.common.auth.middleware import AuthMiddleware
 from src.models.auth_models import AuthContext
 from src.models.role_types import RoleType
+from tests._helpers.jwt_test_token import JWT_PRIVATE_KEY_PATH, JWT_PUBLIC_KEY_PATH
 
-_SECRET = "test-secret-key-for-ci-only"
 _ISSUER = "gateflow"
 _AUDIENCE = "drivestream"
-_ALG = "HS256"
+_ALG = "RS256"
+_PRIVATE_PEM = JWT_PRIVATE_KEY_PATH.read_text(encoding="utf-8")
 
 
 def _mint(
@@ -48,23 +49,27 @@ def _mint(
         payload["tenant_id"] = tenant_id
     if extra:
         payload.update(extra)
-    return jwt.encode(payload, _SECRET, algorithm=_ALG)
+    return jwt.encode(payload, _PRIVATE_PEM, algorithm=_ALG)
 
 
 async def _ok(_request: Request) -> Response:
     return JSONResponse({"ok": True})
 
 
-def _client() -> TestClient:
-    app = Starlette(routes=[Route("/protected", _ok)])
-    config = AuthConfig(
-        secret_key=_SECRET,
+def _auth_config() -> AuthConfig:
+    return AuthConfig(
+        secret_key="unused-for-rs256",
         issuer=_ISSUER,
         audience=_AUDIENCE,
         public_paths=["/health"],
         algorithm=_ALG,
+        public_key_path=str(JWT_PUBLIC_KEY_PATH),
     )
-    app.add_middleware(AuthMiddleware, config=config)
+
+
+def _client() -> TestClient:
+    app = Starlette(routes=[Route("/protected", _ok)])
+    app.add_middleware(AuthMiddleware, config=_auth_config())
     return TestClient(app)
 
 
@@ -151,14 +156,7 @@ def test_claim_shape_platform_admin_round_trip() -> None:
         return JSONResponse({"ok": True})
 
     app = Starlette(routes=[Route("/protected", capture)])
-    config = AuthConfig(
-        secret_key=_SECRET,
-        issuer=_ISSUER,
-        audience=_AUDIENCE,
-        public_paths=["/health"],
-        algorithm=_ALG,
-    )
-    app.add_middleware(AuthMiddleware, config=config)
+    app.add_middleware(AuthMiddleware, config=_auth_config())
     client = TestClient(app)
     response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
@@ -185,14 +183,7 @@ def test_claim_shape_tenant_admin_with_tenant_id() -> None:
         return JSONResponse({"ok": True})
 
     app = Starlette(routes=[Route("/protected", capture)])
-    config = AuthConfig(
-        secret_key=_SECRET,
-        issuer=_ISSUER,
-        audience=_AUDIENCE,
-        public_paths=["/health"],
-        algorithm=_ALG,
-    )
-    app.add_middleware(AuthMiddleware, config=config)
+    app.add_middleware(AuthMiddleware, config=_auth_config())
     client = TestClient(app)
     response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
