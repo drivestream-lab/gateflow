@@ -1,6 +1,6 @@
 """Live verify: CAP-07 wave closeout readout + drift (INIT-GATEFLOW-011 W7).
 
-Requires running API and PROGRAMME_SERVICE_TOKEN. Reads org/repo from
+Requires running API and SMOKE_TENANT_ADMIN_TOKEN. Reads org/repo from
 tests/config.yaml.
 
 Covers (smoke only — unit owns field derivation):
@@ -25,6 +25,7 @@ import sys
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config
 
 
@@ -64,9 +65,10 @@ def _assert_closeout_shape(body: dict, label: str) -> int:
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_wave_closeout_readout")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     org = cfg.gateflow.org

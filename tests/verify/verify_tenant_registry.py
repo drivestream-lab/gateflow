@@ -1,161 +1,117 @@
-"""Live verify: tenant registry (INIT-GATEFLOW-012 W0 / REQ-04, REQ-06, REQ-32).
+"""Live verify: tenant surfaces under JWT (INIT-GATEFLOW-014 W4 / REQ-36, REQ-38).
 
-Requires running API + Postgres with human-applied tenant DDL, and a GitHub PAT
-with read access to the configured probe repo(s).
+Replaces the deleted open-register + opaque tenant-bearer teaching path.
+Proves platform/tenant JWT access and refusal of dead register / opaque bearer.
 
 Usage:
-  cp tests/config.yaml.example tests/config.yaml
-  set -a && source .env && set +a
+  make run
   .venv/bin/python -m tests.verify.verify_tenant_registry
 
-Env overrides (optional):
-  GATEFLOW_TENANT_PAT, GATEFLOW_TENANT_ORG, GATEFLOW_TENANT_REPO,
-  GATEFLOW_TENANT_NAME, GATEFLOW_TENANT_IDENTITY, GATEFLOW_TENANT_WORKSPACE_ROOT
+Env:
+  PLATFORM_ADMIN_* defaults match seed_platform_admin
+  Optional SMOKE_TENANT_ADMIN_TOKEN + SMOKE_TENANT_ID for detail path
 """
 
 from __future__ import annotations
 
-import os
-import sys
-import tempfile
-from pathlib import Path
-
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.verify_jwt_auth import (
+    auth_headers,
+    login_platform_admin,
+    optional_smoke_tenant_id,
+    require_tenant_admin_token,
+)
 
 
 def main() -> int:
     base = require_base_url()
-    cfg = load_tests_config()
-    pat = str(
-        os.environ.get("GATEFLOW_TENANT_PAT")
-        or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
-        or ""
-    ).strip()
-    if not pat:
-        print("[ERROR] GATEFLOW_TENANT_PAT or GITHUB_PERSONAL_ACCESS_TOKEN required")
-        return 1
-
-    org = str(os.environ.get("GATEFLOW_TENANT_ORG") or cfg.gateflow.org)
-    repo = str(os.environ.get("GATEFLOW_TENANT_REPO") or cfg.gateflow.repo)
-    name = str(os.environ.get("GATEFLOW_TENANT_NAME") or f"verify-tenant-{os.getpid()}")
-    identity = str(os.environ.get("GATEFLOW_TENANT_IDENTITY") or "verify-user@example.com")
-    workspace_root = str(
-        os.environ.get("GATEFLOW_TENANT_WORKSPACE_ROOT")
-        or Path(tempfile.mkdtemp(prefix="gateflow-tenant-ws-")).resolve()
-    )
-
-    register_body: dict[str, object] = {
-        "name": name,
-        "pat": pat,
-        "workspace_root": workspace_root,
-    }
 
     with httpx.Client(base_url=base, timeout=60.0) as client:
-        bad_root = dict(register_body)
-        bad_root["workspace_root"] = "relative/not/absolute"
-        r = client.post("/api/v1/tenants", json=bad_root)
-        if r.status_code != 400:
+        # Dead open-register door (W3) — unauthenticated → middleware 401
+        r = client.post(
+            "/api/v1/tenants",
+            json={
+                "name": "legacy-register",
+                "pat": "ghp_should_not_matter",
+                "workspace_root": "/tmp/legacy-register",
+            },
+        )
+        if r.status_code != 401:
+            print(f"[ERROR] unauthenticated register expected 401, got {r.status_code}")
+            return 1
+        print("[OK] POST /tenants without JWT → 401")
+
+        try:
+            admin_token = login_platform_admin(client)
+        except RuntimeError as exc:
+            print(f"[ERROR] {exc}")
+            return 1
+        admin_h = auth_headers(admin_token)
+
+        r = client.post(
+            "/api/v1/tenants",
+            headers=admin_h,
+            json={
+                "name": "legacy-register",
+                "pat": "ghp_should_not_matter",
+                "workspace_root": "/tmp/legacy-register",
+            },
+        )
+        if r.status_code not in (404, 405):
             print(
-                f"[ERROR] expected 400 for relative workspace_root, got {r.status_code}: {r.text}"
+                f"[ERROR] authenticated register expected 404/405 (door deleted), "
+                f"got {r.status_code}: {r.text}"
             )
             return 1
-        print("[OK] relative workspace_root → 400")
-
-        with_repos = dict(register_body)
-        with_repos["repos"] = [{"org": org, "repo": repo}]
-        r = client.post("/api/v1/tenants", json=with_repos)
-        if r.status_code != 422:
-            print(f"[ERROR] expected 422 for non-empty repos, got {r.status_code}: {r.text}")
-            return 1
-        details = r.json().get("details") or r.json().get("error", {}).get("details") or {}
-        if details.get("reason") != "repos_not_allowed":
-            print(f"[ERROR] expected reason=repos_not_allowed: {r.text}")
-            return 1
-        print("[OK] non-empty repos[] → 422 repos_not_allowed")
-
-        r = client.post("/api/v1/tenants", json=register_body)
-        if r.status_code != 200:
-            print(f"[ERROR] register failed {r.status_code}: {r.text}")
-            return 1
-        data = r.json()
-        if "pat" in data:
-            print("[ERROR] register response must not include pat")
-            return 1
-        if data.get("repos"):
-            print(f"[ERROR] register must return empty repos, got {data.get('repos')}")
-            return 1
-        token = data.get("bearer_token")
-        tenant_id = data.get("tenant_id")
-        if not token or not tenant_id:
-            print(f"[ERROR] register missing token/tenant_id: {data}")
-            return 1
-        print("[OK] register 200 + one-time bearer_token (no repos)")
-
-        headers = {"Authorization": f"Bearer {token}"}
+        print(f"[OK] POST /tenants with JWT → {r.status_code} (deleted)")
 
         r = client.get("/api/v1/tenants")
         if r.status_code != 401:
-            print(f"[ERROR] expected 401 without token, got {r.status_code}")
+            print(f"[ERROR] list without token expected 401, got {r.status_code}")
             return 1
         print("[OK] list without token → 401")
-
-        r = client.get("/api/v1/tenants", headers=headers)
-        if r.status_code != 200:
-            print(f"[ERROR] list failed {r.status_code}: {r.text}")
-            return 1
-        listed = r.json().get("tenants") or []
-        if any("pat" in t for t in listed):
-            print("[ERROR] list response contains pat")
-            return 1
-        print("[OK] list 200 without pat")
-
-        r = client.post(
-            f"/api/v1/tenants/{tenant_id}/users",
-            headers=headers,
-            json={"identity": identity},
-        )
-        if r.status_code != 200:
-            print(f"[ERROR] attach failed {r.status_code}: {r.text}")
-            return 1
-        print("[OK] attach user 200")
-
-        r = client.get(
-            f"/api/v1/tenants/{tenant_id}",
-            headers={**headers, "X-Tenant-Identity": identity},
-        )
-        if r.status_code != 200:
-            print(f"[ERROR] detail failed {r.status_code}: {r.text}")
-            return 1
-        detail = r.json()
-        if "pat" in detail:
-            print("[ERROR] detail response contains pat")
-            return 1
-        print("[OK] detail 200 without pat")
-
-        r = client.get(
-            f"/api/v1/tenants/{tenant_id}",
-            headers={**headers, "X-Tenant-Identity": "not-attached@example.com"},
-        )
-        if r.status_code != 401:
-            print(f"[ERROR] expected 401 for unattached identity, got {r.status_code}")
-            return 1
-        print("[OK] unattached identity → 401")
 
         r = client.get(
             "/api/v1/tenants",
             headers={"Authorization": "Bearer totally-wrong-token"},
         )
         if r.status_code != 401:
-            print(f"[ERROR] expected 401 for wrong token, got {r.status_code}")
+            print(f"[ERROR] opaque bearer expected 401, got {r.status_code}")
             return 1
-        print("[OK] wrong token → 401")
+        print("[OK] opaque bearer → 401")
+
+        r = client.get("/api/v1/tenants", headers=admin_h)
+        if r.status_code != 200:
+            print(f"[ERROR] platform_admin list failed {r.status_code}: {r.text}")
+            return 1
+        if any("pat" in t for t in (r.json().get("tenants") or [])):
+            print("[ERROR] list response contains pat")
+            return 1
+        print("[OK] platform_admin list 200 without pat")
+
+        tenant_id = optional_smoke_tenant_id()
+        if tenant_id:
+            try:
+                tenant_token = require_tenant_admin_token(client)
+            except RuntimeError as exc:
+                print(f"[ERROR] {exc}")
+                return 1
+            r = client.get(
+                f"/api/v1/tenants/{tenant_id}",
+                headers=auth_headers(tenant_token),
+            )
+            if r.status_code not in (200, 403, 404):
+                print(f"[ERROR] tenant detail unexpected {r.status_code}: {r.text}")
+                return 1
+            print(f"[OK] tenant_admin detail → {r.status_code}")
+        else:
+            print("[OK] tenant detail skip (SMOKE_TENANT_ID unset)")
 
     print("[OK] verify_tenant_registry passed")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

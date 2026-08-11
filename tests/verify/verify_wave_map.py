@@ -1,6 +1,6 @@
 """Live verify: CAP-05 wave map (INIT-GATEFLOW-011 W4).
 
-Requires running API and PROGRAMME_SERVICE_TOKEN. Reads org/repo from
+Requires running API and SMOKE_TENANT_ADMIN_TOKEN. Reads org/repo from
 tests/config.yaml (the repo whose board holds Feature / EPIC tickets).
 
 Covers (smoke only — unit owns status derivation):
@@ -25,6 +25,7 @@ import sys
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config
 
 _ALLOWED_STATUS = frozenset({"done", "ready-to-start", "blocked", "active"})
@@ -62,9 +63,10 @@ def _assert_wave_item(item: dict, label: str) -> int:
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_wave_map")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     org = cfg.gateflow.org

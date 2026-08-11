@@ -5,7 +5,7 @@ Proves REQ-10 / REQ-13–15 on a running API (human at wave-acceptance):
   - mismatch checkout → 422; tree untouched
   - first registered start clones; second fetches
 
-Requires: API + Postgres with tenant DDL, PROGRAMME_SERVICE_TOKEN, PAT with
+Requires: API + Postgres with tenant DDL, SMOKE_TENANT_ADMIN_TOKEN, PAT with
 read access to the probe org/repo, and a resolvable board ticket (same as
 verify_wave_start).
 
@@ -28,11 +28,13 @@ import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
+from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
 
 
 def _pat() -> str:
     return str(
-        os.environ.get("GATEFLOW_TENANT_PAT")
+        os.environ.get("GATEFLOW_PROGRAMME_PAT")
+        or os.environ.get("GATEFLOW_TENANT_PAT")
         or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
         or ""
     ).strip()
@@ -41,18 +43,15 @@ def _pat() -> str:
 def main() -> int:
     base = require_base_url()
     cfg = load_tests_config()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
-        return 1
     pat = _pat()
     if not pat:
-        print("[ERROR] GATEFLOW_TENANT_PAT or GITHUB_PERSONAL_ACCESS_TOKEN required")
+        print(
+            "[ERROR] GATEFLOW_PROGRAMME_PAT / GATEFLOW_TENANT_PAT / GITHUB_PERSONAL_ACCESS_TOKEN required"
+        )
         return 1
 
     org = str(os.environ.get("GATEFLOW_TENANT_ORG") or cfg.gateflow.org)
     repo = str(os.environ.get("GATEFLOW_TENANT_REPO") or cfg.gateflow.repo)
-    headers = {"Authorization": f"Bearer {token}"}
     start_url = f"{base}/api/v1/waves/implement/start"
     workspace_root = Path(
         os.environ.get("GATEFLOW_TENANT_WORKSPACE_ROOT")
@@ -62,6 +61,22 @@ def main() -> int:
     target = workspace_root / org / repo
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
+        programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
+        programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
+        try:
+            token, tenant_id, _ = provision_programme_tenant_admin(
+                client,
+                pat=pat,
+                workspace_root=str(workspace_root),
+                org=programme_org,
+                repo=programme_repo,
+                name_prefix="verify-ws",
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] provision: {exc}")
+            return 1
+        headers = auth_headers(token)
+
         # --- REQ-15: unregistered omitted path ---------------------------------
         _identity, unreg_body = smoke_wave_start_fields(
             cfg.gateflow,
@@ -81,25 +96,11 @@ def main() -> int:
             return 1
         print("[OK] omitted path + unregistered repo → 422 (REQ-15)")
 
-        # --- Register tenant + admit repo via programme selection (013 REQ-12) -
-        programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-        programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-        register = {
-            "name": f"verify-ws-{os.getpid()}",
-            "pat": pat,
-            "workspace_root": str(workspace_root),
-        }
-        r = client.post("/api/v1/tenants", json=register)
-        if r.status_code != 200:
-            print(f"[ERROR] tenant register failed {r.status_code}: {r.text}")
-            return 1
-        tenant_token = r.json()["bearer_token"]
-        tenant_id = r.json()["tenant_id"]
-        tenant_headers = {"Authorization": f"Bearer {tenant_token}"}
+        # --- Admit probe repo via catalogue selection --------------------------
         conn = client.put(
             f"/api/v1/tenants/{tenant_id}/programme/connect",
             json={"org": programme_org, "repo": programme_repo},
-            headers=tenant_headers,
+            headers=headers,
         )
         if conn.status_code != 200:
             print(f"[ERROR] programme connect failed {conn.status_code}: {conn.text}")
@@ -107,7 +108,7 @@ def main() -> int:
         sel = client.post(
             f"/api/v1/tenants/{tenant_id}/programme/repos/select",
             json={"repos": [{"org": org, "repo": repo}]},
-            headers=tenant_headers,
+            headers=headers,
         )
         if sel.status_code != 200:
             print(
@@ -115,7 +116,7 @@ def main() -> int:
                 "(repo must be on the programme catalogue)"
             )
             return 1
-        print("[OK] tenant registered + repo selected for workspace lifecycle")
+        print("[OK] programme provisioned + repo selected for workspace lifecycle")
 
         # --- REQ-14: mismatch --------------------------------------------------
         if target.exists():

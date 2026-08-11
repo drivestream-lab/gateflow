@@ -24,7 +24,7 @@ from tests._helpers.api_paths import require_base_url
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
 _PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
-_OLD_PROGRAMME_TOKEN = os.environ.get("PROGRAMME_SERVICE_TOKEN", "test-programme-token")
+_OLD_OPAQUE_TOKEN = os.environ.get("SMOKE_LEGACY_OPAQUE_TOKEN", "test-programme-token")
 
 
 def _login(client: httpx.Client) -> str:
@@ -73,7 +73,7 @@ def main() -> int:
         # REQ-32 — old programme token refused on Appendix-C control-plane route
         r = client.get(
             f"/api/v1/runs/{uuid4()}",
-            headers={"Authorization": f"Bearer {_OLD_PROGRAMME_TOKEN}"},
+            headers={"Authorization": f"Bearer {_OLD_OPAQUE_TOKEN}"},
         )
         if r.status_code != 401:
             print(f"[ERROR] old programme token expected 401, got {r.status_code}: {r.text}")

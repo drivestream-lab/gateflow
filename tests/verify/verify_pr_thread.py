@@ -1,6 +1,6 @@
 """Live verify: metrics dimensions + wave-start api_trigger (FR-21 / FR-22).
 
-Requires running API + migrated Postgres and PROGRAMME_SERVICE_TOKEN.
+Requires running API + migrated Postgres and SMOKE_TENANT_ADMIN_TOKEN.
 
 Asserts:
   - GET /metrics/runs exposes by_runner and by_model_id keys
@@ -18,21 +18,22 @@ Usage:
   .venv/bin/python -m tests.verify.verify_pr_thread
 """
 
-import os
 import sys
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
 
 
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_pr_thread")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}

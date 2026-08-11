@@ -24,7 +24,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -37,6 +36,7 @@ from src.models.work_manifest_models import (
     run_workmanifest_contract,
 )
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config
 
 
@@ -260,9 +260,10 @@ def main() -> int:
         )
         return 0
 
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_create_tickets")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     workspace_raw = feature.workspace.strip()

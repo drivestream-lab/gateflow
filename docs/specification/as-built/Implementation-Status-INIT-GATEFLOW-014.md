@@ -14,7 +14,7 @@
 | W1 | Programme validate-then-create + tenant_admin attach + agent catalogue | **human_approved** | Board [#216](https://github.com/drivestream-lab/gateflow/issues/216); Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) accept `ecb7fbd` / Pass-2 `6b926c6` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Cut over under JWT; refuse old doors | **human_approved** | Board [#217](https://github.com/drivestream-lab/gateflow/issues/217); Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) accept `0c8e8a5` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 `items: []` — Pass-2 tip `eb51e9f`|
 | W3 | Dead-door deletion + wipe | **human_approved** | Board [#218](https://github.com/drivestream-lab/gateflow/issues/218); Draft PR [#224](https://github.com/drivestream-lab/gateflow/pull/224) accept `52b969d` / Pass-2 `6ad5c96` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
-| W4 | Prove absence + teaching rewrite | not started | — |
+| W4 | Prove absence + teaching rewrite | **implemented** (awaiting wave-acceptance) | Board [#219](https://github.com/drivestream-lab/gateflow/issues/219); Pre-Implement W4 pass; Wave-Execution W4 local green — human: `verify_all` + `verify_old_doors_refused` |
 
 ## W0 capability detail
 
@@ -56,3 +56,11 @@
 |------------|------|------|------|-------------|-------|
 | Dead-door deletion | REQ-34 | delete `programme_token`/`tenant_token`; remove `POST /tenants` | `test_tenant_routes` (-k register) | `verify_dead_doors_deleted` | Gone (404/405 with JWT), not refuse-only |
 | Wipe cutover | REQ-35, REQ-46 | `ProgrammeWipeService` + `POST /programmes/{id}/wipe` | `test_programme_wipe_service` | `verify_wipe_cutover` | ACTIVE → 409 `active_run`; idle clears programme+tenant |
+
+## W4 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| JWT teaching / happy path | REQ-36, REQ-38 | rewrite `tests/verify/*` + `tests/_helpers/verify_jwt_auth.py` | — (smoke-owned) | `verify_all` | Zero `PROGRAMME_SERVICE_TOKEN` under `tests/verify/` |
+| Old-door refusal consolidated | REQ-37 | `verify_old_doors_refused.py` | — | `verify_old_doors_refused` | Token→401; bearer→401; `POST /tenants`→401/404/405 |
+| Teaching docs JWT-only | REQ-38 | `tests/README.md` + as-built | — | review | No old-door invocation examples |

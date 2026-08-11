@@ -7,8 +7,8 @@ Steps (short HTTP checks; ephemeral wave identity where needed):
   health → webhook → status/metrics → wave_start → pr_thread → board
 
 Uses ``gateflow:`` from ``tests/config.yaml`` (base_url, org/repo, …).
-Client secrets stay in ``.env`` (``PROGRAMME_SERVICE_TOKEN``,
-``GITHUB_WEBHOOK_SECRET``).
+Client secrets stay in ``.env`` (``SMOKE_TENANT_ADMIN_TOKEN`` /
+tenant_admin login, ``GITHUB_WEBHOOK_SECRET``).
 
 **Not** in this aggregator (opt-in deep waves — run separately):
 

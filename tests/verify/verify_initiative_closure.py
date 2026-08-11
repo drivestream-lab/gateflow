@@ -17,7 +17,7 @@ Dogfood (opt-in ``features.initiative_closure.dogfood: true`` + worker):
 
 Requires:
   - Running API + migrated Postgres
-  - PROGRAMME_SERVICE_TOKEN in .env
+  - SMOKE_TENANT_ADMIN_TOKEN in .env
   - tests/config.yaml with features.initiative_closure when asserting happy path
   - Dogfood: gateflow.require_worker: true + worker/Cursor for purge hop
 
@@ -29,7 +29,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -38,6 +37,7 @@ from typing import Any
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.run_timeline import evaluate_lane_poll
 from tests._helpers.tests_config import load_tests_config
 
@@ -211,9 +211,10 @@ def _run_dogfood(
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_initiative_closure")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     closure = cfg.features.initiative_closure

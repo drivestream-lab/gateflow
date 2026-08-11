@@ -1,6 +1,6 @@
 """Live verify: CAP-02 checkpoint persistence + history + composed readout (INIT-GATEFLOW-011 W1).
 
-Requires running API and PROGRAMME_SERVICE_TOKEN. Optional fixture PR via
+Requires running API and SMOKE_TENANT_ADMIN_TOKEN. Optional fixture PR via
 GATEFLOW_CHECKPOINT_PR (and optional GATEFLOW_CHECKPOINT_ID, default
 coding-readiness) for a live GitHub evidence path. Without it, auth/shape +
 unknown-checkpoint + 404 no-run-for-wave edges are asserted (unit owns
@@ -31,6 +31,7 @@ import sys
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config
 
 
@@ -49,9 +50,10 @@ def _assert_status_code(resp: httpx.Response, expected: int, label: str) -> int:
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_checkpoint_history")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     owner = cfg.gateflow.org
