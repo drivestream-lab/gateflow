@@ -3,8 +3,8 @@
 Human-run at wave-acceptance:
   .venv/bin/python -m tests.verify.verify_catalogue_refresh
 
-Requires API+Postgres (programme connection DDL), tenant PAT with read on
-programme meta, and tests/config.yaml. Optional: GATEFLOW_PROGRAMME_ORG/REPO/REF.
+Requires API+Postgres, GATEFLOW_PROGRAMME_PAT (never as Authorization), JWT auth.
+Optional: GATEFLOW_PROGRAMME_ORG/REPO/REF.
 """
 
 from __future__ import annotations
@@ -13,21 +13,19 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
 
 
 def _pat() -> str:
-    for key in ("GATEFLOW_TENANT_PAT", "GITHUB_PERSONAL_ACCESS_TOKEN"):
+    for key in ("GATEFLOW_PROGRAMME_PAT", "GATEFLOW_TENANT_PAT", "GITHUB_PERSONAL_ACCESS_TOKEN"):
         val = os.environ.get(key, "").strip()
         if val:
             return val
-    _ = load_tests_config()
-    print("[ERROR] Set GATEFLOW_TENANT_PAT or GITHUB_PERSONAL_ACCESS_TOKEN")
+    print("[ERROR] Set GATEFLOW_PROGRAMME_PAT (or GITHUB_PERSONAL_ACCESS_TOKEN)")
     sys.exit(1)
 
 
@@ -42,25 +40,23 @@ def main() -> int:
     repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
     ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
 
-    workspace = Path(tempfile.mkdtemp(prefix="gf013-w4-"))
-    name = f"verify-013-w4-{uuid4().hex[:8]}"
+    workspace = Path(tempfile.mkdtemp(prefix="gf014-cat-refresh-"))
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
-        reg = client.post(
-            "/api/v1/tenants",
-            json={
-                "name": name,
-                "pat": pat,
-                "workspace_root": str(workspace.resolve()),
-            },
-        )
-        if reg.status_code != 200:
-            print(f"[ERROR] register failed: {reg.status_code} {reg.text}")
+        try:
+            token, tenant_id, _ = provision_programme_tenant_admin(
+                client,
+                pat=pat,
+                workspace_root=str(workspace.resolve()),
+                org=org,
+                repo=repo,
+                ref=ref,
+                name_prefix="verify-cat-refresh",
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] provision: {exc}")
             return 1
-        body = reg.json()
-        tenant_id = body["tenant_id"]
-        token = body["bearer_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = auth_headers(token)
 
         connect_payload: dict = {"org": org, "repo": repo}
         if ref is not None:

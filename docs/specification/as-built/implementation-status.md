@@ -68,6 +68,16 @@
 
 **INIT-GATEFLOW-014 W3 status:** **human_approved** at wave-acceptance — Draft PR [#224](https://github.com/drivestream-lab/gateflow/pull/224) @ `52b969d` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-014 W4 — prove absence + teaching rewrite)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| JWT verify rewrite | REQ-36, REQ-38 | `tests/verify/*` + `verify_jwt_auth` helper | — | `verify_all` | No opaque programme-token client auth |
+| Old-door refusal | REQ-37 | `verify_old_doors_refused.py` | — | `verify_old_doors_refused` | Consolidated negative proof |
+| Teaching docs | REQ-38 | `tests/README.md` + as-built detail | — | review | JWT + per-programme PAT only |
+
+**INIT-GATEFLOW-014 W4 status:** **human_approved** at wave-acceptance — Draft PR [#226](https://github.com/drivestream-lab/gateflow/pull/226) @ `30a3ed2` label `wave-accepted`; Ground-Report W4 **pass**; Learning-Extract W4 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only. Last eng wave — then initiative closure.
+
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

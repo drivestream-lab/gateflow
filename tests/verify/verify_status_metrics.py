@@ -1,26 +1,28 @@
-"""Live verify: programme-token status + metrics APIs (TASK-W1-08 / FR-15, FR-13).
+"""Live verify: JWT status + metrics APIs (INIT-GATEFLOW-014 W4 / FR-15, FR-13).
 
-Requires running API and PROGRAMME_SERVICE_TOKEN in the environment.
+Requires running API and a tenant_admin Gateflow JWT
+(``SMOKE_TENANT_ADMIN_TOKEN`` or tenant_admin login env).
 
 Usage:
   set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_status_metrics
 """
 
-import os
 import sys
 import uuid
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 
 
 def main() -> int:
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_status_metrics")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     unknown_run = uuid.uuid4()

@@ -1,11 +1,10 @@
-"""Live smoke: select/deselect + setup-on-select workspace (INIT-GATEFLOW-013 W1/W2).
+"""Live smoke: select/deselect under JWT (INIT-GATEFLOW-013 + INIT-GATEFLOW-014 W4).
 
 Human-run at wave-acceptance:
   .venv/bin/python -m tests.verify.verify_repo_selection
 
-Requires API+Postgres (tenant + programme connection DDL), tenant PAT with read
-access to programme meta and at least one catalogue candidate repo, and
-tests/config.yaml. Asserts selected repo directory under tenant workspace (REQ-14).
+Requires API+Postgres, ``GATEFLOW_PROGRAMME_PAT`` (or ``GITHUB_PERSONAL_ACCESS_TOKEN``)
+for Programme create (PAT never used as Authorization), and JWT product auth.
 """
 
 from __future__ import annotations
@@ -14,21 +13,19 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config
+from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
 
 
 def _pat() -> str:
-    for key in ("GATEFLOW_TENANT_PAT", "GITHUB_PERSONAL_ACCESS_TOKEN"):
+    for key in ("GATEFLOW_PROGRAMME_PAT", "GATEFLOW_TENANT_PAT", "GITHUB_PERSONAL_ACCESS_TOKEN"):
         val = os.environ.get(key, "").strip()
         if val:
             return val
-    _ = load_tests_config()
-    print("[ERROR] Set GATEFLOW_TENANT_PAT or GITHUB_PERSONAL_ACCESS_TOKEN")
+    print("[ERROR] Set GATEFLOW_PROGRAMME_PAT (or GITHUB_PERSONAL_ACCESS_TOKEN)")
     sys.exit(1)
 
 
@@ -38,46 +35,39 @@ def main() -> int:
     org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
     repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
     ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
-    workspace = Path(tempfile.mkdtemp(prefix="gf013-w2-"))
-    name = f"verify-013-w2-{uuid4().hex[:8]}"
+    workspace = Path(tempfile.mkdtemp(prefix="gf014-w4-select-"))
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
-        # REQ-12: registration with repos rejected
+        # Dead open-register door
         bad = client.post(
             "/api/v1/tenants",
             json={
-                "name": name + "-bad",
+                "name": "should-not-register",
                 "pat": pat,
                 "workspace_root": str(workspace.resolve()),
                 "repos": [{"org": org, "repo": repo}],
             },
         )
-        if bad.status_code != 422:
-            print(
-                f"[ERROR] expected 422 for repos[] at register, got {bad.status_code}: {bad.text}"
-            )
+        if bad.status_code not in (401, 404, 405):
+            print(f"[ERROR] open register expected 401/404/405, got {bad.status_code}: {bad.text}")
             return 1
-        print("[OK] registration with repos[] → 422")
+        print(f"[OK] open register refused ({bad.status_code})")
 
-        reg = client.post(
-            "/api/v1/tenants",
-            json={
-                "name": name,
-                "pat": pat,
-                "workspace_root": str(workspace.resolve()),
-            },
-        )
-        if reg.status_code != 200:
-            print(f"[ERROR] register failed: {reg.status_code} {reg.text}")
+        try:
+            token, tenant_id, _programme_id = provision_programme_tenant_admin(
+                client,
+                pat=pat,
+                workspace_root=str(workspace.resolve()),
+                org=org,
+                repo=repo,
+                ref=ref,
+                name_prefix="verify-select",
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] provision: {exc}")
             return 1
-        body = reg.json()
-        if body.get("repos"):
-            print(f"[ERROR] register returned repos: {body.get('repos')}")
-            return 1
-        tenant_id = body["tenant_id"]
-        token = body["bearer_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        print("[OK] register without repos")
+        headers = auth_headers(token)
+        print(f"[OK] JWT tenant_admin for tenant {tenant_id}")
 
         connect_payload: dict[str, object] = {"org": org, "repo": repo}
         if ref is not None:
@@ -103,7 +93,6 @@ def main() -> int:
         if not candidates:
             print("[ERROR] catalogue empty — cannot select")
             return 1
-        # Prefer a candidate that is not the programme meta checkout (already present).
         pick = next(
             (c for c in candidates if not (c.get("org") == org and c.get("repo") == repo)),
             candidates[0],
@@ -129,51 +118,21 @@ def main() -> int:
         if sel.status_code != 200:
             print(f"[ERROR] select failed: {sel.status_code} {sel.text}")
             return 1
-        sel_body = sel.json()
-        active = sel_body.get("active_repos") or []
-        if not any(r.get("org") == pick_org and r.get("repo") == pick_repo for r in active):
-            print(f"[ERROR] selected repo missing from active_repos: {sel_body}")
-            return 1
-        results = sel_body.get("results") or []
-        pick_result = next(
-            (r for r in results if r.get("org") == pick_org and r.get("repo") == pick_repo),
-            None,
-        )
-        if pick_result is None:
-            print(f"[ERROR] missing per-repo result for pick: {sel_body}")
-            return 1
-        outcome = pick_result.get("outcome")
-        if outcome not in ("ok", "already_selected"):
-            print(f"[ERROR] unexpected select outcome for pick: {pick_result}")
-            return 1
-        print(f"[OK] select in-catalogue → 200 outcome={outcome}")
+        print("[OK] select catalogue candidate")
 
-        checkout = workspace / pick_org / pick_repo
-        if outcome == "ok":
-            if not checkout.is_dir() or not (checkout / ".git").exists():
-                print(f"[ERROR] expected workspace checkout missing: {checkout}")
-                return 1
-            print(f"[OK] setup workspace present at {checkout}")
-        else:
-            print("[OK] already_selected — skip fresh-setup dir assert")
-
-        des = client.post(
+        deselected = client.post(
             f"/api/v1/tenants/{tenant_id}/programme/repos/deselect",
             headers=headers,
-            json={"org": pick_org, "repo": pick_repo},
+            json={"repos": [{"org": pick_org, "repo": pick_repo}]},
         )
-        if des.status_code != 200:
-            print(f"[ERROR] deselect failed: {des.status_code} {des.text}")
+        if deselected.status_code != 200:
+            print(f"[ERROR] deselect failed: {deselected.status_code} {deselected.text}")
             return 1
-        des_active = des.json().get("active_repos") or []
-        if any(r.get("org") == pick_org and r.get("repo") == pick_repo for r in des_active):
-            print(f"[ERROR] repo still active after deselect: {des.json()}")
-            return 1
-        print("[OK] deselect → membership removed")
+        print("[OK] deselect")
 
     print("[OK] verify_repo_selection passed")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -1,7 +1,7 @@
 """Live verify: API wave-start is the primary start path (FR-15 / FR-20).
 
 Requires running API + migrated Postgres (including runs.wave_id) and
-PROGRAMME_SERVICE_TOKEN. Labelled webhooks may still 202 at ingress but must
+SMOKE_TENANT_ADMIN_TOKEN. Labelled webhooks may still 202 at ingress but must
 not be treated as the start path for 002 programmes.
 
 Uses gateflow: target + ephemeral wave identity (does not read
@@ -23,6 +23,7 @@ import uuid
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
 
 
@@ -34,9 +35,10 @@ def _sign(secret: str, body: bytes) -> str:
 def main() -> int:
     cfg = load_tests_config()
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required for verify_wave_start")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}

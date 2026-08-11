@@ -28,7 +28,7 @@ Asserts (when opted in, start_node=spec-draft):
 
 Requires:
   - Running API + worker + migrated Postgres (``runs.meta_pr_url`` / ``meta_head_sha``)
-  - PROGRAMME_SERVICE_TOKEN in .env (verify client → Gateflow API)
+  - SMOKE_TENANT_ADMIN_TOKEN in .env (verify client → Gateflow API)
   - Gateflow runtime has CURSOR_API_KEY in its .env (not verify config)
   - tests/config.yaml: gateflow.require_worker: true
   - features.spec_lane.enabled: true + wave_start body (meta_pr_url, meta_workspace, workspace)
@@ -43,7 +43,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -52,6 +51,7 @@ from typing import Any, Optional
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
 # All orchestrated Cursor hops in the spec lane (happy + findings paths).
@@ -172,9 +172,10 @@ def main() -> int:
         return 1
 
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     identity = resolve_wave_start_identity(

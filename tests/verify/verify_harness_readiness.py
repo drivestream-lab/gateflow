@@ -5,7 +5,7 @@ Proves REQ-20 / REQ-21 on a running API (human at wave-acceptance):
   - explicit workspace with ``.harness-pin.yaml`` + ``.harness/`` → past harness
     (enqueue or board-path success; not ``harness_artifacts_missing``)
 
-Requires: API + Postgres, PROGRAMME_SERVICE_TOKEN, resolvable board ticket
+Requires: API + Postgres, SMOKE_TENANT_ADMIN_TOKEN, resolvable board ticket
 fields (same as verify_wave_start).
 
 Usage:
@@ -16,7 +16,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -24,6 +23,7 @@ from pathlib import Path
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
 
 
@@ -39,9 +39,10 @@ def _write_ready_harness(root: Path) -> None:
 def main() -> int:
     base = require_base_url()
     cfg = load_tests_config()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     headers = {"Authorization": f"Bearer {token}"}

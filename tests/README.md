@@ -36,8 +36,11 @@ make check && make test
 # optional worker: .venv/bin/python -m src.worker_main
 # Prefer: make run  (API + worker; required for wave-start / implement-lane)
 # set -a && source .env && set +a
-#   needs GITHUB_WEBHOOK_SECRET + PROGRAMME_SERVICE_TOKEN
+#   needs GITHUB_WEBHOOK_SECRET + SMOKE_TENANT_ADMIN_TOKEN
+#   (tenant_admin Gateflow JWT from programme attach — not an opaque tenant_admin JWT)
+#   optional: PLATFORM_ADMIN_* for seed/login; GATEFLOW_PROGRAMME_PAT for programme create
 # .venv/bin/python -m tests.verify.verify_all
+# .venv/bin/python -m tests.verify.verify_old_doors_refused  # INIT-014 W4 old-door refusal
 #
 # Individual scripts:
 # .venv/bin/python -m tests.verify.verify_health
@@ -48,18 +51,18 @@ make check && make test
 #   .venv/bin/python -m tests.debug.debug_forge_client
 #   GATEFLOW_FORGE_PROBE_CLEANUP=0  # leave PR/branch open for inspection
 # .venv/bin/python -m tests.verify.verify_webhook
-# .venv/bin/python -m tests.verify.verify_status_metrics
-# .venv/bin/python -m tests.verify.verify_wave_start   # primary wave-start (002)
-# .venv/bin/python -m tests.verify.verify_pr_thread    # metrics dims + api_trigger (no PR-at-start)
-# .venv/bin/python -m tests.verify.verify_board        # board APIs (auth + optional forge)
-# .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-012 W0 tenant registry
-# .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch
+# .venv/bin/python -m tests.verify.verify_status_metrics   # JWT tenant_admin
+# .venv/bin/python -m tests.verify.verify_wave_start       # primary wave-start (JWT)
+# .venv/bin/python -m tests.verify.verify_pr_thread        # metrics dims + api_trigger (no PR-at-start)
+# .venv/bin/python -m tests.verify.verify_board            # board APIs (JWT + optional forge)
+# .venv/bin/python -m tests.verify.verify_tenant_registry  # INIT-014 JWT tenant surfaces (open register gone)
+# .venv/bin/python -m tests.verify.verify_workspace_lifecycle  # INIT-012 W1 clone/fetch (JWT + programme)
 # .venv/bin/python -m tests.verify.verify_branch_lifecycle     # INIT-012 W2 branch create-or-reuse
 # .venv/bin/python -m tests.verify.verify_harness_readiness    # INIT-012 W3 harness-readiness
-# .venv/bin/python -m tests.verify.verify_programme_connect    # INIT-013 W0 programme connect + catalogue
+# .venv/bin/python -m tests.verify.verify_programme_connect    # programme connect + catalogue (JWT)
 # .venv/bin/python -m tests.verify.verify_harness_status       # INIT-013 W3 status readiness
 # .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
-# .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
+# .venv/bin/python -m tests.verify.verify_repo_selection       # select/deselect + setup workspace (JWT)
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
 # .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 Programme onboard/attach
 # .venv/bin/python -m tests.verify.verify_agent_catalogue      # INIT-014 W1 agent catalogue
@@ -79,7 +82,7 @@ make check && make test
 | Concern | Where |
 |---------|--------|
 | Gateflow **runtime** (DB, Redis, forge, `CURSOR_API_KEY`, handoff root, …) | `.env` (process that runs `make run`) |
-| Verify **client** secrets (`PROGRAMME_SERVICE_TOKEN`, `GITHUB_WEBHOOK_SECRET`) | `.env` for now (verify signs webhooks / calls API) |
+| Verify **client** secrets (`SMOKE_TENANT_ADMIN_TOKEN` / tenant_admin login, `GITHUB_WEBHOOK_SECRET`, optional `GATEFLOW_PROGRAMME_PAT`) | `.env` for now (verify signs webhooks / calls API with JWT) |
 | Verify **target + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
 
 ```yaml
@@ -122,7 +125,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Webhook signature / idempotency | `python -m tests.verify.verify_webhook` (in `verify_all`) | `tests/unit/test_webhook_ingress.py` |
 | Trigger / policy | — | `tests/unit/test_trigger_policy.py` |
 | Orchestrator walker | — | `tests/unit/test_run_orchestrator.py` |
-| Programme-token status/metrics | `python -m tests.verify.verify_status_metrics` (in `verify_all`) | `tests/unit/test_programme_token_api.py` |
+| JWT status/metrics | `python -m tests.verify.verify_status_metrics` (in `verify_all`) | `tests/unit/test_programme_token_api.py` |
 | API wave-start + label ingress ack | `python -m tests.verify.verify_wave_start` (in `verify_all`) | — |
 | Full live smoke (product) | `python -m tests.verify.verify_all` | — |
 | Worker claim | `src.worker_main` (manual / compose) | `tests/unit/test_job_worker.py` |
@@ -143,7 +146,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Pass-2 closeout dogfood → `wave-signoff` (INIT-007 W2) | `python -m tests.verify.verify_wave_closeout` with `dogfood: true` + `require_worker: true` | — |
 | API spec-lane start (REQ-16/17) | `python -m tests.verify.verify_spec_lane` (opt-in) | `test_wave_start`, `test_meta_pr_intake` |
 | Label start disabled (FR-15) | unit + note in `verify_wave_start` | `test_trigger_policy` |
-| Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | programme token / wave start tests |
+| Run list/detail timeline (FR-20) | `verify_wave_start` + `verify_status_metrics` | tenant_admin JWT / wave start tests |
 | Stub fail-closed (FR-18) | — | `test_slot_validator`, `test_wave_start` |
 
 ## Feature map (INIT-GATEFLOW-002 — W1)
@@ -311,7 +314,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout` (dogf
 | Live co-ship closure slice (REQ-17) | `verify_initiative_closure` | unit matrix above |
 | Feature-readiness freeze (REQ-18) | inspection | `Feature-Readiness-INIT-GATEFLOW-010.md` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` with API + programme token + board tickets for Done-gate positives/negatives per knobs below.
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` with API + tenant_admin JWT + board tickets for Done-gate positives/negatives per knobs below.
 
 ## Feature map (INIT-GATEFLOW-011 W0 — checkpoint status-check foundation)
 
@@ -320,9 +323,9 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_closure` 
 | ForgeClient list_reviews / list_check_runs / merge fields (REQ-02) | secondary (fixture PR) | `test_forge_client` |
 | Pin checkpoint vocabulary from delivery-contract (REQ-02) | — | `test_checkpoint_vocab` |
 | Live CAP-01 evaluate + itemized misses + no mutate (REQ-01/04/05) | `verify_checkpoint_status` | `test_checkpoint_evidence` |
-| GET `/api/v1/checkpoints/status` programme-token (REQ-01/05/28) | `verify_checkpoint_status` | `test_checkpoints_api` |
+| GET `/api/v1/checkpoints/status` JWT (REQ-01/05/28) | `verify_checkpoint_status` | `test_checkpoints_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_status` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live GitHub evidence).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_status` (API + `SMOKE_TENANT_ADMIN_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live GitHub evidence).
 
 ### Checkpoint status (INIT-GATEFLOW-011 W0)
 
@@ -346,7 +349,7 @@ set -a && source .env && set +a
 | GET `/api/v1/checkpoints/history` marks records historical (REQ-07/28) | `verify_checkpoint_history` | `test_checkpoints_api` |
 | Composed readout via initiative+wave; 404 no run found for this wave (REQ-08/28) | `verify_checkpoint_history` | `test_checkpoints_api`, `test_checkpoint_persistence` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_history` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live persist + optional `GATEFLOW_COMPOSED_INITIATIVE`/`GATEFLOW_COMPOSED_WAVE` for composed readout).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_checkpoint_history` (API + `SMOKE_TENANT_ADMIN_TOKEN`; optional `GATEFLOW_CHECKPOINT_PR` for live persist + optional `GATEFLOW_COMPOSED_INITIATIVE`/`GATEFLOW_COMPOSED_WAVE` for composed readout).
 
 ### Checkpoint history + composed readout (INIT-GATEFLOW-011 W1)
 
@@ -370,7 +373,7 @@ set -a && source .env && set +a
 | `prd_approval` present (W2 stub unavailable; W3 populates via meta) (REQ-09/10) | `verify_initiatives_readout` | `test_initiative_readout`, `test_initiatives_read_api` |
 | GET-only on `/initiatives` + `/initiatives/{id}`; 401 without token; 404 unknown initiative (REQ-28) | `verify_initiatives_readout` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_initiatives_readout` (API + `PROGRAMME_SERVICE_TOKEN`; optional `GATEFLOW_INITIATIVE_ID` for a live detail assert). Prefer **W3** `verify_initiative_meta_bridge` once the meta bridge is on the tip.
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiatives_readout` (API + `SMOKE_TENANT_ADMIN_TOKEN`; optional `GATEFLOW_INITIATIVE_ID` for a live detail assert). Prefer **W3** `verify_initiative_meta_bridge` once the meta bridge is on the tip.
 
 ### Initiative list/detail (INIT-GATEFLOW-011 W2)
 
@@ -392,7 +395,7 @@ set -a && source .env && set +a
 | Meta-down / missing meta → 200 + `unavailable` + owned fields (REQ-11) | `verify_initiative_meta_bridge` | `test_initiative_readout` |
 | GET-only / 401 / 404 unknown (REQ-28) | `verify_initiative_meta_bridge` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_meta_bridge` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_initiative_meta_bridge` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Initiative meta bridge (INIT-GATEFLOW-011 W3)
 
@@ -417,7 +420,7 @@ set -a && source .env && set +a
 | Derived from board Feature tickets + runs only — no new store (REQ-15) | `verify_wave_map` | `test_wave_map_service` |
 | GET `/initiatives/{id}/waves` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_map` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_map` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_map` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Wave map (INIT-GATEFLOW-011 W4)
 
@@ -439,7 +442,7 @@ set -a && source .env && set +a
 | Plain not-ready before `spec-pr-action`; no broken URL (REQ-13) | `verify_spec_readout` | `test_spec_readout_service` |
 | GET `/initiatives/{id}/spec` GET-only; 401 / 404 unknown (REQ-28) | `verify_spec_readout` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_spec_readout` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_spec_readout` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Spec lane readout (INIT-GATEFLOW-011 W5)
 
@@ -461,7 +464,7 @@ set -a && source .env && set +a
 | Named task + reason on failure / needs-input stop (REQ-17) | `verify_wave_implementation` | `test_implementation_readout_service` |
 | GET `.../waves/{wave_id}/implementation` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_implementation` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_implementation` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_implementation` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Wave implementation progress (INIT-GATEFLOW-011 W6)
 
@@ -484,7 +487,7 @@ set -a && source .env && set +a
 | Advisory drift / unknown baseline (REQ-19/20) | `verify_wave_closeout_readout` | `test_closeout_readout_service` |
 | GET `.../waves/{wave_id}/closeout` GET-only; 401 / 404 unknown (REQ-28) | `verify_wave_closeout_readout` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout_readout` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_wave_closeout_readout` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Wave closeout readout (INIT-GATEFLOW-011 W7)
 
@@ -508,7 +511,7 @@ set -a && source .env && set +a
 | Completion eligibility rollup (REQ-23/24) | `verify_merge_and_completion` | `test_completion_readout_service` |
 | GET merge + completion GET-only; 401 / 404 (REQ-28) | `verify_merge_and_completion` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_merge_and_completion` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_merge_and_completion` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Merge confirm + completion (INIT-GATEFLOW-011 W8)
 
@@ -531,7 +534,7 @@ set -a && source .env && set +a
 | CAP-01 reuse for closure signoff-app/meta (REQ-27) | `verify_closure_preview` | `test_closure_preview_service` |
 | GET `/initiatives/{id}/closure` GET-only; 401 / 404 (REQ-28) | `verify_closure_preview` | `test_initiatives_read_api` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_closure_preview` (API + `PROGRAMME_SERVICE_TOKEN`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_closure_preview` (API + `SMOKE_TENANT_ADMIN_TOKEN`).
 
 ### Closure preview (INIT-GATEFLOW-011 W9)
 
@@ -708,7 +711,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_catalogue_refresh` (
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
-| Register + one-time tenant bearer (REQ-01/03/09) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
+| JWT tenant list/detail; open register gone (REQ-36/38) | `verify_tenant_registry` | `test_tenant_routes` |
 | PAT never in responses (REQ-02/32) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
 | Registration rejects `repos[]` (INIT-013 REQ-12) | `verify_tenant_registry` | `test_tenant_service` |
 | Absolute `workspace_root` → 400 (REQ-07) | `verify_tenant_registry` | `test_tenant_service` |
@@ -747,7 +750,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_workspace_lifecycle`
 ### Workspace lifecycle (INIT-GATEFLOW-012 W1)
 
 ```bash
-# Prerequisites: W0 tenant DDL applied; API up; PROGRAMME_SERVICE_TOKEN;
+# Prerequisites: W0 tenant DDL applied; API up; SMOKE_TENANT_ADMIN_TOKEN;
 # PAT with read access; resolvable board ticket (same as verify_wave_start).
 # Optional: GATEFLOW_TENANT_WORKSPACE_ROOT (scratch absolute path)
 
@@ -773,7 +776,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_branch_lifecycle`
 
 ```bash
 # Prerequisites: W0 DDL + W1 workspace contracts; API + worker;
-# gateflow.require_worker: true; PROGRAMME_SERVICE_TOKEN; PAT with branch write;
+# gateflow.require_worker: true; SMOKE_TENANT_ADMIN_TOKEN; PAT with branch write;
 # resolvable board ticket fields (same as verify_wave_start).
 # Optional: GATEFLOW_TENANT_WORKSPACE_ROOT (scratch absolute path)
 
@@ -796,7 +799,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_readiness`
 ### Harness readiness (INIT-GATEFLOW-012 W3)
 
 ```bash
-# Prerequisites: API + Postgres; PROGRAMME_SERVICE_TOKEN; resolvable board
+# Prerequisites: API + Postgres; SMOKE_TENANT_ADMIN_TOKEN; resolvable board
 # ticket fields (same as verify_wave_start). Script uses temp dirs with/without
 # .harness-pin.yaml + .harness/.
 
@@ -821,7 +824,7 @@ Optional cross-repo allow probe: set `GATEFLOW_VERIFY_CROSS_ORG` + `GATEFLOW_VER
 ### Repo concurrency (INIT-GATEFLOW-012 W4)
 
 ```bash
-# Prerequisites: API + Postgres; PROGRAMME_SERVICE_TOKEN; resolvable board ticket.
+# Prerequisites: API + Postgres; SMOKE_TENANT_ADMIN_TOKEN; resolvable board ticket.
 # First start leaves an ACTIVE run; script asserts same-repo second start → 409.
 
 make run

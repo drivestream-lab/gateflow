@@ -5,7 +5,7 @@ Proves REQ-16 / REQ-18 / REQ-19 on a running API + worker (human at wave-accepta
   - continuation reuses the same head (zero new branch create)
   - never-cloned local workspace + continuation composes (clone then checkout)
 
-Requires: API + worker, Postgres with tenant DDL, PROGRAMME_SERVICE_TOKEN,
+Requires: API + worker, Postgres with tenant DDL, SMOKE_TENANT_ADMIN_TOKEN,
 PAT with repo contents write (branch create), resolvable board ticket fields
 (same as verify_wave_start), and ``gateflow.require_worker: true``.
 
@@ -32,11 +32,13 @@ import httpx
 from src.models.pr_branch_naming import build_wave_head_branch
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
+from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
 
 
 def _pat() -> str:
     return str(
-        os.environ.get("GATEFLOW_TENANT_PAT")
+        os.environ.get("GATEFLOW_PROGRAMME_PAT")
+        or os.environ.get("GATEFLOW_TENANT_PAT")
         or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
         or ""
     ).strip()
@@ -134,18 +136,16 @@ def main() -> int:
             "(branch resolve runs in the worker)"
         )
         return 1
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
-        return 1
     pat = _pat()
     if not pat:
-        print("[ERROR] GATEFLOW_TENANT_PAT or GITHUB_PERSONAL_ACCESS_TOKEN required")
+        print(
+            "[ERROR] GATEFLOW_PROGRAMME_PAT / GATEFLOW_TENANT_PAT / "
+            "GITHUB_PERSONAL_ACCESS_TOKEN required"
+        )
         return 1
 
     org = str(os.environ.get("GATEFLOW_TENANT_ORG") or cfg.gateflow.org)
     repo = str(os.environ.get("GATEFLOW_TENANT_REPO") or cfg.gateflow.repo)
-    headers = {"Authorization": f"Bearer {token}"}
     start_url = f"{base}/api/v1/waves/implement/start"
     workspace_root = Path(
         os.environ.get("GATEFLOW_TENANT_WORKSPACE_ROOT")
@@ -168,22 +168,23 @@ def main() -> int:
 
         programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
         programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-        register = {
-            "name": f"verify-brl-{os.getpid()}",
-            "pat": pat,
-            "workspace_root": str(workspace_root),
-        }
-        r = client.post(f"{base}/api/v1/tenants", json=register)
-        if r.status_code != 200:
-            print(f"[ERROR] tenant register failed {r.status_code}: {r.text}")
+        try:
+            token, tenant_id, _ = provision_programme_tenant_admin(
+                client,
+                pat=pat,
+                workspace_root=str(workspace_root),
+                org=programme_org,
+                repo=programme_repo,
+                name_prefix="verify-brl",
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] provision: {exc}")
             return 1
-        tenant_token = r.json()["bearer_token"]
-        tenant_id = r.json()["tenant_id"]
-        tenant_headers = {"Authorization": f"Bearer {tenant_token}"}
+        headers = auth_headers(token)
         conn = client.put(
             f"{base}/api/v1/tenants/{tenant_id}/programme/connect",
             json={"org": programme_org, "repo": programme_repo},
-            headers=tenant_headers,
+            headers=headers,
         )
         if conn.status_code != 200:
             print(f"[ERROR] programme connect failed {conn.status_code}: {conn.text}")
@@ -191,7 +192,7 @@ def main() -> int:
         sel = client.post(
             f"{base}/api/v1/tenants/{tenant_id}/programme/repos/select",
             json={"repos": [{"org": org, "repo": repo}]},
-            headers=tenant_headers,
+            headers=headers,
         )
         if sel.status_code != 200:
             print(
@@ -199,7 +200,7 @@ def main() -> int:
                 "(repo must be on the programme catalogue)"
             )
             return 1
-        print("[OK] tenant registered + repo selected for branch lifecycle")
+        print("[OK] programme provisioned + repo selected for branch lifecycle")
 
         if target.exists():
             shutil.rmtree(target)

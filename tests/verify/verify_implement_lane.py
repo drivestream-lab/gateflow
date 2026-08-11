@@ -13,7 +13,7 @@ There is **no** ``/verify`` content skill. Human prove is checkpoint
 
 Requires:
   - Running API + worker + migrated Postgres (including runs.wave_duration_ms)
-  - PROGRAMME_SERVICE_TOKEN in .env (verify client → Gateflow API)
+  - SMOKE_TENANT_ADMIN_TOKEN in .env (verify client → Gateflow API)
   - Gateflow runtime has CURSOR_API_KEY in its .env (not verify config)
   - tests/config.yaml: gateflow.require_worker: true
   - features.implement_lane.enabled: true + wave_start body
@@ -36,7 +36,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -45,6 +44,7 @@ from typing import Any
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, resolve_wave_start_identity
 
 # Orchestrated coding hops only (pin: stop at wave-acceptance; closeout separate).
@@ -138,9 +138,10 @@ def main() -> int:
         return 1
 
     base_url = require_base_url()
-    token = os.environ.get("PROGRAMME_SERVICE_TOKEN")
-    if not token:
-        print("[ERROR] PROGRAMME_SERVICE_TOKEN is required")
+    try:
+        token = require_tenant_admin_token()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     wave = lane.wave_start
