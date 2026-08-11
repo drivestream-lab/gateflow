@@ -972,7 +972,7 @@ work:
         applicable: true
         mode: smoke
         command: .venv/bin/python -m tests.verify.verify_programme_onboarding
-        covers: [REQ-08, REQ-10, REQ-15, REQ-17, REQ-18, REQ-44]
+        covers: [REQ-08, REQ-10, REQ-15, REQ-17, REQ-18, REQ-44, REQ-19, REQ-21, REQ-22, REQ-41, REQ-42, REQ-45]
         prerequisites:
           - "API up"
           - "Reachable fixture meta repo + non-production test PAT"
@@ -980,11 +980,14 @@ work:
           - "Synthetic Programme smoke-programme-01"
         steps:
           - "Run verify_programme_onboarding.py against local stack"
+          - "Run verify_agent_catalogue.py against local stack"
         expected_observations:
           - "Script prints PASS per create/reject/attach/list case; exits 0"
+          - "Catalogue provision/resolve cases PASS; exits 0"
         evidence_expected: "wave-accepted on tip"
         cleanup:
           - "Delete synthetic Programme rows created during the run"
+          - "Delete synthetic catalogue rows created during the run"
         stop_conditions:
           - "Non-zero exit or PAT probe hits a non-test repo → stop"
     body: |
@@ -1056,6 +1059,8 @@ work:
           - path: src/api/v1/forge_routes.py
             action: modify
           - path: src/api/v1/tenant_routes.py
+            action: modify
+          - path: src/api/v1/catalogue_connection_routes.py
             action: modify
           - path: src/app.py
             action: modify
@@ -1142,7 +1147,7 @@ work:
         applicable: true
         mode: smoke
         command: .venv/bin/python -m tests.verify.verify_jwt_cutover
-        covers: [REQ-04, REQ-32, REQ-33]
+        covers: [REQ-04, REQ-32, REQ-33, REQ-23, REQ-24, REQ-31]
         prerequisites:
           - "API + worker up"
           - "Two synthetic Programmes with distinct PATs from W1"
