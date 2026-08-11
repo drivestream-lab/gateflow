@@ -42,6 +42,7 @@ def configure_container() -> Injector:
     )
     from src.business_services.catalogue_connection_service import CatalogueConnectionService
     from src.business_services.programme_service import ProgrammeService
+    from src.business_services.programme_wipe_service import ProgrammeWipeService
     from src.business_services.prompt_resolver import PromptResolver
     from src.business_services.run_orchestrator import RunOrchestrator
     from src.business_services.slot_validator import SlotValidator
@@ -109,6 +110,7 @@ def configure_container() -> Injector:
             TenantService,
             AuthIdentityService,
             ProgrammeService,
+            ProgrammeWipeService,
             PlatformAgentCatalogueService,
             CatalogueConnectionService,
             CheckpointEvidenceService,

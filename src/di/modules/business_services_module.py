@@ -24,6 +24,7 @@ from src.business_services.platform_agent_catalogue_service import PlatformAgent
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.catalogue_connection_service import CatalogueConnectionService
 from src.business_services.programme_service import ProgrammeService
+from src.business_services.programme_wipe_service import ProgrammeWipeService
 from src.business_services.prompt_resolver import PromptResolver
 from src.business_services.run_orchestrator import RunOrchestrator
 from src.business_services.slot_validator import SlotValidator
@@ -56,6 +57,7 @@ class BusinessServicesModule(Module):
         binder.bind(TenantService, scope=singleton)
         binder.bind(AuthIdentityService, scope=singleton)
         binder.bind(ProgrammeService, scope=singleton)
+        binder.bind(ProgrammeWipeService, scope=singleton)
         binder.bind(PlatformAgentCatalogueService, scope=singleton)
         binder.bind(CatalogueConnectionService, scope=singleton)
         binder.bind(CheckpointEvidenceService, scope=singleton)

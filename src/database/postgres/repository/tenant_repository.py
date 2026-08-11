@@ -380,3 +380,12 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
         )
         await session.flush()
         return True
+
+    async def delete_tenant(self, session: AsyncSession, tenant_id: UUID) -> bool:
+        """Delete tenant row (cascades repos/users/connections). Clear RESTRICT FKs first."""
+        row = await session.get(TenantSchema, tenant_id)
+        if row is None:
+            return False
+        await session.delete(row)
+        await session.flush()
+        return True

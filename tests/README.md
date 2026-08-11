@@ -634,6 +634,24 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; 
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_onboarding` then `.venv/bin/python -m tests.verify.verify_agent_catalogue` (API up; human DDL — `DDL-NOTE-INIT-GATEFLOW-014-W1-programmes-agent-catalogue.md`; `GATEFLOW_PROGRAMME_PAT`; JWT seed/login). Distinct from INIT-013 `verify_programme_connect` (meta-catalogue connection).
 
+## Feature map (INIT-GATEFLOW-014 W2 — JWT cutover + tenant-scoped runs)
+
+| Capability | Verify | Pytest |
+|------------|--------|--------|
+| Old doors refused; JWT edge | `verify_jwt_cutover` | `test_programme_token_api`, `test_tenant_routes` |
+| Cross-programme isolation | `verify_cross_programme_isolation` | `test_auth_dependencies` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_cutover` then `.venv/bin/python -m tests.verify.verify_cross_programme_isolation`.
+
+## Feature map (INIT-GATEFLOW-014 W3 — dead-door deletion + wipe)
+
+| Capability | Verify | Pytest |
+|------------|--------|--------|
+| Open register deleted (404/405 with JWT) | `verify_dead_doors_deleted` | `test_tenant_routes` (-k register) |
+| Wipe idle OK; ACTIVE → 409 | `verify_wipe_cutover` | `test_programme_wipe_service` |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_dead_doors_deleted` then `.venv/bin/python -m tests.verify.verify_wipe_cutover` (API up; `GATEFLOW_PROGRAMME_PAT` for wipe onboard fixture; Postgres reachable for synthetic ACTIVE run insert).
+
 ## Feature map (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
 | Capability | Verify script | Pytest |

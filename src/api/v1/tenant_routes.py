@@ -1,4 +1,4 @@
-"""Tenant registry HTTP routes (INIT-GATEFLOW-012 CAP-01)."""
+"""Tenant registry HTTP routes (INIT-GATEFLOW-012 CAP-01 / INIT-GATEFLOW-014 W3)."""
 
 from typing import Annotated, Optional
 from uuid import UUID
@@ -12,24 +12,12 @@ from src.models.role_types import RoleType
 from src.models.tenant_models import (
     TenantListResponse,
     TenantReadModel,
-    TenantRegisterRequest,
-    TenantRegisterResponse,
     TenantResolvedContext,
     TenantUserAttachRequest,
     TenantUserAttachResponse,
 )
 
 router = APIRouter(prefix="/tenants")
-
-
-@router.post("", response_model=TenantRegisterResponse, status_code=200)
-async def register_tenant(
-    body: TenantRegisterRequest,
-    _auth: AuthContext = Depends(require_role(RoleType.PLATFORM_ADMIN)),
-    service: TenantService = Depends(get_tenant_service),
-) -> TenantRegisterResponse:
-    """Register a tenant — platform_admin JWT only (public door closed at W2)."""
-    return await service.register_tenant(body)
 
 
 @router.get("", response_model=TenantListResponse)

@@ -119,3 +119,12 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
         await session.flush()
         await session.refresh(row)
         return self._to_read_model(row)
+
+    async def delete_programme(self, session: AsyncSession, programme_id: UUID) -> bool:
+        """Delete a Programme row. Caller must clear RESTRICT dependents first."""
+        row = await session.get(ProgrammeSchema, programme_id)
+        if row is None:
+            return False
+        await session.delete(row)
+        await session.flush()
+        return True
