@@ -3,7 +3,7 @@
 <!-- launchpad:harness-start -->
 ## Harness (managed by launchpad — do not edit)
 
-Shared rules: **`.cursor/rules/*.mdc`** (git submodule, pinned at **v0.5.11**).
+Shared rules: **`.cursor/rules/*.mdc`** (git submodule, pinned at **v0.5.12**).
 
 Agent skills: **`prayog-skills/`** (git submodule at root, pinned at **v0.5.0-rc.2**) — `/spec-draft`, `/initiative-feasibility`, `/spec-technical-review`, `/spec-implementation-plan`, `/pre-implement`, `/loop-spec`, `/learning-extract`, `/ground-spec`, `/purge-initiative-artifacts-app`, `/commit-workspace`, `/open-draft-pr`, `/create-board-tickets`.
 
