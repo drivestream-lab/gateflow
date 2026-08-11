@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.api.auth.login_routes import router as auth_router
 from src.api.health.health_router import router as health_router
 from src.api.internal import internal_router
 from src.api.v1 import api_router
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
             "/health",
             "/internal",
             "/webhooks",
+            "/api/auth",
             "/api/v1/waves",
             "/api/v1/initiatives",
             "/api/v1/runs",
@@ -122,6 +124,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(internal_router)
     app.include_router(webhook_router)
+    app.include_router(auth_router, prefix="/api")
     app.include_router(api_router, prefix="/api/v1")
     logger.info("FastAPI application configured")
     return app

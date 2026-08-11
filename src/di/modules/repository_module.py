@@ -11,6 +11,7 @@ from src.database.postgres.repository.run_store_repository import (
     WebhookDeliveryRepository,
 )
 from src.database.postgres.repository.tenant_repository import TenantRepository
+from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
 from src.infra_services.postgres_service import PostgresService
 
 
@@ -53,3 +54,10 @@ class RepositoryModule(Module):
     @singleton
     def provide_tenant_repository(self, postgres_service: PostgresService) -> TenantRepository:
         return TenantRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_user_identity_repository(
+        self, postgres_service: PostgresService
+    ) -> UserIdentityRepository:
+        return UserIdentityRepository(session_factory=postgres_service.get_session_factory())

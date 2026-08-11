@@ -26,6 +26,7 @@ _BUSINESS_SERVICE_TYPES: tuple[type, ...] = ()
 
 def configure_container() -> Injector:
     from src.business_services.adapter_registry import AdapterRegistry
+    from src.business_services.auth_identity_service import AuthIdentityService
     from src.business_services.board_service import BoardService
     from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
     from src.business_services.forge_action_service import ForgeActionService
@@ -102,6 +103,7 @@ def configure_container() -> Injector:
             WaveStartService,
             BoardService,
             TenantService,
+            AuthIdentityService,
             ProgrammeOnboardingService,
             CheckpointEvidenceService,
             ForgeActionService,

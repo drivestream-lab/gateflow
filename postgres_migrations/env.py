@@ -13,6 +13,7 @@ from src.database.postgres.schema.base_postgres_schema import postgres_metadata
 import src.database.postgres.schema.learning_schema  # noqa: F401 — register ORM tables
 import src.database.postgres.schema.run_store_schema  # noqa: F401 — register ORM tables
 import src.database.postgres.schema.tenant_schema  # noqa: F401 — register ORM tables
+import src.database.postgres.schema.user_identity_schema  # noqa: F401 — register ORM tables
 
 target_metadata = postgres_metadata
 
