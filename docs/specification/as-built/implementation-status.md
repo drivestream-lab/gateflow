@@ -66,7 +66,7 @@
 | Dead-door deletion | REQ-34 | delete token modules; remove `POST /tenants` | `test_tenant_routes` (-k register) | `verify_dead_doors_deleted` | 404/405 with JWT |
 | Wipe cutover | REQ-35, REQ-46 | `ProgrammeWipeService` + wipe route | `test_programme_wipe_service` | `verify_wipe_cutover` | ACTIVE → 409 |
 
-**INIT-GATEFLOW-014 W3 status:** implemented — awaiting wave-acceptance (board [#218](https://github.com/drivestream-lab/gateflow/issues/218)). Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md).
+**INIT-GATEFLOW-014 W3 status:** **human_approved** at wave-acceptance — Draft PR [#224](https://github.com/drivestream-lab/gateflow/pull/224) @ `52b969d` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
