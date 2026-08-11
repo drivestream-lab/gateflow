@@ -10,8 +10,16 @@ from starlette.responses import JSONResponse, Response
 
 from src.common.auth.config import AuthConfig
 from src.models.auth_models import AuthContext
+from src.models.role_types import RoleType
 
 _OWNER_ROLES = frozenset({"owner", "tenant_owner"})
+
+
+def _unauthorized(message: str, *, details: Optional[str] = None) -> JSONResponse:
+    error: dict[str, object] = {"code": "UNAUTHORIZED", "message": message}
+    if details is not None:
+        error["details"] = details
+    return JSONResponse(status_code=401, content={"status": "error", "error": error})
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -51,29 +59,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "status": "error",
-                    "error": {
-                        "code": "UNAUTHORIZED",
-                        "message": "Missing or invalid Authorization header",
-                    },
-                },
-            )
+            return _unauthorized("Missing or invalid Authorization header")
 
         token = auth_header[7:].strip()
         if not token:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "status": "error",
-                    "error": {
-                        "code": "UNAUTHORIZED",
-                        "message": "Missing Bearer token",
-                    },
-                },
-            )
+            return _unauthorized("Missing Bearer token")
 
         try:
             payload = jwt.decode(
@@ -84,53 +74,42 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 issuer=self._config.issuer,
             )
         except JWTError as e:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "status": "error",
-                    "error": {
-                        "code": "UNAUTHORIZED",
-                        "message": "Invalid or expired token",
-                        "details": str(e),
-                    },
-                },
-            )
+            return _unauthorized("Invalid or expired token", details=str(e))
 
         sub = payload.get("sub")
         tenant_id_raw = payload.get("tenant_id")
-        role = payload.get("role")
+        role_raw = payload.get("role")
         if not sub:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "status": "error",
-                    "error": {"code": "UNAUTHORIZED", "message": "Token missing sub"},
-                },
-            )
+            return _unauthorized("Token missing sub")
 
         try:
-            user_id = UUID(sub)
+            user_id = UUID(str(sub))
         except (ValueError, TypeError):
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "status": "error",
-                    "error": {"code": "UNAUTHORIZED", "message": "Invalid sub in token"},
-                },
-            )
+            return _unauthorized("Invalid sub in token")
+
+        if role_raw is None or role_raw == "":
+            return _unauthorized("Token missing role")
+
+        try:
+            role = RoleType(str(role_raw))
+        except ValueError:
+            return _unauthorized("Unrecognized role", details=str(role_raw))
 
         tenant_id: Optional[UUID] = None
-        if tenant_id_raw is not None:
+        if tenant_id_raw is not None and tenant_id_raw != "":
             try:
-                tenant_id = UUID(tenant_id_raw)
+                tenant_id = UUID(str(tenant_id_raw))
             except (ValueError, TypeError):
-                pass
+                return _unauthorized("Invalid tenant_id in token")
+
+        if role == RoleType.TENANT_ADMIN and tenant_id is None:
+            return _unauthorized("tenant_admin token missing tenant_id")
 
         owner_id: Optional[UUID] = None
-        if (role or "").strip().lower() in _OWNER_ROLES:
+        if str(role_raw).strip().lower() in _OWNER_ROLES:
             owner_id_raw = payload.get("owner_id") or sub
             try:
-                owner_id = UUID(owner_id_raw)
+                owner_id = UUID(str(owner_id_raw))
             except (ValueError, TypeError):
                 owner_id = user_id
 
@@ -138,7 +117,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             {
                 "user_id": user_id,
                 "tenant_id": tenant_id,
-                "role": role if role else "tenant_admin",
+                "role": role,
                 "owner_id": owner_id,
             }
         )

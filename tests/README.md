@@ -60,6 +60,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_harness_status       # INIT-013 W3 status readiness
 # .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
 # .venv/bin/python -m tests.verify.verify_repo_selection       # INIT-013 W1/W2 select/deselect + setup workspace
+# .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
 # .venv/bin/python -m tests.verify.verify_spec_lane       # opt-in — INIT-009 W1 live proven
@@ -608,6 +609,18 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Closeout Pass-2 | `verify_wave_closeout` — **live** ([Live-Verify W2](../docs/specification/reports/Live-Verify-INIT-GATEFLOW-009-W2.md)) | `test_wave_closeout` |
 | Authorize live | **PE-waived** (INIT-009) | `test_forge_action_service` unit only |
 | Feature readiness + CI | inspection + GitHub Actions `ci` | [`Feature-Readiness-INIT-GATEFLOW-009.md`](../docs/specification/reports/Feature-Readiness-INIT-GATEFLOW-009.md) |
+
+## Feature map (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| RoleType / AuthContext | — | `test_auth_middleware` |
+| Bad JWT refused | — | `test_auth_middleware` |
+| User identity persist | — | `test_user_identity_repository` |
+| Seed + login happy/refuse | `verify_jwt_login` | `test_auth_identity_service` |
+| Claim shape round-trip | `verify_jwt_login` | `test_auth_middleware` (-k claim_shape) |
+
+Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured).
 
 ## Feature map (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
