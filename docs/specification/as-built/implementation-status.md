@@ -45,7 +45,7 @@
 | Agent catalogue + resolve | REQ-19–22,40–42,45 | `platform_agent_catalogue_*` | catalogue unit tests | `verify_agent_catalogue` | No `CursorAgentSettings` |
 | Meta-connection rename | AF-1 | `catalogue_connection_routes/service` | onboarding/selection units | — | Table name unchanged |
 
-**INIT-GATEFLOW-014 W1 status:** **code complete (unit)** — live verify pending human DDL (`DDL-NOTE-INIT-GATEFLOW-014-W1-programmes-agent-catalogue.md`) + `wave-acceptance`. Board [#216](https://github.com/drivestream-lab/gateflow/issues/216). Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md).
+**INIT-GATEFLOW-014 W1 status:** **human_approved** at wave-acceptance — Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) @ `ecb7fbd` label `wave-accepted` (+ Pass-2 Learning/Ground on tip after commit-workspace); Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
