@@ -14,7 +14,7 @@
 | W1 | Programme validate-then-create + tenant_admin attach + agent catalogue | **human_approved** | Board [#216](https://github.com/drivestream-lab/gateflow/issues/216); Draft PR [#221](https://github.com/drivestream-lab/gateflow/pull/221) accept `ecb7fbd` / Pass-2 `6b926c6` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Cut over under JWT; refuse old doors | **human_approved** | Board [#217](https://github.com/drivestream-lab/gateflow/issues/217); Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) accept `0c8e8a5` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 `items: []` — Pass-2 tip `eb51e9f`|
 | W3 | Dead-door deletion + wipe | **human_approved** | Board [#218](https://github.com/drivestream-lab/gateflow/issues/218); Draft PR [#224](https://github.com/drivestream-lab/gateflow/pull/224) accept `52b969d` / Pass-2 `6ad5c96` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
-| W4 | Prove absence + teaching rewrite | **human_approved** | Board [#219](https://github.com/drivestream-lab/gateflow/issues/219); Draft PR [#226](https://github.com/drivestream-lab/gateflow/pull/226) accept tip `30a3ed2` label `wave-accepted`; Ground-Report W4 **pass**; Learning-Extract W4 `items: []` |
+| W4 | Prove absence + teaching rewrite | **human_approved** | Board [#219](https://github.com/drivestream-lab/gateflow/issues/219); Draft PR [#226](https://github.com/drivestream-lab/gateflow/pull/226) accept tip `30a3ed2` / Pass-2 `2d37424` label `wave-accepted`; Ground-Report W4 **pass**; Learning-Extract W4 `items: []` |
 
 ## W0 capability detail
 
