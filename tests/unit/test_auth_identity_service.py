@@ -12,6 +12,7 @@ from src.exceptions.app_exceptions import UnauthorizedError
 from src.models.auth_models import LoginRequest, UserIdentityReadModel
 from src.models.role_types import RoleType
 from src.utils.password_hashing import hash_password
+from tests._helpers.jwt_test_token import public_key_pem
 
 
 def _service(
@@ -56,8 +57,8 @@ async def test_login_happy_path_returns_jwt() -> None:
     assert response.access_token
     payload = jwt.decode(
         response.access_token,
-        "test-secret-key-for-ci-only",
-        algorithms=["HS256"],
+        public_key_pem(),
+        algorithms=["RS256"],
         audience="drivestream",
         issuer="gateflow",
     )

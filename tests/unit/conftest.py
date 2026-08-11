@@ -3,6 +3,7 @@
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -13,12 +14,18 @@ from src.app import create_app
 from src.configs.base_settings import BaseSettings
 from src.di.dependency_container import configure_container, reset_container
 
+_FIXTURE_JWT_PRIVATE = Path(__file__).resolve().parents[1] / "fixtures" / "jwt_private.pem"
+_FIXTURE_JWT_PUBLIC = Path(__file__).resolve().parents[1] / "fixtures" / "jwt_public.pem"
+
 
 @pytest.fixture(autouse=True)
 def reset_settings() -> None:
-    """Clear settings singletons and set minimal JWT env for in-process tests."""
-    os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci-only")
-    os.environ.setdefault("JWT_ALGORITHM", "HS256")
+    """Clear settings singletons and force RS256 fixture PEMs for in-process tests."""
+    # Force committed test PEMs — do not inherit developer auth-keys/.env paths
+    # (assignment, not setdefault: exported JWT_* from a sourced .env must lose).
+    os.environ["JWT_ALGORITHM"] = "RS256"
+    os.environ["JWT_PRIVATE_KEY_PATH"] = str(_FIXTURE_JWT_PRIVATE)
+    os.environ["JWT_PUBLIC_KEY_PATH"] = str(_FIXTURE_JWT_PUBLIC)
     os.environ.setdefault("GITHUB_WEBHOOK_SECRET", "test-webhook-secret")
     # Force PAT mode for in-process tests — do not inherit app mode from developer .env
     os.environ["GITHUB_AUTH_MODE"] = "pat"

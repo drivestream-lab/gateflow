@@ -1,14 +1,11 @@
 """HTTP route tests for tenant registry under JWT (INIT-GATEFLOW-014 W3)."""
 
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from jose import jwt
 
 from src.app import create_app
 from src.business_services.tenant_service import get_tenant_service
@@ -21,29 +18,7 @@ from src.models.tenant_models import (
     TenantRepoRef,
     TenantUserAttachResponse,
 )
-
-_SECRET = "test-secret-key-for-ci-only"
-_ISSUER = "gateflow"
-_AUDIENCE = "drivestream"
-
-
-def _mint_jwt(
-    *,
-    role: str,
-    tenant_id: Optional[str] = None,
-) -> str:
-    now = datetime.now(tz=UTC)
-    payload: dict[str, Any] = {
-        "sub": str(uuid4()),
-        "role": role,
-        "iss": _ISSUER,
-        "aud": _AUDIENCE,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(hours=1)).timestamp()),
-    }
-    if tenant_id is not None:
-        payload["tenant_id"] = tenant_id
-    return jwt.encode(payload, _SECRET, algorithm="HS256")
+from tests._helpers.jwt_test_token import mint_test_jwt
 
 
 @pytest.fixture
@@ -119,7 +94,7 @@ def test_register_route_gone_with_platform_admin_jwt(
 ) -> None:
     """REQ-34: even platform_admin JWT cannot use deleted open-register route."""
     client, _ = tenant_client
-    token = _mint_jwt(role=RoleType.PLATFORM_ADMIN.value)
+    token = mint_test_jwt(role=RoleType.PLATFORM_ADMIN)
     response = client.post(
         "/api/v1/tenants",
         headers={"Authorization": f"Bearer {token}"},
@@ -149,7 +124,7 @@ def test_list_401_with_old_tenant_bearer(tenant_client: tuple[TestClient, MagicM
 
 def test_list_200_with_tenant_admin_jwt(tenant_client: tuple[TestClient, MagicMock]) -> None:
     client, service = tenant_client
-    token = _mint_jwt(role=RoleType.TENANT_ADMIN.value, tenant_id=str(uuid4()))
+    token = mint_test_jwt(role=RoleType.TENANT_ADMIN, tenant_id=str(uuid4()))
     response = client.get(
         "/api/v1/tenants",
         headers={"Authorization": f"Bearer {token}"},
