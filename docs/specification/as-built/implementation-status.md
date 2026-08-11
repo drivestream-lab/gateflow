@@ -57,7 +57,7 @@
 | Catalogue-only agent dispatch | REQ-26,41 | SlotValidator + CursorAgentRunner | slot/cursor units | — | No env key |
 | Webhooks signature-only | REQ-28 | `github_routes` unchanged | webhook ingress units | — | Still public |
 
-**INIT-GATEFLOW-014 W2 status:** **human_approved** at wave-acceptance — Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) @ `0c8e8a5` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-014 W2 status:** **human_approved** at wave-acceptance — Draft PR [#222](https://github.com/drivestream-lab/gateflow/pull/222) @ `0c8e8a5` label `wave-accepted` (+ Pass-2 tip `eb51e9f`); Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-014.md`](Implementation-Status-INIT-GATEFLOW-014.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-013 W0 — programme connect + catalogue)
 
