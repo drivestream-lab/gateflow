@@ -11,9 +11,20 @@
 | Wave | Goal | Status | Evidence |
 |------|------|--------|----------|
 | W0 | Persist full RunOutcomeType vocabulary + lane payload | **human_approved** | Board [#230](https://github.com/drivestream-lab/gateflow/issues/230); Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) accept `0d9bbc7` / Pass-2 `c3a0720` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
-| W1 | Skill/Spec Efficacy API | not started | — |
+| W1 | Skill/Spec Efficacy API | **human_approved** | Board [#231](https://github.com/drivestream-lab/gateflow/issues/231); Draft PR [#235](https://github.com/drivestream-lab/gateflow/pull/235) @ `202c4fa` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Factory Effectiveness API | not started | — |
 | W3 | Delivery Scorecard API | not started | — |
+
+## W1 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Skill efficacy response models | REQ-04,07,08,09 | `skill_efficacy_models.py` | -k models | — | `extra="forbid"` |
+| Tenant-scoped stage_completed | REQ-04,05,06,10 | `RunEventRepository.list_stage_completed_for_tenant` | -k tenant_scope | verify | ADR-016 join |
+| Learning codify rates | REQ-08,09 | `LearningRepository.aggregate_codify_rates` | -k codify_rate | — | unjoined bucket |
+| Service composition + filters | REQ-04–07 | `SkillEfficacyService` | rates + filter | verify | named-clean empty |
+| Outcome vocabulary boundary | REQ-03 | `min_extended_outcome_created_at` | -k outcome_boundary | — | not yet observed |
+| Route + DI | REQ-04,10 | `metrics_routes` + DI | -k route | verify | TENANT_ADMIN |
 
 ## W0 capability detail
 
