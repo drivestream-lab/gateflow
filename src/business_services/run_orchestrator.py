@@ -56,7 +56,7 @@ from src.models.forge_models import merge_pin_and_handoff_forge
 from src.models.forge_types import CommitWorkspaceModeType
 from src.models.handoff_models import HandoffEnvelope, ResolvedWorkflowNode
 from src.models.programme_readiness_models import ReadinessSourceType
-from src.models.policy_types import PolicyDecisionType, RunEventNameType
+from src.models.policy_types import AgentRunOutcomeType, PolicyDecisionType, RunEventNameType
 from src.models.pr_branch_naming import (
     BranchResolveModeType,
     branch_slug_from_head_ref,
@@ -412,6 +412,7 @@ class RunOrchestrator(BaseBusinessService):
                         issue_ref=issue_ref,
                         org=context.org,
                         repo=context.repo,
+                        job_payload=payload,
                     )
 
                 try:
@@ -441,10 +442,12 @@ class RunOrchestrator(BaseBusinessService):
                     stored_path = stage_summary.get("handoff_path") or (
                         str(run.handoff_path).strip() if run.handoff_path else ""
                     )
-                    handoff = self._ingest_handoff_after_stage(
-                        handoff_path=str(stored_path),
-                        expected_stage=next_node.node_id,
-                    )
+                    handoff = stage_summary.get("handoff")
+                    if handoff is None:
+                        handoff = self._ingest_handoff_after_stage(
+                            handoff_path=str(stored_path),
+                            expected_stage=next_node.node_id,
+                        )
                 except ValueError as exc:
                     return await self._finalize_run(
                         session,
@@ -719,6 +722,7 @@ class RunOrchestrator(BaseBusinessService):
                     repo=context.repo,
                     handoff=handoff,
                     stop_node=decision.next_node,
+                    job_payload=payload,
                 )
 
     async def _run_orchestrated_stage(
@@ -813,6 +817,7 @@ class RunOrchestrator(BaseBusinessService):
                 runner=resolved.runner,
                 model_id=resolved.model_id,
                 model_profile=resolved.model_profile,
+                lane=self._optional_lane_from_job_payload(payload),
             )
             await self._stage_repository.create_stage(
                 session,
@@ -865,12 +870,27 @@ class RunOrchestrator(BaseBusinessService):
         )
         duration_ms = int((time.monotonic() - t0) * 1000)
 
-        stage_outcome = (
-            RunOutcomeType.SUCCESS
-            if agent_result.outcome.value == "success"
-            else RunOutcomeType.FAILED
-        )
-        metrics_outcome = "success" if stage_outcome == RunOutcomeType.SUCCESS else "failed"
+        # Agent binary success/failure gates walker continuation; skill verdict
+        # (handoff.outcome) drives persisted stage/event outcome vocabulary (REQ-01).
+        agent_ok = agent_result.outcome == AgentRunOutcomeType.SUCCESS
+        handoff_for_outcome: Optional[HandoffEnvelope] = None
+        if not agent_ok:
+            stage_outcome = RunOutcomeType.FAILED
+        else:
+            try:
+                handoff_for_outcome = self._ingest_handoff_after_stage(
+                    handoff_path=handoff_path,
+                    expected_stage=next_node.node_id,
+                )
+                stage_outcome = self._stage_outcome_from_handoff_outcome(
+                    handoff_for_outcome.outcome
+                )
+            except ValueError:
+                # Handoff not readable yet — persist agent SUCCESS; caller
+                # re-ingests and remains the fail-closed gate (REQ-8b).
+                stage_outcome = RunOutcomeType.SUCCESS
+                handoff_for_outcome = None
+        metrics_outcome = stage_outcome.value
         ended_at = datetime.now(UTC)
         await self._metrics_emitter.record_stage_duration(
             session,
@@ -881,6 +901,7 @@ class RunOrchestrator(BaseBusinessService):
             runner=resolved.runner,
             model_id=resolved.model_id,
             model_profile=resolved.model_profile,
+            lane=self._optional_lane_from_job_payload(payload),
         )
         await self._stage_repository.create_stage(
             session,
@@ -911,11 +932,12 @@ class RunOrchestrator(BaseBusinessService):
         )
         notify_pending = notify_pending or completed_notify
         return {
-            "success": stage_outcome == RunOutcomeType.SUCCESS,
+            "success": agent_ok,
             "notify_pending": notify_pending,
             "stop_reason": agent_result.error_message,
             "duration_ms": duration_ms,
             "handoff_path": handoff_path,
+            "handoff": handoff_for_outcome,
         }
 
     async def _resolve_job_workspace_path(
@@ -1074,6 +1096,33 @@ class RunOrchestrator(BaseBusinessService):
         if ticket is None or not str(ticket).strip():
             raise ValueError("ticket_id missing from job payload for packaged-skill automate")
         return str(ticket).strip()
+
+    def _optional_lane_from_job_payload(
+        self, job_payload: Optional[dict[str, Any]]
+    ) -> Optional[str]:
+        """Return non-empty lane from job payload, or None (never fabricate)."""
+        if job_payload is None:
+            return None
+        raw = job_payload.get("lane")
+        if isinstance(raw, str) and raw.strip():
+            return raw.strip()
+        return None
+
+    def _stage_outcome_from_handoff_outcome(self, outcome: str) -> RunOutcomeType:
+        """Map skill handoff.outcome onto RunOutcomeType (REQ-01).
+
+        Workflow ``pass`` is the success synonym; other values must match the
+        persisted enum wire strings.
+        """
+        normalized = outcome.strip()
+        if normalized == "pass":
+            return RunOutcomeType.SUCCESS
+        try:
+            return RunOutcomeType(normalized)
+        except ValueError as exc:
+            raise ValueError(
+                f"Unrecognized handoff.outcome {outcome!r} for stage persistence"
+            ) from exc
 
     def _ingest_handoff_after_stage(
         self,
@@ -1517,6 +1566,9 @@ class RunOrchestrator(BaseBusinessService):
             "event_type": "run_stopped",
             "wave_duration_ms": wave_duration_ms,
         }
+        lane = self._optional_lane_from_job_payload(job_payload)
+        if lane is not None:
+            payload["lane"] = lane
         if stop_node is not None:
             if stop_node.purpose is not None:
                 payload["purpose"] = stop_node.purpose

@@ -1797,3 +1797,320 @@ async def test_harness_missing_fails_before_enter_at(tmp_path: Path) -> None:
     assert summary.terminal_status == "failed"
     assert "harness_artifacts_missing" in (summary.stop_reason or "")
     cursor.run_skill.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("handoff_outcome", "expected_stage"),
+    [
+        ("pass", "SUCCESS"),
+        ("findings", "FINDINGS"),
+        ("blocked", "BLOCKED"),
+        ("stopped", "STOPPED"),
+        ("pending", "PENDING"),
+        ("success", "SUCCESS"),
+    ],
+)
+async def test_stage_outcome_vocabulary_from_handoff(
+    handoff_outcome: str, expected_stage: str
+) -> None:
+    """REQ-01: agent success persists handoff.outcome onto stages + metrics."""
+    from src.models.control_plane_models import (
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+    from src.models.handoff_models import HandoffEnvelope
+    from src.models.run_store_types import RunOutcomeType
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+        )
+    )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_stage_duration = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="loop-spec",
+            outcome=handoff_outcome,
+            blockers=["TEST-WALKER-STOP"],
+            human_checkpoint=True,
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        cursor_agent_runner=cursor_agent_runner,
+        metrics_emitter=metrics_emitter,
+        stage_repository=stage_repo,
+        handoff_reader=handoff_reader,
+    )
+    await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=_job_payload(event_type="api_trigger"),
+            delivery_id="d-run",
+        )
+    )
+    stage_create = stage_repo.create_stage.await_args.args[1]
+    assert stage_create.outcome_type == RunOutcomeType[expected_stage]
+    assert metrics_emitter.record_stage_duration.await_args.kwargs["outcome"] == (
+        RunOutcomeType[expected_stage].value
+    )
+
+
+@pytest.mark.asyncio
+async def test_stage_outcome_vocabulary_agent_failure_ignores_handoff() -> None:
+    """REQ-02: agent failure stays FAILED even if handoff claims pass/findings."""
+    from src.models.control_plane_models import (
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+    from src.models.handoff_models import HandoffEnvelope
+    from src.models.run_store_types import RunOutcomeType
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.FAILED,
+            error_message="forced",
+        )
+    )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_stage_duration = AsyncMock()
+    stage_repo = MagicMock()
+    stage_repo.create_stage = AsyncMock()
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="loop-spec",
+            outcome="findings",
+            blockers=[],
+            human_checkpoint=False,
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        cursor_agent_runner=cursor_agent_runner,
+        metrics_emitter=metrics_emitter,
+        stage_repository=stage_repo,
+        handoff_reader=handoff_reader,
+    )
+    summary = await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=_job_payload(event_type="api_trigger"),
+            delivery_id="d-run",
+        )
+    )
+    assert summary.terminal_status == RunStatusType.FAILED.value
+    stage_create = stage_repo.create_stage.await_args.args[1]
+    assert stage_create.outcome_type == RunOutcomeType.FAILED
+    assert metrics_emitter.record_stage_duration.await_args.kwargs["outcome"] == "failed"
+    handoff_reader.read_path.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_lane_payload_on_stage_completed_and_run_stopped() -> None:
+    """REQ-16 / ADR-017: lane from job payload lands on stage_completed + run_stopped."""
+    from src.models.control_plane_models import (
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+    from src.models.handoff_models import HandoffEnvelope
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+        )
+    )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_stage_duration = AsyncMock()
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="loop-spec",
+            outcome="pass",
+            blockers=["TEST-WALKER-STOP"],
+            human_checkpoint=True,
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        cursor_agent_runner=cursor_agent_runner,
+        metrics_emitter=metrics_emitter,
+        run_event_repository=run_event_repo,
+        handoff_reader=handoff_reader,
+    )
+    await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=_job_payload(event_type="api_trigger", lane="implement"),
+            delivery_id="d-run",
+        )
+    )
+    assert metrics_emitter.record_stage_duration.await_args.kwargs["lane"] == "implement"
+    run_stopped = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(run_stopped) == 1
+    assert run_stopped[0].payload.get("lane") == "implement"
+
+
+@pytest.mark.asyncio
+async def test_lane_payload_absent_when_job_has_no_lane() -> None:
+    """REQ-16: do not fabricate lane when job payload omits it."""
+    from src.models.control_plane_models import (
+        TriggerAuthorizationResult,
+        TriggerContext,
+    )
+    from src.models.handoff_models import HandoffEnvelope
+
+    trigger_router = MagicMock()
+    trigger_router.authorize_and_check = AsyncMock(
+        return_value=TriggerAuthorizationResult(
+            authorized=True,
+            context=TriggerContext(
+                org="acme",
+                repo="widget",
+                event_type="api_trigger",
+                delivery_id="d-run",
+                trigger_label="gateflow:run-wave",
+                pr_number=7,
+                workspace_path=str(Path.cwd()),
+            ),
+            failures=[],
+        )
+    )
+    cursor_agent_runner = MagicMock()
+    cursor_agent_runner.run_skill = AsyncMock(
+        return_value=AgentRunResult(
+            runner="cursor",
+            outcome=AgentRunOutcomeType.SUCCESS,
+        )
+    )
+    metrics_emitter = MagicMock()
+    metrics_emitter.record_stage_duration = AsyncMock()
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    handoff_reader = MagicMock()
+    handoff_reader.read_path = MagicMock(
+        return_value=HandoffEnvelope(
+            contract="sdd-delivery/v2",
+            stage="loop-spec",
+            outcome="pass",
+            blockers=["TEST-WALKER-STOP"],
+            human_checkpoint=True,
+        )
+    )
+    orchestrator = _build_orchestrator(
+        trigger_router=trigger_router,
+        cursor_agent_runner=cursor_agent_runner,
+        metrics_emitter=metrics_emitter,
+        run_event_repository=run_event_repo,
+        handoff_reader=handoff_reader,
+    )
+    await orchestrator.process_job(
+        JobModel(
+            id=uuid4(),
+            status_type=JobStatusType.CLAIMED,
+            payload=_job_payload(event_type="api_trigger"),
+            delivery_id="d-run",
+        )
+    )
+    assert metrics_emitter.record_stage_duration.await_args.kwargs.get("lane") is None
+    run_stopped = [
+        call.args[1]
+        for call in run_event_repo.append_event.await_args_list
+        if call.args[1].event_type == "run_stopped"
+    ]
+    assert len(run_stopped) == 1
+    assert "lane" not in run_stopped[0].payload
+
+
+@pytest.mark.asyncio
+async def test_metrics_emitter_lane_in_stage_completed_payload() -> None:
+    from src.business_services.metrics_emitter import MetricsEmitter
+
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    emitter = MetricsEmitter(
+        run_repository=MagicMock(),
+        run_event_repository=run_event_repo,
+        stage_repository=MagicMock(),
+    )
+    await emitter.record_stage_duration(
+        MagicMock(),
+        uuid4(),
+        "loop-spec",
+        9,
+        outcome="success",
+        lane="spec",
+    )
+    event = run_event_repo.append_event.await_args.args[1]
+    assert event.payload["lane"] == "spec"
