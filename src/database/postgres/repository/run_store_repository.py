@@ -35,6 +35,7 @@ from src.models.run_store_models import (
 )
 from src.models.run_store_types import JobStatusType, RunOutcomeType, RunStatusType
 from src.models.skill_efficacy_models import StageCompletedEfficacyRow
+from src.models.delivery_scorecard_models import StageCompletedScorecardRow
 from src.models.factory_effectiveness_models import (
     FactoryEventTraceRow,
     RunFactoryHeader,
@@ -552,6 +553,40 @@ class RunEventRepository(BasePostgresRepository[RunEventSchema]):
                     workflow_node=event.workflow_node,
                     created_at=event.created_at,
                     authorization=str(auth_raw) if auth_raw not in (None, "") else None,
+                )
+            )
+        return rows
+
+    async def list_stage_completed_for_scorecard(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        *,
+        since: datetime,
+    ) -> list[StageCompletedScorecardRow]:
+        """Tenant-scoped stage_completed rows with initiative/wave for rework (REQ-19)."""
+        stmt = (
+            select(RunEventSchema, RunSchema.initiative_id, RunSchema.wave_id)
+            .join(RunSchema, RunEventSchema.run_id == RunSchema.id)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunEventSchema.event_type == "stage_completed")
+            .where(RunEventSchema.created_at >= since)
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        rows: list[StageCompletedScorecardRow] = []
+        for event, initiative_id, wave_id in result.all():
+            if event.created_at is None:
+                continue
+            node = event.workflow_node or "unknown"
+            rows.append(
+                StageCompletedScorecardRow(
+                    run_id=event.run_id,
+                    initiative_id=initiative_id,
+                    wave_id=wave_id,
+                    workflow_node=node,
+                    outcome_type=event.outcome_type,
+                    created_at=event.created_at,
                 )
             )
         return rows

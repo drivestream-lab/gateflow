@@ -1,5 +1,6 @@
 """FastAPI dependencies for gateflow."""
 
+from src.business_services.delivery_scorecard_service import DeliveryScorecardService
 from src.business_services.factory_effectiveness_service import FactoryEffectivenessService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.skill_efficacy_service import SkillEfficacyService
@@ -35,3 +36,9 @@ def get_factory_effectiveness_service() -> FactoryEffectivenessService:
     from src.di.dependency_container import provide_service
 
     return provide_service(FactoryEffectivenessService)
+
+
+def get_delivery_scorecard_service() -> DeliveryScorecardService:
+    from src.di.dependency_container import provide_service
+
+    return provide_service(DeliveryScorecardService)
