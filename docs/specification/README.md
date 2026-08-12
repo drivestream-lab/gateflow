@@ -17,7 +17,17 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Active initiative (014 spec draft):** [`product/INIT-GATEFLOW-014-gateflow.md`](product/INIT-GATEFLOW-014-gateflow.md)
+**Active initiative (015 spec draft):** [`product/INIT-GATEFLOW-015-gateflow.md`](product/INIT-GATEFLOW-015-gateflow.md)
+(Skill efficacy, factory effectiveness, and delivery-copilot productivity
+metrics — CAP-01 outcome-persistence prerequisite fix (`stage_completed` +
+`stages.outcome_type` collapse `findings`/`stopped`/`blocked` to `None`
+today); three additive, tenant-scoped, live-aggregated read APIs:
+`GET /api/v1/metrics/skill-efficacy` (CAP-02), `GET /api/v1/metrics/factory-effectiveness`
+(CAP-03 — fulfills INIT-GATEFLOW-004's `REQ-37`/`A2`), `GET /api/v1/metrics/delivery-scorecard`
+(CAP-04); `GET /api/v1/metrics/runs` unchanged; CAP-01…04 / REQ-01…23; Gate 1
+approved on [prayog-meta#40](https://github.com/drivestream-lab/prayog-meta/pull/40)).
+
+**Prior (014 spec draft):** [`product/INIT-GATEFLOW-014-gateflow.md`](product/INIT-GATEFLOW-014-gateflow.md)
 (One identity to call Gateflow — Gateflow-issued user JWT (`platform_admin` |
 `tenant_admin`) becomes the sole product-edge credential; new **Programme**
 entity holds per-programme GitHub PAT + workspace + lane defaults; platform DB
