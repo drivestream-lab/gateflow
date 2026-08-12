@@ -35,6 +35,11 @@ from src.models.run_store_models import (
 )
 from src.models.run_store_types import JobStatusType, RunOutcomeType, RunStatusType
 from src.models.skill_efficacy_models import StageCompletedEfficacyRow
+from src.models.factory_effectiveness_models import (
+    FactoryEventTraceRow,
+    RunFactoryHeader,
+    RunStoppedFactoryRow,
+)
 
 
 class WebhookDeliveryRepository(BasePostgresRepository[WebhookDeliverySchema]):
@@ -308,6 +313,71 @@ class RunRepository(BasePostgresRepository[RunSchema]):
         await session.flush()
         return len(rows)
 
+    async def list_runs_for_factory_metrics(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        *,
+        since: datetime,
+    ) -> list[RunFactoryHeader]:
+        """Tenant-scoped run headers created within the retention window."""
+        stmt = (
+            select(RunSchema)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunSchema.created_at >= since)
+            .order_by(RunSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        headers: list[RunFactoryHeader] = []
+        for row in result.scalars().all():
+            if row.created_at is None or row.id is None:
+                continue
+            headers.append(
+                RunFactoryHeader(
+                    run_id=row.id,
+                    initiative_id=row.initiative_id,
+                    wave_id=row.wave_id,
+                    status_type=row.status_type,
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
+                    wave_duration_ms=row.wave_duration_ms,
+                )
+            )
+        return headers
+
+    async def find_next_run_for_initiative_wave(
+        self,
+        session: AsyncSession,
+        *,
+        tenant_id: UUID,
+        initiative_id: str,
+        wave_id: str,
+        after: datetime,
+    ) -> Optional[RunFactoryHeader]:
+        """Next run for the same initiative+wave created after ``after`` (REQ-14)."""
+        stmt = (
+            select(RunSchema)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunSchema.initiative_id == initiative_id)
+            .where(RunSchema.wave_id == wave_id)
+            .where(RunSchema.created_at > after)
+            .order_by(RunSchema.created_at.asc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
+        if row is None or row.id is None or row.created_at is None:
+            return None
+        return RunFactoryHeader(
+            run_id=row.id,
+            initiative_id=row.initiative_id,
+            wave_id=row.wave_id,
+            status_type=row.status_type,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            wave_duration_ms=row.wave_duration_ms,
+        )
+
 
 class StageRepository(BasePostgresRepository[StageSchema]):
     def __init__(self, session_factory: PostgresSessionFactory) -> None:
@@ -410,3 +480,78 @@ class RunEventRepository(BasePostgresRepository[RunEventSchema]):
                 continue
             return event.created_at
         return None
+
+    async def list_run_stopped_for_tenant(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        *,
+        since: datetime,
+    ) -> list[RunStoppedFactoryRow]:
+        """Tenant-scoped run_stopped rows with raw stop_reason + optional lane."""
+        stmt = (
+            select(RunEventSchema)
+            .join(RunSchema, RunEventSchema.run_id == RunSchema.id)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunEventSchema.event_type == "run_stopped")
+            .where(RunEventSchema.created_at >= since)
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        rows: list[RunStoppedFactoryRow] = []
+        for event in result.scalars().all():
+            if event.created_at is None:
+                continue
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            reason_raw = payload.get("stop_reason")
+            stop_reason = "" if reason_raw is None else str(reason_raw)
+            lane_raw = payload.get("lane")
+            duration_raw = payload.get("wave_duration_ms")
+            duration: Optional[int] = None
+            if duration_raw is not None and duration_raw != "":
+                duration = int(duration_raw)
+            rows.append(
+                RunStoppedFactoryRow(
+                    run_id=event.run_id,
+                    workflow_node=event.workflow_node,
+                    stop_reason=stop_reason,
+                    created_at=event.created_at,
+                    lane=str(lane_raw) if lane_raw not in (None, "") else None,
+                    wave_duration_ms=duration,
+                )
+            )
+        return rows
+
+    async def list_event_trace_for_runs(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        run_ids: list[UUID],
+    ) -> list[FactoryEventTraceRow]:
+        """Ordered event traces for unattended streak analysis (tenant-scoped)."""
+        if not run_ids:
+            return []
+        stmt = (
+            select(RunEventSchema)
+            .join(RunSchema, RunEventSchema.run_id == RunSchema.id)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunEventSchema.run_id.in_(run_ids))
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        rows: list[FactoryEventTraceRow] = []
+        for event in result.scalars().all():
+            if event.created_at is None:
+                continue
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            auth_raw = payload.get("authorization")
+            rows.append(
+                FactoryEventTraceRow(
+                    run_id=event.run_id,
+                    event_type=event.event_type,
+                    workflow_node=event.workflow_node,
+                    created_at=event.created_at,
+                    authorization=str(auth_raw) if auth_raw not in (None, "") else None,
+                )
+            )
+        return rows

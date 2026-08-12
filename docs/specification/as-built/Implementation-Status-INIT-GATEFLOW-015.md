@@ -12,7 +12,7 @@
 |------|------|--------|----------|
 | W0 | Persist full RunOutcomeType vocabulary + lane payload | **human_approved** | Board [#230](https://github.com/drivestream-lab/gateflow/issues/230); Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) accept `0d9bbc7` / Pass-2 `c3a0720` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Skill/Spec Efficacy API | **human_approved** | Board [#231](https://github.com/drivestream-lab/gateflow/issues/231); Draft PR [#235](https://github.com/drivestream-lab/gateflow/pull/235) @ `202c4fa` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
-| W2 | Factory Effectiveness API | not started | — |
+| W2 | Factory Effectiveness API | **code complete (unit)** | Board [#232](https://github.com/drivestream-lab/gateflow/issues/232); `GET /api/v1/metrics/factory-effectiveness`; unit `test_factory_effectiveness_service`; live `verify_factory_effectiveness` (human at wave-acceptance) |
 | W3 | Delivery Scorecard API | not started | — |
 
 ## W1 capability detail

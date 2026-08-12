@@ -46,6 +46,18 @@
 
 **INIT-GATEFLOW-015 W1 status:** **human_approved** at wave-acceptance — Draft PR [#235](https://github.com/drivestream-lab/gateflow/pull/235) @ `202c4fa` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-015 W2 — Factory Effectiveness API)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| GET /metrics/factory-effectiveness | REQ-11, REQ-17 | `factory_effectiveness_service` + route | `test_factory_effectiveness_service` | `verify_factory_effectiveness` (opt-in) | Tenant-scoped |
+| Unattended Pass-1 streak | REQ-12 | `evaluate_unattended_streak` | -k unattended | N/A | Automated hops excluded |
+| stop_reason breakdown | REQ-13 | `aggregate_stop_reasons` | -k stop_reason | verify | Raw passthrough |
+| Gate dwell + open/waiting | REQ-14, REQ-15 | `find_next_run_for_initiative_wave` | -k dwell_time | N/A | No fabricated zero |
+| Lane cycle-time p50/p95 | REQ-16 | `aggregate_lane_cycle_times` | -k lane_cycle_time | N/A | ADR-017 JSONB read; unknown bucket |
+
+**INIT-GATEFLOW-015 W2 status:** **code complete (unit)** — pending Draft PR + human `wave-accepted`. Board [#232](https://github.com/drivestream-lab/gateflow/issues/232). Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md).
+
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

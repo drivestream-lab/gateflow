@@ -37,6 +37,7 @@ def configure_container() -> Injector:
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.skill_efficacy_service import SkillEfficacyService
+    from src.business_services.factory_effectiveness_service import FactoryEffectivenessService
     from src.business_services.policy_engine import PolicyEngine
     from src.business_services.platform_agent_catalogue_service import (
         PlatformAgentCatalogueService,
@@ -103,6 +104,7 @@ def configure_container() -> Injector:
             Notifier,
             MetricsEmitter,
             SkillEfficacyService,
+            FactoryEffectivenessService,
             AdapterRegistry,
             SlotValidator,
             PromptResolver,
