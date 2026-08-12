@@ -88,7 +88,7 @@ N/A — profile/`ground_command` is N/A for this repo. Manual scan performed.
 
 - PR URL: https://github.com/drivestream-lab/gateflow/pull/236
 - Accept tip (`wave-accepted`): `293b01243a97ee00b7e7513a11d36d867b262940`
-- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): *stamp after commit_workspace*
+- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): 
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-015-W2.md`
 - Accept evidence: `wave-accepted` on accept tip — human approved already
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-015-W2.md`
