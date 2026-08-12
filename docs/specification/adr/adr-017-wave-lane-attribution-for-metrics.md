@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | Accepted |
 | Initiative | INIT-GATEFLOW-015 |
 | Feasibility finding | FF-01 |
 | Technical review | `docs/specification/reports/Technical-Review-INIT-GATEFLOW-015.md` |
@@ -13,9 +13,10 @@
 | spec_amendment_required | `false` |
 | supersedes | none |
 | superseded_by | none |
-| Decision owner | PE |
-| Approval evidence | Pending |
-| Approved head | Pending |
+| Decision owner | @nikd10x |
+| Approval evidence | Explicit PE acceptance by @nikd10x on 2026-08-12 via Cursor chat, Draft spec PR [#228](https://github.com/drivestream-lab/gateflow/pull/228) |
+| Approved head | `4505eabf5e09a1409065d8067c26bd0608e505b6` |
+| Lint evidence | adr_boundary_lint.py 2/2, PASS, sha256:71f8bbc5c40019519d9059341e9e28aebb1217e894c6c2b3d275c7b802da722a |
 
 ## Product decisions excluded
 

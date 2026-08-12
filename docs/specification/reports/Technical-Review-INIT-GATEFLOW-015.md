@@ -15,9 +15,9 @@
 | Date | 2026-08-12 |
 | Branch | `chore/INIT-GATEFLOW-015-spec-gateflow` (spec PR [#228](https://github.com/drivestream-lab/gateflow/pull/228) — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-015` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-19 |
-| Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
+| Deciders | PE: @nikd10x — explicit acceptance via Cursor chat on 2026-08-12, both ADRs Accepted at commit `4505eabf5e09a1409065d8067c26bd0608e505b6` |
 
 ---
 
@@ -120,8 +120,8 @@ byte-for-byte
 
 | Finding | Classification | ADR file / TDD section | product_constraints | Product exclusions | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|---------------------|--------------------|--------------------------|--------|--------|
-| FF-01 | ADR_REQUIRED | `docs/specification/adr/adr-017-wave-lane-attribution-for-metrics.md` | `[REQ-16]` | none | Persist `lane` into existing JSONB `payload` on `stage_completed`/`run_stopped` events (Option C) | Draft | `sha256:9c731eef225adc08ec1ab3be30f93931a196aadcb4a81067ce95ed9943c9507b` |
-| FF-02 | ADR_REQUIRED | `docs/specification/adr/adr-018-cap04-board-ticket-tenant-scoping.md` | `[REQ-20, REQ-21, REQ-23]` | none | Reuse existing org+repo → `tenant_id` lookup (`TenantRepository.find_workspace_credential_by_org_repo`) as a read-time classification (Option A) | Draft | `sha256:29a1356e296d69abd1f4055399c030332ad5834480bfa9e2b68f308b08c4abd3` |
+| FF-01 | ADR_REQUIRED | `docs/specification/adr/adr-017-wave-lane-attribution-for-metrics.md` | `[REQ-16]` | none | Persist `lane` into existing JSONB `payload` on `stage_completed`/`run_stopped` events (Option C) | **Accepted** — @nikd10x, approved head `4505eabf…`, Lint evidence `sha256:71f8bbc5…` (verified) | `sha256:af3027b2bc4a55e755ab5dc1906e106df8be359e9562e8896ec830ab9a69ef4f` |
+| FF-02 | ADR_REQUIRED | `docs/specification/adr/adr-018-cap04-board-ticket-tenant-scoping.md` | `[REQ-20, REQ-21, REQ-23]` | none | Reuse existing org+repo → `tenant_id` lookup (`TenantRepository.find_workspace_credential_by_org_repo`) as a read-time classification (Option A) | **Accepted** — @nikd10x, approved head `4505eabf…`, Lint evidence `sha256:88ecb8d3…` (verified) | `sha256:73e8a7ae6878c64c5c685c6768c610fbcec9650c84f729741669f5ea7c131e74` |
 
 **Derived counts:**
 
@@ -218,14 +218,15 @@ None — no auto-fixable items were identified at feasibility.
 | Gate | Status |
 |------|--------|
 | All T1–T12 checks | PASS — see Check summary below |
-| Engineering decisions resolved | 2 resolved (FF-01, FF-02 → Draft ADRs); 0 deferred |
-| Draft ADR files written | 2 files / 2 required (`adr-017-…`, `adr-018-…`) |
+| Engineering decisions resolved | 2 resolved (FF-01, FF-02 → **Accepted** ADRs); 0 deferred |
+| Draft ADR files written | 2 files / 2 required (`adr-017-…`, `adr-018-…`) — both now **Accepted** |
 | Product-boundary integrity (T12) | PASS — mechanical `adr_boundary_lint.py` PASS on both ADRs (2/2 sources checked each). A second, more adversarial critical re-read (post-independent-subagent-pass) found 2 real leakage issues the first pass missed: ADR-017 Context paraphrased REQ-16's acceptance shape ("percentile grouping" ≈ p50/p95 grouped by lane) with zero literal overlap (so the lexical lint could not catch it); ADR-018's Options table narrated a foreclosed option's product-scope impact in prose instead of citing it structurally, violating `adr-template.md`'s "product consequences do not get narrated here" rule. Both fixed in-place (Context reworded to a pure data-model gap statement; Option B's Costs/risks cell reworded to a boundary-only annotation); both files re-linted PASS after the fix (evidence below) |
 | PM questions outstanding | 0 |
 | Domain questions outstanding | 0 |
-| Selected workflow outcome | `pass` — T1–T12 all PASS; both ADRs classified, drafted, mechanically linted, and independently re-read clean; zero unresolved PE-lane item without a disposition; ready for PE architecture review |
-| Ready for PE review | YES |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE approval required** |
+| PE acceptance | **Both ADRs Accepted** — @nikd10x, explicit acceptance via Cursor chat on 2026-08-12, approved head `4505eabf5e09a1409065d8067c26bd0608e505b6` (the Draft-package commit published to spec PR [#228](https://github.com/drivestream-lab/gateflow/pull/228) just prior); Lint evidence recorded and independently re-verified via `--verify-lint-evidence` on both files |
+| Selected workflow outcome | `pass` — T1–T12 all PASS; both ADRs classified, drafted, mechanically linted, independently re-read, adversarially re-checked, fixed, and now formally **Accepted**; zero unresolved PE-lane item without a disposition |
+| Ready for PE review | YES — reviewed and Accepted |
+| **Ready for /spec-implementation-plan** | **YES — both required ADRs are Accepted on this branch; TDD Status is Accepted** |
 
 ---
 
@@ -323,6 +324,8 @@ handoff:
     t12_mechanical_lint: "pass (2/2 sources, both ADRs, post-fix)"
     t12_independent_reread: "clean (both ADRs) — subagent 80ccfc6c-ab56-4315-8fbb-207df44fa7b4"
     t12_adversarial_recheck: "found and fixed 2 leakage issues missed by lint + subagent — ADR-017 Context REQ-16 paraphrase, ADR-018 Options table product-scope narration"
+    pe_acceptance: "both ADRs Accepted by @nikd10x via Cursor chat on 2026-08-12; approved head 4505eabf5e09a1409065d8067c26bd0608e505b6; Lint evidence recorded and --verify-lint-evidence PASS on both"
+    tdd_status: Accepted
     ready_for_pe_review: true
     ready_for_plan: false
     source_freshness: CURRENT
