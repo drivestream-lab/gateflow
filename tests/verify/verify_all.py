@@ -2,23 +2,19 @@
 
 Answers: do the core features work together on a running Gateflow?
 
-Steps (short HTTP checks; ephemeral wave identity where needed):
+Steps (dependency order):
 
-  health → webhook → status/metrics → wave_start → pr_thread → board
+  health → webhook → auth_bootstrap → status/metrics → wave_start → pr_thread → board
 
-Uses ``gateflow:`` from ``tests/config.yaml`` (base_url, org/repo, …).
-Client secrets stay in ``.env`` (``SMOKE_TENANT_ADMIN_TOKEN`` /
-tenant_admin login, ``GITHUB_WEBHOOK_SECRET``).
-
-**Not** in this aggregator (opt-in deep waves — run separately):
-
-  - ``python -m tests.verify.verify_implement_lane``  # features.implement_lane
-  - ``python -m tests.verify.verify_spec_lane``       # features.spec_lane
+Uses ``tests/config.yaml`` only (no process ``.env`` for verify client knobs).
+``auth_bootstrap`` seeds platform_admin and ensures tenant_admin (login or
+attach-to-existing-programme + write-back). GitHub-live / deep lanes stay opt-in.
 
 Usage:
-  cp tests/config.yaml.example tests/config.yaml   # gateflow: target
-  set -a && source .env && set +a
-  make run   # API (+ worker if gateflow.require_worker)
+  cp tests/config.yaml.example tests/config.yaml
+  # fill auth.platform_admin + client.github_webhook_secret
+  # ensure at least one Programme exists in Gateflow (or run programme onboard once)
+  make run
   .venv/bin/python -m tests.verify.verify_all
 """
 
@@ -26,6 +22,7 @@ import sys
 from typing import Callable
 
 from tests.verify import (
+    verify_auth_bootstrap,
     verify_board,
     verify_health,
     verify_pr_thread,
@@ -34,10 +31,11 @@ from tests.verify import (
     verify_webhook,
 )
 
-# Product smoke only — one step per core feature surface.
+# Product smoke — bootstrap before tenant-scoped APIs.
 _VERIFY_STEPS: tuple[tuple[str, Callable[[], int]], ...] = (
     ("verify_health", verify_health.main),
     ("verify_webhook", verify_webhook.main),
+    ("verify_auth_bootstrap", verify_auth_bootstrap.main),
     ("verify_status_metrics", verify_status_metrics.main),
     ("verify_wave_start", verify_wave_start.main),
     ("verify_pr_thread", verify_pr_thread.main),

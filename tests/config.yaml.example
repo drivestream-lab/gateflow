@@ -1,13 +1,15 @@
 # Copy to tests/config.yaml (gitignored) for local live debug / verify.
 #
-# gateflow:  verification client → running Gateflow product
-# auth:      platform_admin seed/login for JWT verify scripts
-# features:  optional per-capability knobs (omit sections you do not run)
-# forge:     debug ForgeClient probe only
+# SSOT for verify/debug client knobs — scripts must not read process .env.
+# Gateflow *runtime* still uses .env when you `make run` (DB, CURSOR_API_KEY,
+# singleton ForgeClient GITHUB_* , GITHUB_WEBHOOK_SECRET on the server).
+# Programme-owned PATs are NOT in .env — they are stored in programmes.github_pat
+# after POST /api/v1/programmes (REQ-11 / ADR-015).
 #
-# Secrets for the verify client (PROGRAMME_SERVICE_TOKEN, GITHUB_WEBHOOK_SECRET)
-# stay in .env for now. CURSOR_API_KEY is Gateflow runtime (.env when you make run)
-# — not verify config. verify_all only needs gateflow: + auth:; deep lanes need features.*.
+# verify_all needs: gateflow + auth.platform_admin + client.github_webhook_secret
+#   + at least one Programme in Gateflow (tenant_admin may be empty → bootstrap attaches)
+# Opt-in programme create: programme.pat (create body fixture only)
+# GitHub-live paths: features.*.enabled / features.board.live_github
 
 gateflow:
   base_url: http://127.0.0.1:8080
@@ -17,17 +19,51 @@ gateflow:
   repo: gateflow
   base_branch: develop
 
-# Required for JWT seed/login verify scripts (verify_jwt_login, programme onboard, …).
-# Local only — do not commit real passwords.
+# JWT identities for verify (local only — never commit real secrets).
+# Scripts login via /api/auth/login and mint JWTs — do not put access tokens here.
 auth:
   platform_admin:
     identifier: platform_admin@smoke.local
     password: replace-me-local-only
+  # Optional: leave empty and verify_auth_bootstrap / verify_all will attach a
+  # random tenant_admin to an existing programme and write credentials back here.
+  tenant_admin:
+    identifier: ""
+    password: ""
+
+# Verify-client secrets (sign webhooks the running API accepts).
+client:
+  github_webhook_secret: replace-me-same-as-runtime-GITHUB_WEBHOOK_SECRET
+
+# Opt-in programme *create* (verify_programme_onboarding / bootstrap if none).
+# programme.pat = create-body fixture in this file only (not .env).
+# Gateflow stores it in programmes.github_pat after create.
+# Default meta: drivestream-lab/prayog-meta.
+# programme.programme_id: optional reuse for attach/bootstrap.
+programme:
+  pat: replace-me-non-production-github-pat
+  org: drivestream-lab
+  repo: prayog-meta
+  ref: ""
+  workspace_root: ""
+  programme_id: ""
+
+# Optional IDs for readout / isolation scripts (omit or leave empty when unused).
+fixtures:
+  legacy_opaque_token: test-programme-token
+  initiative_id: ""
+  wave_id: ""
+  # tenant_a_token / tenant_b_token — cross-programme isolation only
 
 # Product smoke (verify_all) uses gateflow: + ephemeral wave identity in scripts.
-# Feature sections below are optional.
+# Feature sections below are optional / opt-in (same pattern as implement_lane).
 
 features:
+  # Live GitHub forge mutations inside verify_board (default off).
+  # Auth + validation edges always run; set true only when API forge is configured.
+  board:
+    live_github: false
+
   # Coding hops: pre-implement → loop-spec → STOP at wave-acceptance
   #   .venv/bin/python -m tests.verify.verify_implement_lane
   implement_lane:

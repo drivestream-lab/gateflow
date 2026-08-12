@@ -25,7 +25,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -58,8 +57,8 @@ def main() -> int:
 
     owner = cfg.gateflow.org
     repo = cfg.gateflow.repo
-    checkpoint_id = os.environ.get("GATEFLOW_CHECKPOINT_ID", "coding-readiness")
-    pr_raw = os.environ.get("GATEFLOW_CHECKPOINT_PR", "").strip()
+    checkpoint_id = load_tests_config().fixtures.checkpoint_id or "coding-readiness"
+    pr_raw = load_tests_config().fixtures.checkpoint_pr.strip()
     headers = _auth_headers(token)
     status_path = f"{base_url}/api/v1/checkpoints/status"
     history_path = f"{base_url}/api/v1/checkpoints/history"
@@ -214,8 +213,8 @@ def main() -> int:
             )
 
         # REQ-08 — composed readout via initiative+wave (optional, when env supplied)
-        composed_initiative = os.environ.get("GATEFLOW_COMPOSED_INITIATIVE", "").strip()
-        composed_wave = os.environ.get("GATEFLOW_COMPOSED_WAVE", "").strip()
+        composed_initiative = load_tests_config().fixtures.composed_initiative.strip()
+        composed_wave = load_tests_config().fixtures.composed_wave.strip()
         if composed_initiative and composed_wave:
             composed = client.get(
                 status_path,

@@ -12,13 +12,13 @@ Usage:
 
 from __future__ import annotations
 
-import os
 from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.verify_jwt_auth import login_platform_admin
+from tests._helpers.tests_config import load_tests_config
 
 
 def main() -> int:
@@ -56,13 +56,13 @@ def main() -> int:
             return 1
         print("[OK] provision cursor")
 
-        programme_id = os.environ.get("GATEFLOW_PROGRAMME_ID", "").strip()
+        programme_id = load_tests_config().programme.programme_id.strip()
         if not programme_id:
             listed = client.get("/api/v1/programmes", headers=headers)
             if listed.status_code != 200 or not listed.json():
                 print(
-                    "[ERROR] Set GATEFLOW_PROGRAMME_ID or create a programme first "
-                    "(verify_programme_onboarding)"
+                    "[ERROR] Set programme.programme_id in tests/config.yaml "
+                    "or create a programme first (verify_programme_onboarding)"
                 )
                 return 1
             programme_id = str(listed.json()[0]["id"])

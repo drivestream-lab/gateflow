@@ -11,17 +11,11 @@ Usage:
   .venv/bin/python -m tests.verify.verify_programme_onboarding
 
 Config:
-  tests/config.yaml → auth.platform_admin.identifier / password
-
-Env:
-  GATEFLOW_PROGRAMME_PAT — required GitHub PAT for meta probe/clone
-  GATEFLOW_PROGRAMME_ORG / REPO / REF — meta location (defaults drivestream-lab/prayog-meta)
-  GATEFLOW_PROGRAMME_WORKSPACE_ROOT — absolute workspace root (default under /tmp)
+  tests/config.yaml → auth.platform_admin + programme.pat / org / repo
 """
 
 from __future__ import annotations
 
-import os
 import tempfile
 from pathlib import Path
 from uuid import uuid4
@@ -29,21 +23,23 @@ from uuid import uuid4
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config, require_programme_pat
 from tests._helpers.verify_jwt_auth import login_platform_admin
 
 
 def main() -> int:
     base = require_base_url()
-    pat = os.environ.get("GATEFLOW_PROGRAMME_PAT", "").strip()
-    if not pat:
-        print("[ERROR] Set GATEFLOW_PROGRAMME_PAT to a non-production test PAT")
+    try:
+        pat = require_programme_pat()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
-    org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-    repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-    ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
-    workspace = os.environ.get(
-        "GATEFLOW_PROGRAMME_WORKSPACE_ROOT",
-        str(Path(tempfile.gettempdir()) / f"gateflow-w1-{uuid4().hex[:8]}"),
+    prog = load_tests_config().programme
+    org = prog.org.strip() or "drivestream-lab"
+    repo = prog.repo.strip() or "prayog-meta"
+    ref = prog.ref.strip() or None
+    workspace = prog.workspace_root.strip() or str(
+        Path(tempfile.gettempdir()) / f"gateflow-w1-{uuid4().hex[:8]}"
     )
     Path(workspace).mkdir(parents=True, exist_ok=True)
 

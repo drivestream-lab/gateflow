@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -92,7 +91,7 @@ def main() -> int:
         rc |= _assert_status_code(no_auth, 401, "waves 401 without programme token")
 
         # REQ-28 — non-GET rejected (use a path that exists for method check)
-        initiative_id = os.environ.get("GATEFLOW_INITIATIVE_ID", "").strip()
+        initiative_id = load_tests_config().fixtures.initiative_id.strip()
         probe_id = initiative_id or "INIT-DOES-NOT-EXIST"
         post_waves = client.post(
             f"{base_path}/{probe_id}/waves",

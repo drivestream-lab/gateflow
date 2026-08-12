@@ -8,10 +8,8 @@ Usage:
   .venv/bin/python -m tests.verify.verify_tenant_registry
 
 Config:
-  tests/config.yaml → auth.platform_admin (seed/login)
-
-Env:
-  Optional SMOKE_TENANT_ADMIN_TOKEN + SMOKE_TENANT_ID for detail path
+  tests/config.yaml → auth.platform_admin + auth.tenant_admin (login mints JWT)
+  Optional programme.programme_id for detail path (else tenant_id from JWT)
 """
 
 from __future__ import annotations
@@ -93,13 +91,13 @@ def main() -> int:
             return 1
         print("[OK] platform_admin list 200 without pat")
 
-        tenant_id = optional_smoke_tenant_id()
+        try:
+            tenant_token = require_tenant_admin_token(client)
+        except RuntimeError as exc:
+            print(f"[ERROR] {exc}")
+            return 1
+        tenant_id = optional_smoke_tenant_id(tenant_token)
         if tenant_id:
-            try:
-                tenant_token = require_tenant_admin_token(client)
-            except RuntimeError as exc:
-                print(f"[ERROR] {exc}")
-                return 1
             r = client.get(
                 f"/api/v1/tenants/{tenant_id}",
                 headers=auth_headers(tenant_token),
@@ -109,7 +107,7 @@ def main() -> int:
                 return 1
             print(f"[OK] tenant_admin detail → {r.status_code}")
         else:
-            print("[OK] tenant detail skip (SMOKE_TENANT_ID unset)")
+            print("[OK] tenant detail skip (no tenant_id claim on JWT)")
 
     print("[OK] verify_tenant_registry passed")
     return 0

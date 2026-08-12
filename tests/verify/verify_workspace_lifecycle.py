@@ -17,7 +17,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -32,12 +31,8 @@ from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_ten
 
 
 def _pat() -> str:
-    return str(
-        os.environ.get("GATEFLOW_PROGRAMME_PAT")
-        or os.environ.get("GATEFLOW_TENANT_PAT")
-        or os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
-        or ""
-    ).strip()
+    cfg = load_tests_config()
+    return (cfg.programme.pat.strip() or cfg.fixtures.tenant_pat.strip())
 
 
 def main() -> int:
@@ -46,23 +41,23 @@ def main() -> int:
     pat = _pat()
     if not pat:
         print(
-            "[ERROR] GATEFLOW_PROGRAMME_PAT / GATEFLOW_TENANT_PAT / GITHUB_PERSONAL_ACCESS_TOKEN required"
+            "[ERROR] tests/config.yaml must set programme.pat (or fixtures.tenant_pat)"
         )
         return 1
 
-    org = str(os.environ.get("GATEFLOW_TENANT_ORG") or cfg.gateflow.org)
-    repo = str(os.environ.get("GATEFLOW_TENANT_REPO") or cfg.gateflow.repo)
+    org = str(cfg.fixtures.tenant_org.strip() or cfg.gateflow.org)
+    repo = str(cfg.fixtures.tenant_repo.strip() or cfg.gateflow.repo)
     start_url = f"{base}/api/v1/waves/implement/start"
     workspace_root = Path(
-        os.environ.get("GATEFLOW_TENANT_WORKSPACE_ROOT")
+        cfg.fixtures.tenant_workspace_root.strip()
         or tempfile.mkdtemp(prefix="gateflow-ws-lifecycle-")
     ).resolve()
     workspace_root.mkdir(parents=True, exist_ok=True)
     target = workspace_root / org / repo
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
-        programme_org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-        programme_repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
+        programme_org = cfg.programme.org.strip() or "drivestream-lab"
+        programme_repo = cfg.programme.repo.strip() or "prayog-meta"
         try:
             token, tenant_id, _ = provision_programme_tenant_admin(
                 client,

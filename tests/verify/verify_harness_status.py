@@ -9,7 +9,6 @@ Authorization), and JWT product auth.
 
 from __future__ import annotations
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -18,23 +17,24 @@ import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
+from tests._helpers.tests_config import load_tests_config, require_programme_pat
 
 
 def _pat() -> str:
-    for key in ("GATEFLOW_PROGRAMME_PAT", "GATEFLOW_TENANT_PAT", "GITHUB_PERSONAL_ACCESS_TOKEN"):
-        val = os.environ.get(key, "").strip()
-        if val:
-            return val
-    print("[ERROR] Set GATEFLOW_PROGRAMME_PAT (or GITHUB_PERSONAL_ACCESS_TOKEN)")
-    sys.exit(1)
+    try:
+        return require_programme_pat()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
+        sys.exit(1)
 
 
 def main() -> int:
     base = require_base_url()
     pat = _pat()
-    org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-    repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-    ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
+    prog = load_tests_config().programme
+    org = prog.org.strip() or "drivestream-lab"
+    repo = prog.repo.strip() or "prayog-meta"
+    ref = prog.ref.strip() or None
     workspace = Path(tempfile.mkdtemp(prefix="gf014-harness-"))
 
     with httpx.Client(base_url=base, timeout=180.0) as client:

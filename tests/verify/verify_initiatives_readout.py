@@ -22,7 +22,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -136,7 +135,7 @@ def main() -> int:
         rc |= _assert_status_code(post_detail, 405, "initiatives detail rejects non-GET (405)")
 
         # REQ-09 — optional live detail for a real initiative
-        initiative_id = os.environ.get("GATEFLOW_INITIATIVE_ID", "").strip()
+        initiative_id = load_tests_config().fixtures.initiative_id.strip()
         if initiative_id:
             detail = client.get(
                 f"{list_path}/{initiative_id}",

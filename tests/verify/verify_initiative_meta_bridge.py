@@ -22,7 +22,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -122,8 +121,8 @@ def main() -> int:
         rc |= _assert_status_code(missing, 404, "detail unknown initiative -> 404")
 
         # Optional live detail (meta-up when fixture has meta_pr_url + reachable GitHub)
-        initiative_id = os.environ.get("GATEFLOW_INITIATIVE_ID", "").strip()
-        expect_approval = os.environ.get("GATEFLOW_EXPECT_PRD_APPROVAL", "").strip()
+        initiative_id = load_tests_config().fixtures.initiative_id.strip()
+        expect_approval = load_tests_config().fixtures.expect_prd_approval.strip()
         if initiative_id:
             detail = client.get(
                 f"{list_path}/{initiative_id}",
@@ -163,7 +162,7 @@ def main() -> int:
             print("[OK] GATEFLOW_INITIATIVE_ID unset — skipping live detail / meta-up assert")
 
         # Explicit meta-down smoke when an initiative is known to lack meta_pr_url
-        meta_down_id = os.environ.get("GATEFLOW_META_DOWN_INITIATIVE_ID", "").strip()
+        meta_down_id = load_tests_config().fixtures.meta_down_initiative_id.strip()
         if meta_down_id:
             detail = client.get(
                 f"{list_path}/{meta_down_id}",

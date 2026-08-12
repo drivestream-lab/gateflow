@@ -35,10 +35,10 @@ make check && make test
 # .venv/bin/python -m src.main
 # optional worker: .venv/bin/python -m src.worker_main
 # Prefer: make run  (API + worker; required for wave-start / implement-lane)
-# set -a && source .env && set +a
-#   needs GITHUB_WEBHOOK_SECRET + SMOKE_TENANT_ADMIN_TOKEN
-#   (tenant_admin Gateflow JWT from programme attach — not an opaque tenant_admin JWT)
-#   auth.platform_admin in tests/config.yaml for seed/login; GATEFLOW_PROGRAMME_PAT for programme create
+# Fill tests/config.yaml: auth.platform_admin + client.github_webhook_secret
+#   (tenant_admin may be empty — verify_all bootstrap attaches + writes back)
+#   If no Programme yet: set programme.pat (prayog-meta create body) in config.yaml
+#   Runtime .env: DB / CURSOR_API_KEY / webhook secret / singleton forge GITHUB_*
 # .venv/bin/python -m tests.verify.verify_all
 # .venv/bin/python -m tests.verify.verify_old_doors_refused  # INIT-014 W4 old-door refusal
 #
@@ -81,9 +81,9 @@ make check && make test
 
 | Concern | Where |
 |---------|--------|
-| Gateflow **runtime** (DB, Redis, forge, `CURSOR_API_KEY`, handoff root, …) | `.env` (process that runs `make run`) |
-| Verify **client** secrets (`SMOKE_TENANT_ADMIN_TOKEN` / tenant_admin login, `GITHUB_WEBHOOK_SECRET`, optional `GATEFLOW_PROGRAMME_PAT`) | `.env` for now (verify signs webhooks / calls API with JWT) |
-| Verify **target + auth + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
+| Gateflow **runtime** (DB, Redis, `CURSOR_API_KEY`, webhook secret, singleton forge `GITHUB_*`) | `.env` (process that runs `make run`) |
+| **Programme-owned GitHub PAT** | Gateflow DB (`programmes.github_pat`) via create API — **not** `.env` |
+| Verify **client** (URLs, JWT logins, webhook signing secret, optional programme create fixture) | `tests/config.yaml` only |
 
 ```yaml
 # tests/config.yaml (gitignored)
@@ -92,12 +92,22 @@ gateflow:                 # client → running product (verify_all needs this)
   require_worker: …
   org / repo / base_branch: …
 
-auth:                     # JWT seed/login for platform_admin verify scripts
-  platform_admin:
+auth:
+  platform_admin: …       # required — seed/login
+  tenant_admin:           # optional — empty → bootstrap attaches + write-back
     identifier: …
-    password: …           # local only — never commit
+    password: …
 
-features:                 # omit sections you do not run
+client:
+  github_webhook_secret: …  # same value as runtime GITHUB_WEBHOOK_SECRET
+
+programme:                # opt-in create / bootstrap programme_id
+  pat: …                  # create-body fixture in config.yaml only (e.g. prayog-meta)
+  programme_id: …
+
+features:
+  board:
+    live_github: false    # opt-in forge mutations (like implement_lane.enabled)
   implement_lane:         # deep wave prove-it (not in verify_all)
     enabled: …
     evidence: …           # [VERIFY only]
@@ -108,8 +118,8 @@ features:                 # omit sections you do not run
 forge: …                  # debug_forge_client only
 ```
 
-`verify_all` = product smoke (uses `gateflow:` + ephemeral wave identity).  
-JWT platform_admin scripts require `auth.platform_admin` (fail closed if missing).  
+`verify_all` order: health → webhook → **auth_bootstrap** → status/metrics → wave_start → pr_thread → board.  
+GitHub-live / deep lanes are **opt-in** via `features.*` / programme onboard — same idea as `implement_lane.enabled`.  
 Deep lanes read **only** their `features.*` wave_start — no shared flat `ticket_id`/`start_node`.
 
 ```bash
