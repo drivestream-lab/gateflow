@@ -1,16 +1,18 @@
-"""Programme-token run metrics API (FR-13) + skill efficacy (CAP-02)."""
+"""Programme-token run metrics API (FR-13) + CAP-02/CAP-03 efficacy surfaces."""
 
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
 import src.api.dependencies as api_deps
+from src.business_services.factory_effectiveness_service import FactoryEffectivenessService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.skill_efficacy_service import SkillEfficacyService
 from src.common.auth.dependencies import require_role
 from src.infra_services.postgres_service import PostgresService
 from src.models.auth_models import AuthContext
 from src.models.control_plane_models import RunMetricsResponse
+from src.models.factory_effectiveness_models import FactoryEffectivenessResponse
 from src.models.role_types import RoleType
 from src.models.skill_efficacy_models import SkillEfficacyResponse
 
@@ -23,6 +25,10 @@ def _get_metrics_emitter() -> MetricsEmitter:
 
 def _get_skill_efficacy_service() -> SkillEfficacyService:
     return api_deps.get_skill_efficacy_service()
+
+
+def _get_factory_effectiveness_service() -> FactoryEffectivenessService:
+    return api_deps.get_factory_effectiveness_service()
 
 
 def _get_postgres_service() -> PostgresService:
@@ -56,4 +62,21 @@ async def get_skill_efficacy(
             tenant_id=auth.tenant_id,
             model_id=model_id,
             prompt_revision=prompt_revision,
+        )
+
+
+@router.get("/metrics/factory-effectiveness", response_model=FactoryEffectivenessResponse)
+async def get_factory_effectiveness(
+    auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
+    factory_effectiveness_service: FactoryEffectivenessService = Depends(
+        _get_factory_effectiveness_service
+    ),
+    postgres_service: PostgresService = Depends(_get_postgres_service),
+) -> FactoryEffectivenessResponse:
+    """Tenant-scoped factory effectiveness metrics (CAP-03 / REQ-11–REQ-17)."""
+    assert auth.tenant_id is not None
+    async with postgres_service.get_session() as session:
+        return await factory_effectiveness_service.get_factory_effectiveness(
+            session,
+            tenant_id=auth.tenant_id,
         )
