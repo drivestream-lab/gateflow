@@ -3,101 +3,57 @@
 prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-15,REQ-17,REQ-18,REQ-44
 
 Requires running API + Postgres with human-applied ``programmes`` DDL,
-JWT key material, seeded platform_admin, and a non-production PAT that can
-read the fixture meta repo.
+JWT key material, seeded platform_admin, ``GATEFLOW_WORKSPACE_ROOT``, and a
+non-production PAT that can read the fixture meta repo.
 
 Usage:
   make run
   .venv/bin/python -m tests.verify.verify_programme_onboarding
 
-Env:
-  PLATFORM_ADMIN_IDENTIFIER / PLATFORM_ADMIN_PASSWORD — login (defaults match seed)
-  GATEFLOW_PROGRAMME_PAT — required GitHub PAT for meta probe/clone
-  GATEFLOW_PROGRAMME_ORG / REPO / REF — meta location (defaults drivestream-lab/prayog-meta)
-  GATEFLOW_PROGRAMME_WORKSPACE_ROOT — absolute workspace root (default under /tmp)
+Config:
+  tests/config.yaml → auth.platform_admin + programme.pat / org / repo
 """
 
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
-import tempfile
-from pathlib import Path
 from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
-
-
-def _ensure_login(client: httpx.Client) -> str:
-    r = client.post(
-        "/api/auth/login",
-        json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-    )
-    if r.status_code != 200:
-        env = os.environ.copy()
-        env["PLATFORM_ADMIN_IDENTIFIER"] = _IDENTIFIER
-        env["PLATFORM_ADMIN_PASSWORD"] = _PASSWORD
-        proc = subprocess.run(
-            [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
-            cwd=_REPO_ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"seed failed: {proc.stderr or proc.stdout}")
-        r = client.post(
-            "/api/auth/login",
-            json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-        )
-    if r.status_code != 200:
-        raise RuntimeError(f"login failed: {r.status_code} {r.text}")
-    return str(r.json()["access_token"])
+from tests._helpers.tests_config import load_tests_config, require_programme_pat
+from tests._helpers.verify_jwt_auth import login_platform_admin
 
 
 def main() -> int:
     base = require_base_url()
-    pat = os.environ.get("GATEFLOW_PROGRAMME_PAT", "").strip()
-    if not pat:
-        print("[ERROR] Set GATEFLOW_PROGRAMME_PAT to a non-production test PAT")
+    try:
+        pat = require_programme_pat()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
-    org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-    repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-    ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
-    workspace = os.environ.get(
-        "GATEFLOW_PROGRAMME_WORKSPACE_ROOT",
-        str(Path(tempfile.gettempdir()) / f"gateflow-w1-{uuid4().hex[:8]}"),
-    )
-    Path(workspace).mkdir(parents=True, exist_ok=True)
+    prog = load_tests_config().programme
+    org = prog.org.strip() or "drivestream-lab"
+    repo = prog.repo.strip() or "prayog-meta"
+    ref = prog.ref.strip() or None
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         try:
-            token = _ensure_login(client)
+            token = login_platform_admin(client)
         except RuntimeError as exc:
             print(f"[ERROR] auth: {exc}")
             return 1
         headers = {"Authorization": f"Bearer {token}"}
 
-        bad = client.post(
-            "/api/v1/programmes",
-            headers=headers,
-            json={
-                "name": f"smoke-bad-{uuid4().hex[:6]}",
-                "meta_org": org,
-                "meta_repo": repo,
-                "meta_ref": ref,
-                "workspace_root": workspace,
-                "github_pat": "ghp_invalid_pat_for_smoke",
-            },
-        )
+        bad_body: dict[str, object] = {
+            "name": f"smoke-bad-{uuid4().hex[:6]}",
+            "meta_org": org,
+            "meta_repo": repo,
+            "github_pat": "ghp_invalid_pat_for_smoke",
+        }
+        if ref:
+            bad_body["meta_ref"] = ref
+        bad = client.post("/api/v1/programmes", headers=headers, json=bad_body)
         if bad.status_code != 422:
             print(f"[ERROR] bad-pat expected 422 got {bad.status_code} {bad.text}")
             return 1
@@ -108,7 +64,6 @@ def main() -> int:
             "name": name,
             "meta_org": org,
             "meta_repo": repo,
-            "workspace_root": workspace,
             "github_pat": pat,
         }
         if ref:

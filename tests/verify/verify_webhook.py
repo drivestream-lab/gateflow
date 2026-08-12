@@ -9,13 +9,13 @@ Usage:
 import hashlib
 import hmac
 import json
-import os
 import sys
 import uuid
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import require_github_webhook_secret
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -25,9 +25,10 @@ def _sign(secret: str, body: bytes) -> str:
 
 def main() -> int:
     base_url = require_base_url()
-    secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
-    if not secret:
-        print("[ERROR] GITHUB_WEBHOOK_SECRET is required for verify_webhook")
+    try:
+        secret = require_github_webhook_secret()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
         return 1
 
     delivery_id = f"verify-{uuid.uuid4()}"

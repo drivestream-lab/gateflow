@@ -74,7 +74,6 @@ def test_create_programme_route_platform_admin() -> None:
             "name": "smoke",
             "meta_org": "o",
             "meta_repo": "r",
-            "workspace_root": "/tmp",
             "github_pat": "ghp_x",
         },
     )

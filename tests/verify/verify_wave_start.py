@@ -1,30 +1,28 @@
 """Live verify: API wave-start is the primary start path (FR-15 / FR-20).
 
 Requires running API + migrated Postgres (including runs.wave_id) and
-SMOKE_TENANT_ADMIN_TOKEN. Labelled webhooks may still 202 at ingress but must
-not be treated as the start path for 002 programmes.
+``auth.tenant_admin`` in ``tests/config.yaml``. Labelled webhooks may still 202
+at ingress but must not be treated as the start path for 002 programmes.
 
 Uses gateflow: target + ephemeral wave identity (does not read
 features.implement_lane — avoids colliding with deep lane prove-it config).
 
 Usage:
   cp tests/config.yaml.example tests/config.yaml   # once
-  set -a && source .env && set +a                  # app secrets only
   .venv/bin/python -m tests.verify.verify_wave_start
 """
 
 import hashlib
 import hmac
 import json
-import os
 import sys
 import uuid
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 
 
 def _sign(secret: str, body: bytes) -> str:
@@ -176,8 +174,8 @@ def main() -> int:
             )
 
             # REQ-24: different repo must not be blocked by ACTIVE on the first repo
-            cross_org = (os.environ.get("GATEFLOW_VERIFY_CROSS_ORG") or "").strip()
-            cross_repo = (os.environ.get("GATEFLOW_VERIFY_CROSS_REPO") or "").strip()
+            cross_org = cfg.fixtures.verify_cross_org.strip()
+            cross_repo = cfg.fixtures.verify_cross_repo.strip()
             if cross_org and cross_repo:
                 cross_identity, cross_body = smoke_wave_start_fields(
                     cfg.gateflow,
@@ -216,7 +214,7 @@ def main() -> int:
                 )
 
             # Label ingress may still ack; it is not the 002 start path.
-            secret = os.environ.get("GITHUB_WEBHOOK_SECRET")
+            secret = cfg.client.github_webhook_secret.strip()
             if secret:
                 delivery_id = f"verify-label-nonstart-{uuid.uuid4()}"
                 label_payload = {

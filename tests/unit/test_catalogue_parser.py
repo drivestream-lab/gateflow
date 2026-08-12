@@ -87,3 +87,26 @@ services:
     with pytest.raises(CatalogueParseError) as exc:
         parse_candidates(tmp_path, org="drivestream-lab")
     assert exc.value.reason == "service_catalog_repo_missing"
+
+
+def test_parse_candidates_ssh_repo_rejected(tmp_path: Path) -> None:
+    config = tmp_path / "config"
+    config.mkdir(parents=True)
+    (config / "programme.yaml").write_text(
+        "kind: Programme\norg: drivestream-lab\n",
+        encoding="utf-8",
+    )
+    (config / "service-catalog-drivestream-lab.yaml").write_text(
+        """kind: ServiceCatalog
+org: drivestream-lab
+services:
+  gateflow:
+    status: live
+    links:
+      repo: git@github.com:drivestream-lab/gateflow.git
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(CatalogueParseError) as exc:
+        parse_candidates(tmp_path, org="drivestream-lab")
+    assert exc.value.reason == "service_catalog_repo_not_https"

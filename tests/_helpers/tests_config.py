@@ -1,16 +1,24 @@
-"""Load tests/config.yaml — Gateflow target + optional feature sections.
+"""Load tests/config.yaml — SSOT for all live verify / debug client knobs.
 
 Shape:
-  gateflow:   verification client → running Gateflow (base_url, org/repo, …)
-  features:   per-capability knobs (omit sections you do not run)
-  forge:      debug ForgeClient probe target (not wave-start)
+  gateflow:    verification client → running Gateflow (base_url, org/repo, …)
+  auth:        platform_admin + tenant_admin (JWT seed/login / smoke token)
+  client:      verify-client secrets (webhook signing secret, …)
+  programme:   meta programme PAT/location (GitHub-touching opt-in scripts)
+  fixtures:    optional IDs for readout / isolation scripts
+  features:    per-capability knobs; GitHub-live paths use enabled / live_github
+  forge:       debug ForgeClient probe target (not wave-start)
 
-Secrets for the verify *client* (PROGRAMME_SERVICE_TOKEN, GITHUB_WEBHOOK_SECRET)
-stay in .env for now. CURSOR_API_KEY is Gateflow runtime only — not verify config.
+Verify scripts read ``tests/config.yaml`` only (including ``programme.pat`` for
+create-body). Gateflow **runtime** still uses ``.env`` (DB, ``CURSOR_API_KEY``,
+singleton forge ``GITHUB_*``, webhook secret). Programme-owned PATs after create
+live in DB (``programmes.github_pat``). Copy ``GITHUB_WEBHOOK_SECRET`` into
+``client.github_webhook_secret`` for verify signing.
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -48,6 +56,117 @@ class GateflowTargetConfig(BaseModel):
     @classmethod
     def _strip_base_url(cls, value: str) -> str:
         return value.rstrip("/")
+
+
+class PlatformAdminAuthConfig(BaseModel):
+    """platform_admin credentials for live verify seed/login (tests/config.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: str = Field(
+        default="",
+        description="Credential identifier used by seed + /api/auth/login",
+    )
+    password: str = Field(
+        default="",
+        description="Password for seed + /api/auth/login (local config only)",
+    )
+
+
+class TenantAdminAuthConfig(BaseModel):
+    """tenant_admin login for Appendix-C / control-plane verify (JWT minted at runtime)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: str = Field(
+        default="",
+        description="Credential identifier for POST /api/auth/login",
+    )
+    password: str = Field(
+        default="",
+        description="Password for POST /api/auth/login (local config only)",
+    )
+
+
+class AuthConfig(BaseModel):
+    """Auth knobs for live verify (tests/config.yaml only — not process .env)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    platform_admin: PlatformAdminAuthConfig = Field(default_factory=PlatformAdminAuthConfig)
+    tenant_admin: TenantAdminAuthConfig = Field(default_factory=TenantAdminAuthConfig)
+
+
+class ClientSecretsConfig(BaseModel):
+    """Secrets the verify *client* needs to talk to a running Gateflow."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    github_webhook_secret: str = Field(
+        default="",
+        description="Must match Gateflow runtime GITHUB_WEBHOOK_SECRET for signed webhooks",
+    )
+
+
+class ProgrammeVerifyConfig(BaseModel):
+    """Meta programme location + PAT for GitHub-touching programme verifies."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    pat: str = Field(
+        default="",
+        description="Non-production GitHub PAT for programme create / meta probe",
+    )
+    org: str = Field(default="drivestream-lab")
+    repo: str = Field(default="prayog-meta")
+    ref: str = Field(default="", description="Optional git ref; empty → default branch")
+    programme_id: str = Field(
+        default="",
+        description="Reuse existing programme when set (agent catalogue, …)",
+    )
+
+
+class SmokeFixturesConfig(BaseModel):
+    """Optional IDs for readout / isolation scripts (omit when unused)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    legacy_opaque_token: str = Field(default="test-programme-token")
+    initiative_id: str = Field(default="")
+    wave_id: str = Field(default="")
+    checkpoint_id: str = Field(default="coding-readiness")
+    checkpoint_pr: str = Field(default="")
+    composed_initiative: str = Field(default="")
+    composed_wave: str = Field(default="")
+    expect_prd_approval: str = Field(default="")
+    meta_down_initiative_id: str = Field(default="")
+    verify_cross_org: str = Field(default="")
+    verify_cross_repo: str = Field(default="")
+    tenant_a_token: str = Field(default="")
+    tenant_b_token: str = Field(default="")
+    tenant_a_id: str = Field(default="")
+    run_id_a: str = Field(default="")
+    tenant_org: str = Field(default="")
+    tenant_repo: str = Field(default="")
+    tenant_pat: str = Field(
+        default="",
+        description="Optional override PAT for workspace/branch lifecycle",
+    )
+
+
+class BoardFeatureConfig(BaseModel):
+    """Board verify — auth edges always; live GitHub forge mutations opt-in."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    live_github: bool = Field(
+        default=False,
+        description=(
+            "When true, verify_board runs forge create/list/status/link. "
+            "Requires Gateflow runtime forge auth (.env on make run). "
+            "Same opt-in idea as features.implement_lane.enabled."
+        ),
+    )
 
 
 class WaveStartApiConfig(BaseModel):
@@ -217,12 +336,17 @@ class FeaturesConfig(BaseModel):
         default_factory=InitiativeClosureFeatureConfig
     )
     create_tickets: CreateTicketsFeatureConfig = Field(default_factory=CreateTicketsFeatureConfig)
+    board: BoardFeatureConfig = Field(default_factory=BoardFeatureConfig)
 
 
 class TestsConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     gateflow: GateflowTargetConfig = Field(default_factory=GateflowTargetConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
+    client: ClientSecretsConfig = Field(default_factory=ClientSecretsConfig)
+    programme: ProgrammeVerifyConfig = Field(default_factory=ProgrammeVerifyConfig)
+    fixtures: SmokeFixturesConfig = Field(default_factory=SmokeFixturesConfig)
     features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     forge: ForgeProbeConfig = Field(default_factory=ForgeProbeConfig)
 
@@ -306,6 +430,125 @@ def load_tests_config(path: Optional[Path] = None) -> TestsConfig:
             raise ValueError(f"tests config must be a mapping: {config_path}")
         raw = loaded
     return TestsConfig.model_validate(raw)
+
+
+def tests_config_path(path: Optional[Path] = None) -> Path:
+    return path or (_repo_root() / "tests" / "config.yaml")
+
+
+def patch_tests_config(
+    updates: dict[str, Any],
+    *,
+    path: Optional[Path] = None,
+) -> None:
+    """Merge ``updates`` into tests/config.yaml (nested dicts merged one level deep).
+
+    Used by verify bootstrap to write back created tenant_admin / programme_id.
+    Overwrites the file with a YAML dump (comments may be lost — file is gitignored).
+    """
+    config_path = tests_config_path(path)
+    raw: dict[str, Any] = {}
+    if config_path.is_file():
+        loaded = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        if not isinstance(loaded, dict):
+            raise ValueError(f"tests config must be a mapping: {config_path}")
+        raw = loaded
+
+    for key, value in updates.items():
+        if isinstance(value, dict) and isinstance(raw.get(key), dict):
+            nested = dict(raw[key])
+            nested.update(value)
+            raw[key] = nested
+        else:
+            raw[key] = value
+
+    # Validate before write so we never persist an invalid shape.
+    TestsConfig.model_validate(raw)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        yaml.safe_dump(raw, sort_keys=False, default_flow_style=False),
+        encoding="utf-8",
+    )
+
+
+def require_platform_admin_credentials(
+    path: Optional[Path] = None,
+) -> tuple[str, str]:
+    """Return (identifier, password) from tests/config.yaml ``auth.platform_admin``.
+
+    Fail closed when missing — verify must not invent smoke defaults.
+    """
+    cfg = load_tests_config(path)
+    identifier = cfg.auth.platform_admin.identifier.strip()
+    password = cfg.auth.platform_admin.password
+    if not identifier or not password:
+        raise RuntimeError(
+            "tests/config.yaml must set auth.platform_admin.identifier and "
+            "auth.platform_admin.password (see tests/config.yaml.example)"
+        )
+    return identifier, password
+
+
+def require_tenant_admin_credentials(
+    path: Optional[Path] = None,
+) -> tuple[str, str]:
+    """Return (identifier, password) from tests/config.yaml ``auth.tenant_admin``.
+
+    Fail closed when missing — verify mints JWT via /api/auth/login.
+    """
+    cfg = load_tests_config(path)
+    identifier = cfg.auth.tenant_admin.identifier.strip()
+    password = cfg.auth.tenant_admin.password
+    if not identifier or not password:
+        raise RuntimeError(
+            "tests/config.yaml must set auth.tenant_admin.identifier and "
+            "auth.tenant_admin.password (see tests/config.yaml.example)"
+        )
+    return identifier, password
+
+
+def require_github_webhook_secret(path: Optional[Path] = None) -> str:
+    """Return ``client.github_webhook_secret`` (must match running API)."""
+    secret = load_tests_config(path).client.github_webhook_secret.strip()
+    if not secret:
+        raise RuntimeError(
+            "tests/config.yaml must set client.github_webhook_secret "
+            "(same value as Gateflow runtime GITHUB_WEBHOOK_SECRET)"
+        )
+    return secret
+
+
+def require_programme_pat(path: Optional[Path] = None) -> str:
+    """Return ``programme.pat`` from tests/config.yaml for Gateflow create body.
+
+    Sent only as programme onboard payload (stored in DB) — never as Authorization.
+    """
+    pat = load_tests_config(path).programme.pat.strip()
+    if not pat:
+        raise RuntimeError(
+            "tests/config.yaml must set programme.pat for programme create "
+            "(non-production GitHub PAT for meta e.g. prayog-meta; "
+            "see tests/config.yaml.example)"
+        )
+    return pat
+
+
+def require_gateflow_workspace_root() -> Path:
+    """Absolute ``GATEFLOW_WORKSPACE_ROOT`` — must match the running API process.
+
+    Clones land at ``{GATEFLOW_WORKSPACE_ROOT}/{org}/{repo}``. Not a tests/config
+    field and not a programme-create body field.
+    """
+    raw = os.environ.get("GATEFLOW_WORKSPACE_ROOT", "").strip()
+    if not raw:
+        raise RuntimeError(
+            "GATEFLOW_WORKSPACE_ROOT must be set in the environment "
+            "(same absolute path as the running Gateflow .env)"
+        )
+    root = Path(raw)
+    if not root.is_absolute():
+        raise RuntimeError("GATEFLOW_WORKSPACE_ROOT must be an absolute path")
+    return root
 
 
 def resolve_wave_start_identity(

@@ -87,7 +87,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Programme validate-then-create | REQ-08–10,13 | `programme_service`, `programme_admin_routes` | `test_programme_service`, `test_programme_admin_routes` | `verify_programme_onboarding` | PAT/meta fail-closed |
+| Programme validate-then-create | REQ-08–10,13 | `programme_service`, `programme_admin_routes` | `test_programme_service`, `test_programme_admin_routes` | `verify_programme_onboarding` | PAT/meta fail-closed; workspace from `GATEFLOW_WORKSPACE_ROOT` |
 | Attach tenant_admin | REQ-15,16,44,47 | `ProgrammeService.attach_tenant_admin` | `test_programme_service` | `verify_programme_onboarding` | Idempotent |
 | Agent catalogue + resolve | REQ-19–22,40–42,45 | `platform_agent_catalogue_*` | catalogue unit tests | `verify_agent_catalogue` | No `CursorAgentSettings` |
 | Meta-connection rename | AF-1 | `catalogue_connection_routes/service` | onboarding/selection units | — | Table name unchanged |
@@ -130,7 +130,7 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Programme connect (upsert) | REQ-01–04, REQ-28 | `programme_routes`, `programme_onboarding_service`, `tenant_programme_connections` | `test_programme_onboarding` | `verify_programme_connect` (human; P15) | Same git client + optional `ref`; fail-closed cleanup; ADR-011 tenant bearer |
-| Catalogue from synced meta | REQ-05–07 | `engine/catalogue_parser` (ADR-012 discovery-input) | `test_catalogue_parser` | `verify_programme_connect` | Fail closed on malformed; no partial list |
+| Catalogue from synced meta | REQ-05–07 | `engine/catalogue_parser` (ADR-012 discovery-input) | `test_catalogue_parser` | `verify_programme_connect` | Fail closed on malformed; HTTPS-only `links.repo`; no partial list |
 | Optional git ref checkout | REQ-01 / FF-05 | `TenantGitWorkspaceClient.resolve_workspace(..., ref=)` | `test_tenant_git_workspace_client` | secondary | Default-branch path unchanged when omitted |
 
 **INIT-GATEFLOW-013 W0 status:** **human_approved** at wave-acceptance — Draft PR [#205](https://github.com/drivestream-lab/gateflow/pull/205) @ `4b9bd69` label `wave-accepted` (+ Pass-2 docs on tip); Ground-Report W0 **pass**. Board [#200](https://github.com/drivestream-lab/gateflow/issues/200). Human DDL: `DDL-NOTE-INIT-GATEFLOW-013-programme-connection.md`. Merge/publish at `wave-signoff` only.
@@ -139,7 +139,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Retire `repos[]` at registration | REQ-12, REQ-13 | `TenantRegisterRequest` / `TenantService.register_tenant` | `test_tenant_service` | `verify_repo_selection`, `verify_tenant_registry` | Non-empty → 422 `repos_not_allowed`; empty/absent OK |
+| Active repos via selection only | REQ-12, REQ-13 | Programme create + `…/programme/repos/select` (open `POST /tenants` register deleted) | `test_programme_selection`, `test_tenant_routes` (-k register) | `verify_repo_selection`, `verify_dead_doors_deleted` | No register create path; selection-only admits |
 | Select catalogue subset | REQ-08–10 | `POST …/programme/repos/select` | `test_programme_selection` | `verify_repo_selection` | Current catalogue only; out-of-catalogue 422 |
 | PAT probe on new admits | REQ-11 | `GithubPatProbe` at select | `test_programme_selection` | `verify_repo_selection` | Probe fail → 422; 0 active-list change |
 | Deselect membership | REQ-26, REQ-27 | `POST …/programme/repos/deselect` | `test_programme_selection` | `verify_repo_selection` | ACTIVE run → 422; clone/readiness not cleared via update path |

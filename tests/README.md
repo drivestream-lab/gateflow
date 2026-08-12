@@ -35,10 +35,10 @@ make check && make test
 # .venv/bin/python -m src.main
 # optional worker: .venv/bin/python -m src.worker_main
 # Prefer: make run  (API + worker; required for wave-start / implement-lane)
-# set -a && source .env && set +a
-#   needs GITHUB_WEBHOOK_SECRET + SMOKE_TENANT_ADMIN_TOKEN
-#   (tenant_admin Gateflow JWT from programme attach — not an opaque tenant_admin JWT)
-#   optional: PLATFORM_ADMIN_* for seed/login; GATEFLOW_PROGRAMME_PAT for programme create
+# Fill tests/config.yaml: auth.platform_admin + client.github_webhook_secret
+#   (tenant_admin may be empty — verify_all bootstrap attaches + writes back)
+#   If no Programme yet: set programme.pat (prayog-meta create body) in config.yaml
+#   Runtime .env: DB / CURSOR_API_KEY / webhook secret / singleton forge GITHUB_*
 # .venv/bin/python -m tests.verify.verify_all
 # .venv/bin/python -m tests.verify.verify_old_doors_refused  # INIT-014 W4 old-door refusal
 #
@@ -81,9 +81,9 @@ make check && make test
 
 | Concern | Where |
 |---------|--------|
-| Gateflow **runtime** (DB, Redis, forge, `CURSOR_API_KEY`, handoff root, …) | `.env` (process that runs `make run`) |
-| Verify **client** secrets (`SMOKE_TENANT_ADMIN_TOKEN` / tenant_admin login, `GITHUB_WEBHOOK_SECRET`, optional `GATEFLOW_PROGRAMME_PAT`) | `.env` for now (verify signs webhooks / calls API with JWT) |
-| Verify **target + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
+| Gateflow **runtime** (DB, Redis, `CURSOR_API_KEY`, webhook secret, singleton forge `GITHUB_*`) | `.env` (process that runs `make run`) |
+| **Programme-owned GitHub PAT** | Gateflow DB (`programmes.github_pat`) via create API — **not** `.env` |
+| Verify **client** (URLs, JWT logins, webhook signing secret, optional programme create fixture) | `tests/config.yaml` only |
 
 ```yaml
 # tests/config.yaml (gitignored)
@@ -92,7 +92,22 @@ gateflow:                 # client → running product (verify_all needs this)
   require_worker: …
   org / repo / base_branch: …
 
-features:                 # omit sections you do not run
+auth:
+  platform_admin: …       # required — seed/login
+  tenant_admin:           # optional — empty → bootstrap attaches + write-back
+    identifier: …
+    password: …
+
+client:
+  github_webhook_secret: …  # same value as runtime GITHUB_WEBHOOK_SECRET
+
+programme:                # opt-in create / bootstrap programme_id
+  pat: …                  # create-body fixture in config.yaml only (e.g. prayog-meta)
+  programme_id: …
+
+features:
+  board:
+    live_github: false    # opt-in forge mutations (like implement_lane.enabled)
   implement_lane:         # deep wave prove-it (not in verify_all)
     enabled: …
     evidence: …           # [VERIFY only]
@@ -103,7 +118,8 @@ features:                 # omit sections you do not run
 forge: …                  # debug_forge_client only
 ```
 
-`verify_all` = product smoke (uses `gateflow:` + ephemeral wave identity).  
+`verify_all` order: health → webhook → **auth_bootstrap** → status/metrics → wave_start → pr_thread → board.  
+GitHub-live / deep lanes are **opt-in** via `features.*` / programme onboard — same idea as `implement_lane.enabled`.  
 Deep lanes read **only** their `features.*` wave_start — no shared flat `ticket_id`/`start_node`.
 
 ```bash
@@ -198,6 +214,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | `GATEFLOW_HANDOFF_ROOT` settings | — | `test_orchestration_settings` |
+| `GATEFLOW_WORKSPACE_ROOT` settings (programme clones) | — | `test_orchestration_settings` |
 | PromptResolver resolve/bind/render | — | `test_prompt_resolver` |
 | Required `ticket_id` on wave-start | `verify_wave_start` (supply ticket) | `test_wave_start` |
 | Message-only Cursor + anti-hardcode | — | `test_cursor_agent_runner` |
@@ -628,7 +645,7 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Seed + login happy/refuse | `verify_jwt_login` | `test_auth_identity_service` |
 | Claim shape round-trip | `verify_jwt_login` | `test_auth_middleware` (-k claim_shape) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured; `auth.platform_admin` in `tests/config.yaml`).
 
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 
@@ -716,12 +733,11 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_catalogue_refresh` (
 |------------|---------------|--------|
 | JWT tenant list/detail; open register gone (REQ-36/38) | `verify_tenant_registry` | `test_tenant_routes` |
 | PAT never in responses (REQ-02/32) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
-| Registration rejects `repos[]` (INIT-013 REQ-12) | `verify_tenant_registry` | `test_tenant_service` |
-| Absolute `workspace_root` → 400 (REQ-07) | `verify_tenant_registry` | `test_tenant_service` |
+| Open register deleted; repos via programme select only | `verify_dead_doors_deleted`, `verify_repo_selection` | `test_tenant_routes` (-k register) |
 | Tenant token 401 + attach boundary (REQ-04; ADR-011) | `verify_tenant_registry` | `test_tenant_token`, `test_tenant_routes` |
 | Board default when project omitted (REQ-08) | secondary | `test_board_service` (`test_resolve_board_default_*`) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables). PAT probe at registration retired — probe runs on programme select (INIT-013 W1).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables).
 
 ### Tenant registry (INIT-GATEFLOW-012 W0)
 

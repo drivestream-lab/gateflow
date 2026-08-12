@@ -3,6 +3,7 @@
 prayog:covers: cutover,REQ-04,REQ-32,REQ-33
 
 Requires running API + seeded platform_admin (see verify_jwt_login).
+Credentials: ``tests/config.yaml`` → ``auth.platform_admin``.
 
 Usage:
   make run
@@ -11,60 +12,21 @@ Usage:
 
 from __future__ import annotations
 
-import os
-import subprocess
-import sys
-from pathlib import Path
 from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.verify_jwt_auth import ensure_platform_admin_seeded, login_platform_admin
+from tests._helpers.tests_config import load_tests_config
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
-_OLD_OPAQUE_TOKEN = os.environ.get("SMOKE_LEGACY_OPAQUE_TOKEN", "test-programme-token")
-
-
-def _login(client: httpx.Client) -> str:
-    r = client.post(
-        "/api/auth/login",
-        json={
-            "credential_identifier": _IDENTIFIER,
-            "password": _PASSWORD,
-        },
-    )
-    if r.status_code != 200:
-        raise RuntimeError(f"login failed {r.status_code}: {r.text}")
-    token = r.json().get("access_token")
-    if not token:
-        raise RuntimeError(f"login missing access_token: {r.json()}")
-    return str(token)
-
-
-def _ensure_seeded() -> None:
-    env = os.environ.copy()
-    env["PLATFORM_ADMIN_IDENTIFIER"] = _IDENTIFIER
-    env["PLATFORM_ADMIN_PASSWORD"] = _PASSWORD
-    proc = subprocess.run(
-        [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
-        cwd=_REPO_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(
-            f"seed_platform_admin failed ({proc.returncode}): {proc.stderr or proc.stdout}"
-        )
+_OLD_OPAQUE_TOKEN = load_tests_config().fixtures.legacy_opaque_token
 
 
 def main() -> int:
     base = require_base_url()
     try:
-        _ensure_seeded()
+        ensure_platform_admin_seeded()
     except RuntimeError as exc:
         print(f"[ERROR] seed: {exc}")
         return 1
@@ -99,7 +61,7 @@ def main() -> int:
 
         # Platform admin JWT may hit platform-only register; tenant-only metrics → 403
         try:
-            admin_token = _login(client)
+            admin_token = login_platform_admin(client)
         except RuntimeError as exc:
             print(f"[ERROR] {exc}")
             return 1

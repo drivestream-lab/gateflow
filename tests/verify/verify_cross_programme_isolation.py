@@ -15,18 +15,19 @@ Env:
 
 from __future__ import annotations
 
-import os
 from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import load_tests_config
 
 
 def main() -> int:
     base = require_base_url()
-    token_a = os.environ.get("SMOKE_TENANT_A_TOKEN", "").strip()
-    token_b = os.environ.get("SMOKE_TENANT_B_TOKEN", "").strip()
+    fx = load_tests_config().fixtures
+    token_a = fx.tenant_a_token.strip()
+    token_b = fx.tenant_b_token.strip()
     if not token_a or not token_b:
         print(
             "[ERROR] Set SMOKE_TENANT_A_TOKEN and SMOKE_TENANT_B_TOKEN "
@@ -37,7 +38,7 @@ def main() -> int:
     with httpx.Client(base_url=base, timeout=60.0) as client:
         # Cross-tenant path on catalogue connection — B's token on A's tenant_id
         # Prefer env tenant ids when provided; otherwise exercise random UUID mismatch.
-        tenant_a = os.environ.get("SMOKE_TENANT_A_ID", str(uuid4())).strip()
+        tenant_a = fx.tenant_a_id.strip() or str(uuid4())
         r = client.get(
             f"/api/v1/tenants/{tenant_a}/programme/connection",
             headers={"Authorization": f"Bearer {token_b}"},
@@ -50,7 +51,7 @@ def main() -> int:
             return 1
         print(f"[OK] cross-programme-connection-refused (status={r.status_code})")
 
-        run_id_a = os.environ.get("SMOKE_RUN_ID_A", "").strip()
+        run_id_a = fx.run_id_a.strip()
         if run_id_a:
             r = client.get(
                 f"/api/v1/runs/{run_id_a}",

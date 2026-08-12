@@ -19,7 +19,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import sys
 
 import httpx
@@ -110,8 +109,8 @@ def main() -> int:
         )
         rc |= _assert_status_code(no_auth_comp, 401, "completion 401 without programme token")
 
-        initiative_id = os.environ.get("GATEFLOW_INITIATIVE_ID", "").strip()
-        wave_id = os.environ.get("GATEFLOW_WAVE_ID", "").strip() or "W8"
+        initiative_id = load_tests_config().fixtures.initiative_id.strip()
+        wave_id = load_tests_config().fixtures.wave_id.strip() or "W8"
         probe_id = initiative_id or "INIT-DOES-NOT-EXIST"
 
         post_merge = client.post(

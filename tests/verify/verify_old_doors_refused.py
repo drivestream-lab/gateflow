@@ -14,15 +14,15 @@ Usage:
 
 from __future__ import annotations
 
-import os
 from uuid import uuid4
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.verify_jwt_auth import auth_headers, login_platform_admin
+from tests._helpers.tests_config import load_tests_config
 
-_OLD_OPAQUE_TOKEN = os.environ.get("SMOKE_LEGACY_OPAQUE_TOKEN", "test-programme-token")
+_OLD_OPAQUE_TOKEN = load_tests_config().fixtures.legacy_opaque_token
 
 
 def main() -> int:

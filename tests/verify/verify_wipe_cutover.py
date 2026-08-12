@@ -12,11 +12,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import os
-import subprocess
-import sys
-import tempfile
-from pathlib import Path
 from uuid import uuid4
 
 import asyncpg
@@ -24,38 +19,8 @@ import httpx
 
 from src.configs.postgres_settings import PostgresSettings
 from tests._helpers.api_paths import require_base_url
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
-
-
-def _ensure_login(client: httpx.Client) -> str:
-    r = client.post(
-        "/api/auth/login",
-        json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-    )
-    if r.status_code != 200:
-        env = os.environ.copy()
-        env["PLATFORM_ADMIN_IDENTIFIER"] = _IDENTIFIER
-        env["PLATFORM_ADMIN_PASSWORD"] = _PASSWORD
-        proc = subprocess.run(
-            [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
-            cwd=_REPO_ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"seed failed: {proc.stderr or proc.stdout}")
-        r = client.post(
-            "/api/auth/login",
-            json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-        )
-    if r.status_code != 200:
-        raise RuntimeError(f"login failed: {r.status_code} {r.text}")
-    return str(r.json()["access_token"])
+from tests._helpers.verify_jwt_auth import login_platform_admin
+from tests._helpers.tests_config import load_tests_config, require_programme_pat
 
 
 async def _insert_active_run(tenant_id: str) -> str:
@@ -100,22 +65,15 @@ async def _delete_run(run_id: str) -> None:
 
 
 def _create_programme(client: httpx.Client, headers: dict[str, str]) -> tuple[str, str]:
-    pat = os.environ.get("GATEFLOW_PROGRAMME_PAT", "").strip()
-    if not pat:
-        raise RuntimeError("Set GATEFLOW_PROGRAMME_PAT to a non-production test PAT")
-    org = os.environ.get("GATEFLOW_PROGRAMME_ORG", "drivestream-lab").strip()
-    repo = os.environ.get("GATEFLOW_PROGRAMME_REPO", "prayog-meta").strip()
-    ref = os.environ.get("GATEFLOW_PROGRAMME_REF", "").strip() or None
-    workspace = os.environ.get(
-        "GATEFLOW_PROGRAMME_WORKSPACE_ROOT",
-        str(Path(tempfile.gettempdir()) / f"gateflow-w3-wipe-{uuid4().hex[:8]}"),
-    )
-    Path(workspace).mkdir(parents=True, exist_ok=True)
+    pat = require_programme_pat()
+    prog = load_tests_config().programme
+    org = prog.org.strip() or "drivestream-lab"
+    repo = prog.repo.strip() or "prayog-meta"
+    ref = prog.ref.strip() or None
     body: dict[str, object] = {
         "name": f"smoke-wipe-{uuid4().hex[:6]}",
         "meta_org": org,
         "meta_repo": repo,
-        "workspace_root": workspace,
         "github_pat": pat,
     }
     if ref:
@@ -131,7 +89,7 @@ def main() -> int:
     base = require_base_url()
     with httpx.Client(base_url=base, timeout=120.0) as client:
         try:
-            token = _ensure_login(client)
+            token = login_platform_admin(client)
         except RuntimeError as exc:
             print(f"[ERROR] auth: {exc}")
             return 1

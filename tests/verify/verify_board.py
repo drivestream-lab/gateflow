@@ -1,8 +1,9 @@
 """Live verify: board dumb primitives (FR-24) + auth (ADR-005).
 
-Requires running API and SMOKE_TENANT_ADMIN_TOKEN. Forge-backed create/list/
-status/link run when outbound forge auth is configured for the active mode
-(`GITHUB_AUTH_MODE=pat` + PAT, or `=app` + App id/PEM); otherwise auth +
+Requires running API and ``auth.tenant_admin`` in ``tests/config.yaml``.
+Forge-backed create/list/status/link run only when
+``features.board.live_github: true`` (same opt-in idea as implement_lane) and
+the Gateflow **runtime** has forge auth configured. Otherwise auth +
 validation edges are asserted and forge I/O is skipped (unit owns ForgeClient
 board methods).
 
@@ -18,11 +19,9 @@ Authorize + board-seed projection remains unit-owned
 
 Usage:
   cp tests/config.yaml.example tests/config.yaml
-  set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_board
 """
 
-import os
 import subprocess
 import sys
 import tempfile
@@ -32,8 +31,8 @@ from pathlib import Path
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.tests_config import load_tests_config
+from tests._helpers.verify_jwt_auth import require_tenant_admin_token
 from tests._helpers.workmanifest_fixtures import LAUNCHPAD_V1_BOARD_FIXTURE
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -105,20 +104,11 @@ def main() -> int:
                 return 1
             print("[OK] PATCH /api/v1/board/tickets/1/status empty body fields → 400")
 
-            auth_mode = (os.environ.get("GITHUB_AUTH_MODE") or "").strip().lower()
-            forge_ready = False
-            if auth_mode == "pat" and os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN"):
-                forge_ready = True
-            elif (
-                auth_mode == "app"
-                and os.environ.get("GITHUB_APP_ID")
-                and os.environ.get("GITHUB_PRIVATE_KEY_PATH")
-            ):
-                forge_ready = True
-            if not forge_ready:
+            if not cfg.features.board.live_github:
                 print(
                     "[OK] board auth + validation edges passed "
-                    "(skip forge mutations — set GITHUB_AUTH_MODE=pat|app with matching creds); "
+                    "(skip forge mutations — set features.board.live_github: true "
+                    "when Gateflow runtime forge is configured); "
                     "create_board_tickets authorize path: unit + prayog/v1 pin contract"
                 )
                 return 0

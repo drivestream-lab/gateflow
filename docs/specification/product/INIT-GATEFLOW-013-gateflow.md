@@ -47,8 +47,8 @@ technical review** — not decided here.
 
 | Existing behavior | Evidence |
 |---|---|
-| `TenantRegisterRequest.repos` is required, non-empty (`Field(min_length=1)`) | `src/models/tenant_models.py` |
-| `TenantService.register_tenant` rejects an empty `repos` list before persist | `src/business_services/tenant_service.py` |
+| Open tenant register (`POST /tenants` + `TenantRegisterRequest`) is **deleted** (INIT-GATEFLOW-014 REQ-34); tenants are created only via Programme validate-then-create | `tenant_routes.py`, `programme_service.py` |
+| Active repos are admitted only via programme selection (not at tenant create) | `catalogue_connection_service.py` / select routes |
 | `TenantGitWorkspaceClient.resolve_workspace` is generic `(org, repo)` clone-or-fetch with per-repo lock | `src/infra_services/tenant_git_workspace_client.py` |
 | `GithubPatProbe.verify_read_access` is a per-call, caller-credential probe used at registration | `src/infra_services/github_pat_probe.py` |
 | `tenant_repos.harness_verified` exists; `TenantService.mark_harness_verified` / `is_harness_verified` keyed by `(org, repo)` | `src/business_services/tenant_service.py`, `src/database/postgres/schema/tenant_schema.py` |
@@ -75,7 +75,7 @@ technical review** — not decided here.
 | REQ-03 | The tenant's existing credential (already used for its other repos) is reused to read the shared repo; no separate, narrower credential is created | PRD REQ-03; CAP-01; D7 | Connect call | Same credential used; no new credential field/table appears in any API contract | unit + inspection | W0 |
 | REQ-04 | Connect failure (credential, network, not found) is rejected with a specific, named reason; nothing partial is left behind | PRD REQ-04; CAP-01; fail-closed | Bad credential / unreachable / missing programme repo | Named reason; no partial local programme copy retained | unit + verify | W0 |
 | REQ-05 | After connecting, Gateflow reads the programme's shared records from its synced copy and produces a list of candidate repos | PRD REQ-05; CAP-02; US-2; D1 | Any catalogue-read call after connect | Candidate list matches the shared records in the synced copy | unit + verify | W0 |
-| REQ-06 | If the shared records don't match the expected shape, the read is rejected with a specific reason — not guessed at or partially returned | PRD REQ-06; CAP-02; fail-closed | Malformed/missing programme records | Named reason; no partial candidate list | unit + verify | W0 |
+| REQ-06 | If the shared records don't match the expected shape, the read is rejected with a specific reason — not guessed at or partially returned. Catalogue ``links.repo`` must be ``https://github.com/{org}/{repo}`` (SSH ``git@`` URLs → named reject ``service_catalog_repo_not_https``) | PRD REQ-06; CAP-02; fail-closed | Malformed/missing programme records; SSH catalogue repo URL | Named reason; no partial candidate list | unit + verify | W0 |
 | REQ-07 | The candidate list reflects the most recently synced copy — not a value frozen at first connect | PRD REQ-07; CAP-02; D4 | After a catalogue refresh (CAP-07) | List includes anything added since the prior sync | unit + verify | W0 |
 | REQ-08 | An operator can select and save a subset of the current candidate list as the tenant's active repos | PRD REQ-08; CAP-03; US-3; D4 | Selection call | Selected subset persisted as the tenant's active repos | unit + verify | W1 |
 | REQ-09 | Any repo not on the current candidate list is rejected from selection outright | PRD REQ-09; CAP-03; D1 | Selection includes an out-of-catalogue repo | Rejected; 0 change to active list | unit + verify | W1 |

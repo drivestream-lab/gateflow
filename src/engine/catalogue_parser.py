@@ -120,11 +120,12 @@ def parse_candidates(meta_checkout_root: str | Path, *, org: str) -> list[Catalo
                 f"service {key!r} links.repo is required",
                 reason="service_catalog_repo_missing",
             )
-        parsed = _parse_github_org_repo(repo_url.strip())
+        parsed = _parse_github_https_org_repo(repo_url.strip())
         if parsed is None:
             raise CatalogueParseError(
-                f"service {key!r} links.repo is not a github org/repo URL",
-                reason="service_catalog_repo_unparseable",
+                f"service {key!r} links.repo must be an https://github.com/org/repo URL "
+                "(SSH git@ URLs are not accepted)",
+                reason="service_catalog_repo_not_https",
             )
         cand_org, cand_repo = parsed
         candidates.append(
@@ -167,21 +168,15 @@ def _load_yaml_mapping(path: Path, *, reason_prefix: str) -> dict[str, Any]:
     return loaded
 
 
-def _parse_github_org_repo(url: str) -> Optional[tuple[str, str]]:
+def _parse_github_https_org_repo(url: str) -> Optional[tuple[str, str]]:
+    """Accept only https://github.com/org/repo[.git] — reject SSH and other hosts."""
     cleaned = url.rstrip("/")
     if cleaned.endswith(".git"):
         cleaned = cleaned[:-4]
-    if cleaned.startswith("git@"):
-        # git@github.com:org/repo
-        if ":" not in cleaned:
-            return None
-        path = cleaned.split(":", 1)[1]
-        parts = [p for p in path.split("/") if p]
-        if len(parts) < 2:
-            return None
-        return parts[0], parts[1]
+    if cleaned.startswith("git@") or cleaned.startswith("ssh://"):
+        return None
     parsed = urlparse(cleaned)
-    if parsed.scheme not in {"http", "https"}:
+    if parsed.scheme != "https":
         return None
     host = (parsed.hostname or "").lower()
     if host != "github.com":

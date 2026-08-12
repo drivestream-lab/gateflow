@@ -9,6 +9,7 @@ from injector import inject
 
 from src.business_services.auth_identity_service import AuthIdentityService
 from src.business_services.base_business_service import BaseBusinessService
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
 from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
@@ -59,13 +60,14 @@ class ProgrammeService(BaseBusinessService):
         self._auth_identity_service = auth_identity_service
         self._github_pat_probe = github_pat_probe
         self._git_client = tenant_git_workspace_client
+        self._orchestration = OrchestrationSettings.get_instance()
 
     async def validate_then_create(self, request: ProgrammeOnboardRequest) -> ProgrammeCreateResult:
         """PAT probe + meta clone/parse before any durable Programme/Tenant write."""
         org = request.meta_org.strip()
         repo = request.meta_repo.strip()
         ref = request.meta_ref.strip() if request.meta_ref and request.meta_ref.strip() else None
-        workspace_root = request.workspace_root.strip()
+        workspace_root = self._orchestration.workspace_root
         pat = request.github_pat
 
         probe = await self._github_pat_probe.verify_read_access(pat, org, repo)

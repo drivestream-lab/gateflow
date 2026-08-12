@@ -1,10 +1,8 @@
 """Live verify: JWT status + metrics APIs (INIT-GATEFLOW-014 W4 / FR-15, FR-13).
 
-Requires running API and a tenant_admin Gateflow JWT
-(``SMOKE_TENANT_ADMIN_TOKEN`` or tenant_admin login env).
+Requires running API and ``auth.tenant_admin`` in ``tests/config.yaml``.
 
 Usage:
-  set -a && source .env && set +a
   .venv/bin/python -m tests.verify.verify_status_metrics
 """
 
