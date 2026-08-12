@@ -68,7 +68,7 @@
 | Factory coverage % | REQ-21 | ADR-018 org+repo resolve | -k factory_coverage | verify | EPIC denominator scoped |
 | Intent→merge absent | REQ-22 | models | -k models | verify | Field never present |
 
-**INIT-GATEFLOW-015 W3 status:** **human_approved** at wave-acceptance — Draft PR [#237](https://github.com/drivestream-lab/gateflow/pull/237) @ `fa78255` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-015 W3 status:** **human_approved** at wave-acceptance — Draft PR [#237](https://github.com/drivestream-lab/gateflow/pull/237) @ `fa78255` label `wave-accepted` (+ Pass-2 tip `1914818`); Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 

@@ -13,7 +13,7 @@
 | W0 | Persist full RunOutcomeType vocabulary + lane payload | **human_approved** | Board [#230](https://github.com/drivestream-lab/gateflow/issues/230); Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) accept `0d9bbc7` / Pass-2 `c3a0720` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Skill/Spec Efficacy API | **human_approved** | Board [#231](https://github.com/drivestream-lab/gateflow/issues/231); Draft PR [#235](https://github.com/drivestream-lab/gateflow/pull/235) @ `202c4fa` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Factory Effectiveness API | **human_approved** | Board [#232](https://github.com/drivestream-lab/gateflow/issues/232); Draft PR [#236](https://github.com/drivestream-lab/gateflow/pull/236) accept `293b012` / Pass-2 `e105d1f` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 `items: []` |
-| W3 | Delivery Scorecard API | **human_approved** | Board [#233](https://github.com/drivestream-lab/gateflow/issues/233); Draft PR [#237](https://github.com/drivestream-lab/gateflow/pull/237) @ `fa78255` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
+| W3 | Delivery Scorecard API | **human_approved** | Board [#233](https://github.com/drivestream-lab/gateflow/issues/233); Draft PR [#237](https://github.com/drivestream-lab/gateflow/pull/237) accept `fa78255` / Pass-2 `1914818` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
 
 ## W1 capability detail
 
