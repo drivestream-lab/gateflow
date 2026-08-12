@@ -32,7 +32,7 @@
 | lane in JSONB payload | REQ-16 (write) | orchestrator + emitter `lane=` | -k lane_payload | N/A | ADR-017 Option C; no schema column |
 | No backfill of historical rows | REQ-03 (half) | inspection (TASK-W0-04) | review | N/A | Boundary reporting completes in W1 |
 
-**INIT-GATEFLOW-015 W0 status:** **implemented** (Pass-1 coding green on `feature/INIT-GATEFLOW-015-w0-outcome-lane`; Wave-Execution W0 **pass**; awaiting `wave-acceptance`). Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md).
+**INIT-GATEFLOW-015 W0 status:** **human_approved** at wave-acceptance — Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) @ `0d9bbc7` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
