@@ -20,6 +20,7 @@ from src.business_services.merge_readout_service import MergeReadoutService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.notifier import Notifier
+from src.business_services.skill_efficacy_service import SkillEfficacyService
 from src.business_services.platform_agent_catalogue_service import PlatformAgentCatalogueService
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.catalogue_connection_service import CatalogueConnectionService
@@ -47,6 +48,7 @@ class BusinessServicesModule(Module):
         binder.bind(PolicyEngine, scope=singleton)
         binder.bind(Notifier, scope=singleton)
         binder.bind(MetricsEmitter, scope=singleton)
+        binder.bind(SkillEfficacyService, scope=singleton)
         binder.bind(AdapterRegistry, scope=singleton)
         binder.bind(SlotValidator, scope=singleton)
         binder.bind(PromptResolver, scope=singleton)

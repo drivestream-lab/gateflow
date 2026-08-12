@@ -33,7 +33,8 @@ from src.models.run_store_models import (
     WebhookDeliveryCreate,
     WebhookDeliveryModel,
 )
-from src.models.run_store_types import JobStatusType, RunStatusType
+from src.models.run_store_types import JobStatusType, RunOutcomeType, RunStatusType
+from src.models.skill_efficacy_models import StageCompletedEfficacyRow
 
 
 class WebhookDeliveryRepository(BasePostgresRepository[WebhookDeliverySchema]):
@@ -348,3 +349,64 @@ class RunEventRepository(BasePostgresRepository[RunEventSchema]):
         )
         result = await session.execute(stmt)
         return [self._to_model(row) for row in result.scalars().all()]
+
+    async def list_stage_completed_for_tenant(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+        *,
+        since: datetime,
+    ) -> list[StageCompletedEfficacyRow]:
+        """Tenant-scoped stage_completed rows via runs.tenant_id join (ADR-016)."""
+        stmt = (
+            select(RunEventSchema)
+            .join(RunSchema, RunEventSchema.run_id == RunSchema.id)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunEventSchema.event_type == "stage_completed")
+            .where(RunEventSchema.created_at >= since)
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        rows: list[StageCompletedEfficacyRow] = []
+        for event in result.scalars().all():
+            payload = event.payload if isinstance(event.payload, dict) else {}
+            model_raw = payload.get("model_id")
+            revision_raw = payload.get("prompt_revision")
+            node = event.workflow_node or "unknown"
+            if event.created_at is None:
+                continue
+            rows.append(
+                StageCompletedEfficacyRow(
+                    run_id=event.run_id,
+                    workflow_node=node,
+                    outcome_type=event.outcome_type,
+                    created_at=event.created_at,
+                    model_id=str(model_raw) if model_raw not in (None, "") else None,
+                    prompt_revision=(str(revision_raw) if revision_raw not in (None, "") else None),
+                )
+            )
+        return rows
+
+    async def min_extended_outcome_created_at(
+        self,
+        session: AsyncSession,
+        tenant_id: UUID,
+    ) -> Optional[datetime]:
+        """Earliest stage_completed with a non-binary outcome (REQ-03 boundary)."""
+        binary = {RunOutcomeType.SUCCESS.value, RunOutcomeType.FAILED.value}
+        stmt = (
+            select(RunEventSchema)
+            .join(RunSchema, RunEventSchema.run_id == RunSchema.id)
+            .where(RunSchema.tenant_id == tenant_id)
+            .where(RunEventSchema.event_type == "stage_completed")
+            .where(RunEventSchema.outcome_type.is_not(None))
+            .order_by(RunEventSchema.created_at.asc())
+        )
+        result = await session.execute(stmt)
+        for event in result.scalars().all():
+            if event.outcome_type is None:
+                continue
+            if event.outcome_type in binary:
+                continue
+            return event.created_at
+        return None

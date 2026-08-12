@@ -34,6 +34,18 @@
 
 **INIT-GATEFLOW-015 W0 status:** **human_approved** at wave-acceptance — Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) @ `0d9bbc7` label `wave-accepted` (+ Pass-2 tip `c3a0720`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-015 W1 — Skill/Spec Efficacy API)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| GET /metrics/skill-efficacy | REQ-04, REQ-10 | `skill_efficacy_service` + `metrics_routes` | `test_skill_efficacy_service` | `verify_skill_efficacy` (opt-in) | Tenant-scoped via ADR-016 join |
+| First-pass / findings / retry | REQ-05, REQ-06 | `_aggregate_nodes` | -k first_pass / rates | N/A | Pre-fix `None` excluded |
+| model_id / prompt_revision filter | REQ-07 | query + service filter | -k unknown_model / route | verify filter echo | Named-clean empty |
+| Learning codify join + unjoined | REQ-08, REQ-09 | `learning_repository.aggregate_codify_rates` | -k codify_rate | N/A | Pin `known_node_ids` |
+| outcome_vocabulary_available_since | REQ-03 (half) | `min_extended_outcome_created_at` | -k outcome_boundary | N/A | `"not yet observed"` when empty |
+
+**INIT-GATEFLOW-015 W1 status:** **code complete (unit)** — pending Draft PR + human `wave-accepted`. Board [#231](https://github.com/drivestream-lab/gateflow/issues/231). Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md).
+
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

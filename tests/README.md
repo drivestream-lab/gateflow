@@ -126,6 +126,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Trigger / policy | — | `tests/unit/test_trigger_policy.py` |
 | Orchestrator walker | — | `tests/unit/test_run_orchestrator.py` |
 | JWT status/metrics | `python -m tests.verify.verify_status_metrics` (in `verify_all`) | `tests/unit/test_programme_token_api.py` |
+| Skill/spec efficacy (INIT-015 W1) | `python -m tests.verify.verify_skill_efficacy` (opt-in; not in `verify_all`) | `tests/unit/test_skill_efficacy_service.py` |
 | API wave-start + label ingress ack | `python -m tests.verify.verify_wave_start` (in `verify_all`) | — |
 | Full live smoke (product) | `python -m tests.verify.verify_all` | — |
 | Worker claim | `src.worker_main` (manual / compose) | `tests/unit/test_job_worker.py` |

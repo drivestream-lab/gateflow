@@ -18,6 +18,12 @@ from src.models.learning_models import (
     LearningItemModel,
     LearningItemStatusType,
 )
+from src.models.skill_efficacy_models import (
+    LearningCodifyAggregateResult,
+    LearningCodifyFlatRate,
+    LearningCodifyNodeRate,
+    LearningCodifyUnjoinedRate,
+)
 
 
 class LearningRepository(BasePostgresRepository[LearningExtractSchema]):
@@ -97,6 +103,83 @@ class LearningRepository(BasePostgresRepository[LearningExtractSchema]):
         )
         result = await session.execute(stmt)
         return [self._item_to_model(row) for row in result.scalars().all()]
+
+    async def aggregate_codify_rates(
+        self,
+        session: AsyncSession,
+        *,
+        known_workflow_nodes: set[str],
+    ) -> LearningCodifyAggregateResult:
+        """Org-wide learning codify rates with skill→node join and unjoined bucket.
+
+        Per-node rates only for ``codify_hint.target == \"skill\"`` with a
+        matching known ``workflow_node``. SPEC/HARNESS/ENV are flat org-wide.
+        Unmatched skill refs land in the unjoined bucket (REQ-08 / REQ-09).
+        """
+        stmt = select(LearningItemSchema).order_by(LearningItemSchema.item_key.asc())
+        result = await session.execute(stmt)
+        items = list(result.scalars().all())
+
+        node_totals: dict[str, list[int]] = {}
+        flat_totals: dict[str, list[int]] = {}
+        unjoined_totals: dict[str, list[int]] = {}
+
+        for row in items:
+            hint = LearningCodifyHintDocument.model_validate(row.codify_hint)
+            target = hint.target.strip().lower()
+            ref = hint.ref.strip()
+            is_codified = row.status_type == LearningItemStatusType.CODIFIED.value
+            delta = [1, 1 if is_codified else 0]
+
+            if target == "skill":
+                if ref in known_workflow_nodes:
+                    bucket = node_totals.setdefault(ref, [0, 0])
+                    bucket[0] += delta[0]
+                    bucket[1] += delta[1]
+                else:
+                    bucket = unjoined_totals.setdefault(ref, [0, 0])
+                    bucket[0] += delta[0]
+                    bucket[1] += delta[1]
+            else:
+                # Flat org-wide for SPEC / HARNESS / ENV (and any other non-skill).
+                bucket = flat_totals.setdefault(target, [0, 0])
+                bucket[0] += delta[0]
+                bucket[1] += delta[1]
+
+        def _rate(total: int, codified: int) -> float:
+            if total <= 0:
+                return 0.0
+            return float(codified) / float(total)
+
+        return LearningCodifyAggregateResult(
+            by_workflow_node=[
+                LearningCodifyNodeRate(
+                    workflow_node=node,
+                    item_count=counts[0],
+                    codified_count=counts[1],
+                    codify_rate=_rate(counts[0], counts[1]),
+                )
+                for node, counts in sorted(node_totals.items())
+            ],
+            org_wide=[
+                LearningCodifyFlatRate(
+                    target=target,
+                    item_count=counts[0],
+                    codified_count=counts[1],
+                    codify_rate=_rate(counts[0], counts[1]),
+                )
+                for target, counts in sorted(flat_totals.items())
+            ],
+            unjoined=[
+                LearningCodifyUnjoinedRate(
+                    ref=ref,
+                    item_count=counts[0],
+                    codified_count=counts[1],
+                    codify_rate=_rate(counts[0], counts[1]),
+                )
+                for ref, counts in sorted(unjoined_totals.items())
+            ],
+        )
 
     async def upsert_extract(
         self,
