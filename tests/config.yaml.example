@@ -1,12 +1,13 @@
 # Copy to tests/config.yaml (gitignored) for local live debug / verify.
 #
 # gateflow:  verification client → running Gateflow product
+# auth:      platform_admin seed/login for JWT verify scripts
 # features:  optional per-capability knobs (omit sections you do not run)
 # forge:     debug ForgeClient probe only
 #
 # Secrets for the verify client (PROGRAMME_SERVICE_TOKEN, GITHUB_WEBHOOK_SECRET)
 # stay in .env for now. CURSOR_API_KEY is Gateflow runtime (.env when you make run)
-# — not verify config. verify_all only needs gateflow:; deep lanes need features.*.
+# — not verify config. verify_all only needs gateflow: + auth:; deep lanes need features.*.
 
 gateflow:
   base_url: http://127.0.0.1:8080
@@ -15,6 +16,13 @@ gateflow:
   org: drivestream-lab
   repo: gateflow
   base_branch: develop
+
+# Required for JWT seed/login verify scripts (verify_jwt_login, programme onboard, …).
+# Local only — do not commit real passwords.
+auth:
+  platform_admin:
+    identifier: platform_admin@smoke.local
+    password: replace-me-local-only
 
 # Product smoke (verify_all) uses gateflow: + ephemeral wave identity in scripts.
 # Feature sections below are optional.

@@ -3,21 +3,16 @@
 prayog:covers: jwt,login,REQ-01,REQ-02,REQ-03,REQ-43
 
 Requires running API + Postgres with human-applied ``user_identities`` DDL,
-and JWT key material configured (``JWT_*``).
+JWT key material (``JWT_*``), and ``auth.platform_admin`` in ``tests/config.yaml``.
 
 Usage:
   # apply human Alembic revision for user_identities when available
   make run
   .venv/bin/python -m tests.verify.verify_jwt_login
-
-Env (optional):
-  PLATFORM_ADMIN_IDENTIFIER  default platform_admin@smoke.local
-  PLATFORM_ADMIN_PASSWORD    default smoke-platform-admin
 """
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -26,21 +21,24 @@ import httpx
 from jose import jwt
 
 from tests._helpers.api_paths import require_base_url
+from tests._helpers.tests_config import require_platform_admin_credentials
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
 
 
 def _run_seed() -> str:
     """Run seed script; return minted access_token from stdout."""
-    env = os.environ.copy()
-    env["PLATFORM_ADMIN_IDENTIFIER"] = _IDENTIFIER
-    env["PLATFORM_ADMIN_PASSWORD"] = _PASSWORD
+    identifier, password = require_platform_admin_credentials()
     proc = subprocess.run(
-        [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
+        [
+            sys.executable,
+            str(_REPO_ROOT / "scripts" / "seed_platform_admin.py"),
+            "--identifier",
+            identifier,
+            "--password",
+            password,
+        ],
         cwd=_REPO_ROOT,
-        env=env,
         capture_output=True,
         text=True,
         check=False,
@@ -60,6 +58,11 @@ def _run_seed() -> str:
 
 def main() -> int:
     base = require_base_url()
+    try:
+        identifier, password = require_platform_admin_credentials()
+    except RuntimeError as exc:
+        print(f"[ERROR] config: {exc}")
+        return 1
 
     try:
         token1 = _run_seed()
@@ -76,8 +79,8 @@ def main() -> int:
         r = client.post(
             "/api/auth/login",
             json={
-                "credential_identifier": _IDENTIFIER,
-                "password": _PASSWORD,
+                "credential_identifier": identifier,
+                "password": password,
             },
         )
         if r.status_code != 200:
@@ -108,7 +111,7 @@ def main() -> int:
         r = client.post(
             "/api/auth/login",
             json={
-                "credential_identifier": _IDENTIFIER,
+                "credential_identifier": identifier,
                 "password": "definitely-wrong-password",
             },
         )

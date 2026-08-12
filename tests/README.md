@@ -38,7 +38,7 @@ make check && make test
 # set -a && source .env && set +a
 #   needs GITHUB_WEBHOOK_SECRET + SMOKE_TENANT_ADMIN_TOKEN
 #   (tenant_admin Gateflow JWT from programme attach — not an opaque tenant_admin JWT)
-#   optional: PLATFORM_ADMIN_* for seed/login; GATEFLOW_PROGRAMME_PAT for programme create
+#   auth.platform_admin in tests/config.yaml for seed/login; GATEFLOW_PROGRAMME_PAT for programme create
 # .venv/bin/python -m tests.verify.verify_all
 # .venv/bin/python -m tests.verify.verify_old_doors_refused  # INIT-014 W4 old-door refusal
 #
@@ -83,7 +83,7 @@ make check && make test
 |---------|--------|
 | Gateflow **runtime** (DB, Redis, forge, `CURSOR_API_KEY`, handoff root, …) | `.env` (process that runs `make run`) |
 | Verify **client** secrets (`SMOKE_TENANT_ADMIN_TOKEN` / tenant_admin login, `GITHUB_WEBHOOK_SECRET`, optional `GATEFLOW_PROGRAMME_PAT`) | `.env` for now (verify signs webhooks / calls API with JWT) |
-| Verify **target + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
+| Verify **target + auth + features** | `tests/config.yaml` (from `tests/config.yaml.example`) |
 
 ```yaml
 # tests/config.yaml (gitignored)
@@ -91,6 +91,11 @@ gateflow:                 # client → running product (verify_all needs this)
   base_url: …
   require_worker: …
   org / repo / base_branch: …
+
+auth:                     # JWT seed/login for platform_admin verify scripts
+  platform_admin:
+    identifier: …
+    password: …           # local only — never commit
 
 features:                 # omit sections you do not run
   implement_lane:         # deep wave prove-it (not in verify_all)
@@ -104,6 +109,7 @@ forge: …                  # debug_forge_client only
 ```
 
 `verify_all` = product smoke (uses `gateflow:` + ephemeral wave identity).  
+JWT platform_admin scripts require `auth.platform_admin` (fail closed if missing).  
 Deep lanes read **only** their `features.*` wave_start — no shared flat `ticket_id`/`start_node`.
 
 ```bash
@@ -628,7 +634,7 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Seed + login happy/refuse | `verify_jwt_login` | `test_auth_identity_service` |
 | Claim shape round-trip | `verify_jwt_login` | `test_auth_middleware` (-k claim_shape) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured; `auth.platform_admin` in `tests/config.yaml`).
 
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 

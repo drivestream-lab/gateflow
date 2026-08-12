@@ -13,9 +13,9 @@ Fallback login (when a tenant_admin identity was provisioned):
 
   TENANT_ADMIN_IDENTIFIER / TENANT_ADMIN_PASSWORD
 
-Platform-admin login (catalogue, programmes, wipe):
+Platform-admin seed/login (catalogue, programmes, wipe):
 
-  PLATFORM_ADMIN_IDENTIFIER / PLATFORM_ADMIN_PASSWORD (defaults match seed script)
+  tests/config.yaml → auth.platform_admin.identifier / password
 """
 
 from __future__ import annotations
@@ -28,10 +28,9 @@ from uuid import uuid4
 
 import httpx
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+from tests._helpers.tests_config import require_platform_admin_credentials
 
-_PLATFORM_ID = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PLATFORM_PW = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def auth_headers(token: str) -> dict[str, str]:
@@ -39,13 +38,17 @@ def auth_headers(token: str) -> dict[str, str]:
 
 
 def ensure_platform_admin_seeded() -> None:
-    env = os.environ.copy()
-    env["PLATFORM_ADMIN_IDENTIFIER"] = _PLATFORM_ID
-    env["PLATFORM_ADMIN_PASSWORD"] = _PLATFORM_PW
+    identifier, password = require_platform_admin_credentials()
     proc = subprocess.run(
-        [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
+        [
+            sys.executable,
+            str(_REPO_ROOT / "scripts" / "seed_platform_admin.py"),
+            "--identifier",
+            identifier,
+            "--password",
+            password,
+        ],
         cwd=_REPO_ROOT,
-        env=env,
         capture_output=True,
         text=True,
         check=False,
@@ -58,11 +61,12 @@ def ensure_platform_admin_seeded() -> None:
 
 def login_platform_admin(client: httpx.Client) -> str:
     ensure_platform_admin_seeded()
+    identifier, password = require_platform_admin_credentials()
     r = client.post(
         "/api/auth/login",
         json={
-            "credential_identifier": _PLATFORM_ID,
-            "password": _PLATFORM_PW,
+            "credential_identifier": identifier,
+            "password": password,
         },
     )
     if r.status_code != 200:

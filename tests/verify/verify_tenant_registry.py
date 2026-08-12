@@ -7,8 +7,10 @@ Usage:
   make run
   .venv/bin/python -m tests.verify.verify_tenant_registry
 
+Config:
+  tests/config.yaml → auth.platform_admin (seed/login)
+
 Env:
-  PLATFORM_ADMIN_* defaults match seed_platform_admin
   Optional SMOKE_TENANT_ADMIN_TOKEN + SMOKE_TENANT_ID for detail path
 """
 

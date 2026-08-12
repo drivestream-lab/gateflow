@@ -2,11 +2,13 @@
 
 Shape:
   gateflow:   verification client → running Gateflow (base_url, org/repo, …)
+  auth:       platform_admin seed/login credentials for JWT verify scripts
   features:   per-capability knobs (omit sections you do not run)
   forge:      debug ForgeClient probe target (not wave-start)
 
 Secrets for the verify *client* (PROGRAMME_SERVICE_TOKEN, GITHUB_WEBHOOK_SECRET)
 stay in .env for now. CURSOR_API_KEY is Gateflow runtime only — not verify config.
+platform_admin credentials live in tests/config.yaml (gitignored), not env.
 """
 
 from __future__ import annotations
@@ -48,6 +50,29 @@ class GateflowTargetConfig(BaseModel):
     @classmethod
     def _strip_base_url(cls, value: str) -> str:
         return value.rstrip("/")
+
+
+class PlatformAdminAuthConfig(BaseModel):
+    """platform_admin credentials for live verify seed/login (tests/config.yaml)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: str = Field(
+        default="",
+        description="Credential identifier used by seed + /api/auth/login",
+    )
+    password: str = Field(
+        default="",
+        description="Password for seed + /api/auth/login (local config only)",
+    )
+
+
+class AuthConfig(BaseModel):
+    """Auth knobs for live verify (not Gateflow runtime .env)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    platform_admin: PlatformAdminAuthConfig = Field(default_factory=PlatformAdminAuthConfig)
 
 
 class WaveStartApiConfig(BaseModel):
@@ -223,6 +248,7 @@ class TestsConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     gateflow: GateflowTargetConfig = Field(default_factory=GateflowTargetConfig)
+    auth: AuthConfig = Field(default_factory=AuthConfig)
     features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     forge: ForgeProbeConfig = Field(default_factory=ForgeProbeConfig)
 
@@ -306,6 +332,24 @@ def load_tests_config(path: Optional[Path] = None) -> TestsConfig:
             raise ValueError(f"tests config must be a mapping: {config_path}")
         raw = loaded
     return TestsConfig.model_validate(raw)
+
+
+def require_platform_admin_credentials(
+    path: Optional[Path] = None,
+) -> tuple[str, str]:
+    """Return (identifier, password) from tests/config.yaml ``auth.platform_admin``.
+
+    Fail closed when missing — verify must not invent smoke defaults.
+    """
+    cfg = load_tests_config(path)
+    identifier = cfg.auth.platform_admin.identifier.strip()
+    password = cfg.auth.platform_admin.password
+    if not identifier or not password:
+        raise RuntimeError(
+            "tests/config.yaml must set auth.platform_admin.identifier and "
+            "auth.platform_admin.password (see tests/config.yaml.example)"
+        )
+    return identifier, password
 
 
 def resolve_wave_start_identity(

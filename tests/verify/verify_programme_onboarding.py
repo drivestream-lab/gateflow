@@ -10,8 +10,10 @@ Usage:
   make run
   .venv/bin/python -m tests.verify.verify_programme_onboarding
 
+Config:
+  tests/config.yaml → auth.platform_admin.identifier / password
+
 Env:
-  PLATFORM_ADMIN_IDENTIFIER / PLATFORM_ADMIN_PASSWORD — login (defaults match seed)
   GATEFLOW_PROGRAMME_PAT — required GitHub PAT for meta probe/clone
   GATEFLOW_PROGRAMME_ORG / REPO / REF — meta location (defaults drivestream-lab/prayog-meta)
   GATEFLOW_PROGRAMME_WORKSPACE_ROOT — absolute workspace root (default under /tmp)
@@ -20,8 +22,6 @@ Env:
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from uuid import uuid4
@@ -29,38 +29,7 @@ from uuid import uuid4
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_IDENTIFIER = os.environ.get("PLATFORM_ADMIN_IDENTIFIER", "platform_admin@smoke.local")
-_PASSWORD = os.environ.get("PLATFORM_ADMIN_PASSWORD", "smoke-platform-admin")
-
-
-def _ensure_login(client: httpx.Client) -> str:
-    r = client.post(
-        "/api/auth/login",
-        json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-    )
-    if r.status_code != 200:
-        env = os.environ.copy()
-        env["PLATFORM_ADMIN_IDENTIFIER"] = _IDENTIFIER
-        env["PLATFORM_ADMIN_PASSWORD"] = _PASSWORD
-        proc = subprocess.run(
-            [sys.executable, str(_REPO_ROOT / "scripts" / "seed_platform_admin.py")],
-            cwd=_REPO_ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"seed failed: {proc.stderr or proc.stdout}")
-        r = client.post(
-            "/api/auth/login",
-            json={"credential_identifier": _IDENTIFIER, "password": _PASSWORD},
-        )
-    if r.status_code != 200:
-        raise RuntimeError(f"login failed: {r.status_code} {r.text}")
-    return str(r.json()["access_token"])
+from tests._helpers.verify_jwt_auth import login_platform_admin
 
 
 def main() -> int:
@@ -80,7 +49,7 @@ def main() -> int:
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         try:
-            token = _ensure_login(client)
+            token = login_platform_admin(client)
         except RuntimeError as exc:
             print(f"[ERROR] auth: {exc}")
             return 1
