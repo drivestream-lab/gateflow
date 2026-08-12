@@ -44,7 +44,7 @@
 | Learning codify join + unjoined | REQ-08, REQ-09 | `learning_repository.aggregate_codify_rates` | -k codify_rate | N/A | Pin `known_node_ids` |
 | outcome_vocabulary_available_since | REQ-03 (half) | `min_extended_outcome_created_at` | -k outcome_boundary | N/A | `"not yet observed"` when empty |
 
-**INIT-GATEFLOW-015 W1 status:** **code complete (unit)** — pending Draft PR + human `wave-accepted`. Board [#231](https://github.com/drivestream-lab/gateflow/issues/231). Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md).
+**INIT-GATEFLOW-015 W1 status:** **human_approved** at wave-acceptance — Draft PR [#235](https://github.com/drivestream-lab/gateflow/pull/235) @ `202c4fa` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
