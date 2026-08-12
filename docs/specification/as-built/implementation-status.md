@@ -56,7 +56,7 @@
 | Gate dwell + open/waiting | REQ-14, REQ-15 | `find_next_run_for_initiative_wave` | -k dwell_time | N/A | No fabricated zero |
 | Lane cycle-time p50/p95 | REQ-16 | `aggregate_lane_cycle_times` | -k lane_cycle_time | N/A | ADR-017 JSONB read; unknown bucket |
 
-**INIT-GATEFLOW-015 W2 status:** **human_approved** at wave-acceptance — Draft PR [#236](https://github.com/drivestream-lab/gateflow/pull/236) @ `293b012` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-015 W2 status:** **human_approved** at wave-acceptance — Draft PR [#236](https://github.com/drivestream-lab/gateflow/pull/236) @ `293b012` label `wave-accepted` (+ Pass-2 tip `e105d1f`); Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 

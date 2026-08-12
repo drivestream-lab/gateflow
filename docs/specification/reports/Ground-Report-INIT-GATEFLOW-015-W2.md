@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-015-gateflow.md` |
 | Initiative | INIT-GATEFLOW-015 |
 | Date | 2026-08-12 |
-| Wave head (exact) | Accept tip `293b01243a97ee00b7e7513a11d36d867b262940` (`wave-accepted`); Pass-2 docs tip TBD after `commit_workspace` |
+| Wave head (exact) | Accept tip `293b01243a97ee00b7e7513a11d36d867b262940` (`wave-accepted`); Pass-2 docs tip `e105d1fca756330bb047b289dc4ba2b39fb91392` |
 | PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/236 — read-only context |
 | Status | Draft |
 | Review deadline | 2026-08-14 |
@@ -88,7 +88,7 @@ N/A — profile/`ground_command` is N/A for this repo. Manual scan performed.
 
 - PR URL: https://github.com/drivestream-lab/gateflow/pull/236
 - Accept tip (`wave-accepted`): `293b01243a97ee00b7e7513a11d36d867b262940`
-- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): 
+- Reviewed head SHA (Pass-2 tip after Learning/Ground publish): `e105d1fca756330bb047b289dc4ba2b39fb91392`
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-015-W2.md`
 - Accept evidence: `wave-accepted` on accept tip — human approved already
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-015-W2.md`
