@@ -3,8 +3,8 @@
 prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-15,REQ-17,REQ-18,REQ-44
 
 Requires running API + Postgres with human-applied ``programmes`` DDL,
-JWT key material, seeded platform_admin, and a non-production PAT that can
-read the fixture meta repo.
+JWT key material, seeded platform_admin, ``GATEFLOW_WORKSPACE_ROOT``, and a
+non-production PAT that can read the fixture meta repo.
 
 Usage:
   make run
@@ -16,8 +16,6 @@ Config:
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -38,10 +36,6 @@ def main() -> int:
     org = prog.org.strip() or "drivestream-lab"
     repo = prog.repo.strip() or "prayog-meta"
     ref = prog.ref.strip() or None
-    workspace = prog.workspace_root.strip() or str(
-        Path(tempfile.gettempdir()) / f"gateflow-w1-{uuid4().hex[:8]}"
-    )
-    Path(workspace).mkdir(parents=True, exist_ok=True)
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         try:
@@ -51,18 +45,15 @@ def main() -> int:
             return 1
         headers = {"Authorization": f"Bearer {token}"}
 
-        bad = client.post(
-            "/api/v1/programmes",
-            headers=headers,
-            json={
-                "name": f"smoke-bad-{uuid4().hex[:6]}",
-                "meta_org": org,
-                "meta_repo": repo,
-                "meta_ref": ref,
-                "workspace_root": workspace,
-                "github_pat": "ghp_invalid_pat_for_smoke",
-            },
-        )
+        bad_body: dict[str, object] = {
+            "name": f"smoke-bad-{uuid4().hex[:6]}",
+            "meta_org": org,
+            "meta_repo": repo,
+            "github_pat": "ghp_invalid_pat_for_smoke",
+        }
+        if ref:
+            bad_body["meta_ref"] = ref
+        bad = client.post("/api/v1/programmes", headers=headers, json=bad_body)
         if bad.status_code != 422:
             print(f"[ERROR] bad-pat expected 422 got {bad.status_code} {bad.text}")
             return 1
@@ -73,7 +64,6 @@ def main() -> int:
             "name": name,
             "meta_org": org,
             "meta_repo": repo,
-            "workspace_root": workspace,
             "github_pat": pat,
         }
         if ref:

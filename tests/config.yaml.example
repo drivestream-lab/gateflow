@@ -45,7 +45,6 @@ programme:
   org: drivestream-lab
   repo: prayog-meta
   ref: ""
-  workspace_root: ""
   programme_id: ""
 
 # Optional IDs for readout / isolation scripts (omit or leave empty when unused).

@@ -18,6 +18,7 @@ live in DB (``programmes.github_pat``). Copy ``GITHUB_WEBHOOK_SECRET`` into
 
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -119,10 +120,6 @@ class ProgrammeVerifyConfig(BaseModel):
     org: str = Field(default="drivestream-lab")
     repo: str = Field(default="prayog-meta")
     ref: str = Field(default="", description="Optional git ref; empty → default branch")
-    workspace_root: str = Field(
-        default="",
-        description="Absolute workspace root; empty → script chooses /tmp",
-    )
     programme_id: str = Field(
         default="",
         description="Reuse existing programme when set (agent catalogue, …)",
@@ -151,7 +148,6 @@ class SmokeFixturesConfig(BaseModel):
     run_id_a: str = Field(default="")
     tenant_org: str = Field(default="")
     tenant_repo: str = Field(default="")
-    tenant_workspace_root: str = Field(default="")
     tenant_pat: str = Field(
         default="",
         description="Optional override PAT for workspace/branch lifecycle",
@@ -535,6 +531,24 @@ def require_programme_pat(path: Optional[Path] = None) -> str:
             "see tests/config.yaml.example)"
         )
     return pat
+
+
+def require_gateflow_workspace_root() -> Path:
+    """Absolute ``GATEFLOW_WORKSPACE_ROOT`` — must match the running API process.
+
+    Clones land at ``{GATEFLOW_WORKSPACE_ROOT}/{org}/{repo}``. Not a tests/config
+    field and not a programme-create body field.
+    """
+    raw = os.environ.get("GATEFLOW_WORKSPACE_ROOT", "").strip()
+    if not raw:
+        raise RuntimeError(
+            "GATEFLOW_WORKSPACE_ROOT must be set in the environment "
+            "(same absolute path as the running Gateflow .env)"
+        )
+    root = Path(raw)
+    if not root.is_absolute():
+        raise RuntimeError("GATEFLOW_WORKSPACE_ROOT must be an absolute path")
+    return root
 
 
 def resolve_wave_start_identity(

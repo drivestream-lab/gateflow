@@ -10,8 +10,6 @@ for Programme create (PAT never used as Authorization), and JWT product auth.
 from __future__ import annotations
 
 import sys
-import tempfile
-from pathlib import Path
 
 import httpx
 
@@ -35,7 +33,6 @@ def main() -> int:
     org = prog.org.strip() or "drivestream-lab"
     repo = prog.repo.strip() or "prayog-meta"
     ref = prog.ref.strip() or None
-    workspace = Path(tempfile.mkdtemp(prefix="gf014-w4-select-"))
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         # Dead open-register door
@@ -44,7 +41,6 @@ def main() -> int:
             json={
                 "name": "should-not-register",
                 "pat": pat,
-                "workspace_root": str(workspace.resolve()),
                 "repos": [{"org": org, "repo": repo}],
             },
         )
@@ -57,7 +53,6 @@ def main() -> int:
             token, tenant_id, _programme_id = provision_programme_tenant_admin(
                 client,
                 pat=pat,
-                workspace_root=str(workspace.resolve()),
                 org=org,
                 repo=repo,
                 ref=ref,

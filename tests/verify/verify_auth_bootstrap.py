@@ -29,8 +29,7 @@ def main() -> int:
     base = require_base_url()
     cfg_before = load_tests_config()
     had_tenant = bool(
-        cfg_before.auth.tenant_admin.identifier.strip()
-        and cfg_before.auth.tenant_admin.password
+        cfg_before.auth.tenant_admin.identifier.strip() and cfg_before.auth.tenant_admin.password
     )
 
     try:
@@ -57,9 +56,7 @@ def main() -> int:
         if had_tenant:
             print("[OK] tenant_admin login (reused tests/config.yaml credentials)")
         else:
-            print(
-                "[OK] tenant_admin attached + credentials written to tests/config.yaml"
-            )
+            print("[OK] tenant_admin attached + credentials written to tests/config.yaml")
         if tenant_id:
             print(f"[OK] tenant_id claim present tenant_id={tenant_id}")
         else:

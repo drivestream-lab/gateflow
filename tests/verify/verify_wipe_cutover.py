@@ -12,8 +12,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import tempfile
-from pathlib import Path
 from uuid import uuid4
 
 import asyncpg
@@ -72,15 +70,10 @@ def _create_programme(client: httpx.Client, headers: dict[str, str]) -> tuple[st
     org = prog.org.strip() or "drivestream-lab"
     repo = prog.repo.strip() or "prayog-meta"
     ref = prog.ref.strip() or None
-    workspace = prog.workspace_root.strip() or str(
-        Path(tempfile.gettempdir()) / f"gateflow-w3-wipe-{uuid4().hex[:8]}"
-    )
-    Path(workspace).mkdir(parents=True, exist_ok=True)
     body: dict[str, object] = {
         "name": f"smoke-wipe-{uuid4().hex[:6]}",
         "meta_org": org,
         "meta_repo": repo,
-        "workspace_root": workspace,
         "github_pat": pat,
     }
     if ref:

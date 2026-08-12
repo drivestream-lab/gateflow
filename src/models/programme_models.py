@@ -27,7 +27,10 @@ class ProgrammeLaneDefaultsDocument(BaseModel):
 
 
 class ProgrammeOnboardRequest(BaseModel):
-    """POST body for platform_admin Programme validate-then-create."""
+    """POST body for platform_admin Programme validate-then-create.
+
+    Workspace root comes from ``GATEFLOW_WORKSPACE_ROOT`` (not this body).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -35,7 +38,6 @@ class ProgrammeOnboardRequest(BaseModel):
     meta_org: str = Field(min_length=1, description="Meta repository org")
     meta_repo: str = Field(min_length=1, description="Meta repository name")
     meta_ref: Optional[str] = Field(default=None, description="Optional git ref")
-    workspace_root: str = Field(min_length=1, description="Absolute workspace root")
     github_pat: str = Field(min_length=1, description="Programme-owned GitHub PAT")
 
     @model_validator(mode="before")

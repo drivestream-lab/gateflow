@@ -13,7 +13,7 @@ class OrchestrationSettings(BaseSettings):
 
     Env: ``GATEFLOW_FINDINGS_BUDGET``, ``GATEFLOW_METRICS_RETENTION_DAYS``,
     ``GATEFLOW_NOTIFIER``, ``GATEFLOW_MAX_ORCHESTRATED_HOPS``,
-    ``GATEFLOW_HANDOFF_ROOT``.
+    ``GATEFLOW_HANDOFF_ROOT``, ``GATEFLOW_WORKSPACE_ROOT``.
     """
 
     PREFIX: ClassVar[str] = "GATEFLOW"
@@ -37,6 +37,13 @@ class OrchestrationSettings(BaseSettings):
         ge=1,
         description="Hard cap on orchestrated stages per wave-start job",
     )
+    workspace_root: str = Field(
+        ...,
+        description=(
+            "Absolute host directory for programme clones "
+            "({GATEFLOW_WORKSPACE_ROOT}/{org}/{repo})"
+        ),
+    )
     handoff_root: Optional[str] = Field(
         default=None,
         description=(
@@ -52,6 +59,17 @@ class OrchestrationSettings(BaseSettings):
         if not cleaned:
             raise ValueError("GATEFLOW_NOTIFIER must be non-empty")
         return cleaned
+
+    @field_validator("workspace_root")
+    @classmethod
+    def _workspace_root_absolute(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("GATEFLOW_WORKSPACE_ROOT must be non-empty")
+        path = Path(cleaned)
+        if not path.is_absolute():
+            raise ValueError("GATEFLOW_WORKSPACE_ROOT must be an absolute path")
+        return str(path)
 
     @field_validator("handoff_root", mode="before")
     @classmethod

@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from uuid import uuid4
 
@@ -115,9 +114,7 @@ def require_tenant_admin_token(client: httpx.Client | None = None) -> str:
     return ensure_verify_tenant_session(client)
 
 
-def _resolve_programme_id_for_attach(
-    client: httpx.Client, admin_headers: dict[str, str]
-) -> str:
+def _resolve_programme_id_for_attach(client: httpx.Client, admin_headers: dict[str, str]) -> str:
     cfg = load_tests_config()
     configured = cfg.programme.programme_id.strip()
     if configured:
@@ -136,19 +133,15 @@ def _resolve_programme_id_for_attach(
 
     # No programme yet — create meta programme (default prayog-meta) via Gateflow.
     # PAT from tests/config.yaml programme.pat only (create body → DB).
+    # Workspace root is GATEFLOW_WORKSPACE_ROOT on the API process (not this body).
     pat = require_programme_pat()
     org = cfg.programme.org.strip() or "drivestream-lab"
     repo = cfg.programme.repo.strip() or "prayog-meta"
     ref = cfg.programme.ref.strip() or None
-    workspace = cfg.programme.workspace_root.strip() or str(
-        Path(tempfile.gettempdir()) / f"gateflow-bootstrap-{uuid4().hex[:8]}"
-    )
-    Path(workspace).mkdir(parents=True, exist_ok=True)
     body: dict[str, object] = {
         "name": f"verify-bootstrap-{uuid4().hex[:6]}",
         "meta_org": org,
         "meta_repo": repo,
-        "workspace_root": workspace,
         "github_pat": pat,
     }
     if ref:
@@ -172,9 +165,7 @@ def ensure_verify_tenant_session(client: httpx.Client | None = None) -> str:
     then attach. Writes tenant credentials to tests/config.yaml for reuse.
     """
     cfg = load_tests_config()
-    has_tenant = bool(
-        cfg.auth.tenant_admin.identifier.strip() and cfg.auth.tenant_admin.password
-    )
+    has_tenant = bool(cfg.auth.tenant_admin.identifier.strip() and cfg.auth.tenant_admin.password)
 
     def _run(http: httpx.Client) -> str:
         if has_tenant:
@@ -195,9 +186,7 @@ def ensure_verify_tenant_session(client: httpx.Client | None = None) -> str:
             },
         )
         if attach.status_code != 200:
-            raise RuntimeError(
-                f"attach tenant_admin failed {attach.status_code}: {attach.text}"
-            )
+            raise RuntimeError(f"attach tenant_admin failed {attach.status_code}: {attach.text}")
         token = attach.json().get("access_token")
         if not token:
             raise RuntimeError(f"attach missing access_token: {attach.json()}")
@@ -235,7 +224,6 @@ def provision_programme_tenant_admin(
     client: httpx.Client,
     *,
     pat: str,
-    workspace_root: str,
     org: str = "drivestream-lab",
     repo: str = "prayog-meta",
     ref: str | None = None,
@@ -246,15 +234,13 @@ def provision_programme_tenant_admin(
     When ``auth.tenant_admin`` credentials are set, login instead of creating
     (reuse existing identity). ``programme.programme_id`` may fill programme_id
     when skipping create. Programme PAT stays in the create body — never as
-    Authorization.
+    Authorization. Workspace root is ``GATEFLOW_WORKSPACE_ROOT`` on the API.
     """
     try:
         token = login_tenant_admin(client)
         tenant_id = tenant_id_from_token(token)
         if tenant_id:
-            programme_id = (
-                load_tests_config().programme.programme_id.strip() or tenant_id
-            )
+            programme_id = load_tests_config().programme.programme_id.strip() or tenant_id
             return token, tenant_id, programme_id
     except RuntimeError:
         pass
@@ -265,7 +251,6 @@ def provision_programme_tenant_admin(
         "name": f"{name_prefix}-{uuid4().hex[:8]}",
         "meta_org": org,
         "meta_repo": repo,
-        "workspace_root": workspace_root,
         "github_pat": pat,
     }
     if ref:

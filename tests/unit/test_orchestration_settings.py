@@ -1,4 +1,4 @@
-"""Unit smoke for OrchestrationSettings handoff root (INIT-GATEFLOW-005 W0)."""
+"""Unit smoke for OrchestrationSettings (handoff + workspace root)."""
 
 from collections.abc import Iterator
 
@@ -8,9 +8,10 @@ from src.configs.orchestration_settings import OrchestrationSettings
 
 
 @pytest.fixture(autouse=True)
-def _reset(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def _reset(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Iterator[None]:
     OrchestrationSettings.reset_instance()
     monkeypatch.delenv("GATEFLOW_HANDOFF_ROOT", raising=False)
+    monkeypatch.setenv("GATEFLOW_WORKSPACE_ROOT", str(tmp_path / "workspaces"))
     yield
     OrchestrationSettings.reset_instance()
 
@@ -40,3 +41,25 @@ def test_absolute_handoff_root_present(monkeypatch: pytest.MonkeyPatch, tmp_path
     settings = OrchestrationSettings.get_instance()
     assert settings.has_handoff_root() is True
     assert settings.require_handoff_root() == str(root.resolve())
+
+
+def test_workspace_root_required_absolute(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    root = tmp_path / "ws"
+    monkeypatch.setenv("GATEFLOW_WORKSPACE_ROOT", str(root))
+    OrchestrationSettings.reset_instance()
+    settings = OrchestrationSettings.get_instance()
+    assert settings.workspace_root == str(root)
+
+
+def test_workspace_root_relative_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GATEFLOW_WORKSPACE_ROOT", "relative/workspaces")
+    OrchestrationSettings.reset_instance()
+    with pytest.raises(Exception, match="GATEFLOW_WORKSPACE_ROOT"):
+        OrchestrationSettings.get_instance()
+
+
+def test_workspace_root_blank_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GATEFLOW_WORKSPACE_ROOT", "   ")
+    OrchestrationSettings.reset_instance()
+    with pytest.raises(Exception, match="GATEFLOW_WORKSPACE_ROOT"):
+        OrchestrationSettings.get_instance()

@@ -9,8 +9,6 @@ Requires API+Postgres and GATEFLOW_PROGRAMME_PAT (PAT never as Authorization).
 from __future__ import annotations
 
 import sys
-import tempfile
-from pathlib import Path
 
 import httpx
 
@@ -34,14 +32,12 @@ def main() -> int:
     org = prog.org.strip() or "drivestream-lab"
     repo = prog.repo.strip() or "prayog-meta"
     ref = prog.ref.strip() or None
-    workspace = Path(tempfile.mkdtemp(prefix="gf014-connect-"))
 
     with httpx.Client(base_url=base, timeout=120.0) as client:
         try:
             token, tenant_id, _ = provision_programme_tenant_admin(
                 client,
                 pat=pat,
-                workspace_root=str(workspace.resolve()),
                 org=org,
                 repo=repo,
                 ref=ref,

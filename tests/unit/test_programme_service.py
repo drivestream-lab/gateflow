@@ -1,5 +1,6 @@
 """Unit tests for ProgrammeService (INIT-GATEFLOW-014 W1)."""
 
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -8,6 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.business_services.programme_service import ProgrammeService
+from src.configs.orchestration_settings import OrchestrationSettings
 from src.engine.catalogue_parser import CatalogueParseError
 from src.exceptions.app_exceptions import UnprocessableEntityError
 from src.models.programme_catalogue_models import CatalogueCandidate
@@ -19,12 +21,20 @@ from src.models.role_types import RoleType
 from src.models.tenant_models import PatProbeResult, TenantReadModel
 
 
+@pytest.fixture(autouse=True)
+def _workspace_root_env(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Iterator[None]:
+    OrchestrationSettings.reset_instance()
+    root = tmp_path / "gateflow-ws"
+    monkeypatch.setenv("GATEFLOW_WORKSPACE_ROOT", str(root))
+    yield
+    OrchestrationSettings.reset_instance()
+
+
 def _service(
     *,
     probe_ok: bool = True,
     probe_reason: str | None = None,
     git_error: Exception | None = None,
-    parse_error: Exception | None = None,
 ) -> tuple[ProgrammeService, MagicMock, MagicMock, MagicMock, MagicMock]:
     postgres = MagicMock()
 
@@ -65,7 +75,6 @@ def _onboard_request(**overrides: str) -> ProgrammeOnboardRequest:
         "name": "smoke-programme-01",
         "meta_org": "drivestream-lab",
         "meta_repo": "prayog-meta",
-        "workspace_root": "/tmp/gateflow-ws",
         "github_pat": "ghp_test",
     }
     payload.update(overrides)
@@ -103,23 +112,36 @@ def test_agent_key_on_onboard_rejected_at_model() -> None:
                 "name": "x",
                 "meta_org": "o",
                 "meta_repo": "r",
-                "workspace_root": "/tmp",
                 "github_pat": "p",
                 "agent_key": "secret",
             }
         )
 
 
+def test_workspace_root_on_onboard_body_rejected() -> None:
+    with pytest.raises(ValidationError):
+        ProgrammeOnboardRequest.model_validate(
+            {
+                "name": "x",
+                "meta_org": "o",
+                "meta_repo": "r",
+                "github_pat": "p",
+                "workspace_root": "/tmp/should-not-be-accepted",
+            }
+        )
+
+
 @pytest.mark.asyncio
-async def test_validate_then_create_happy_path() -> None:
+async def test_validate_then_create_happy_path(tmp_path) -> None:
     svc, programme_repo, tenant_repo, _, _ = _service()
+    workspace_root = str(tmp_path / "gateflow-ws")
     tenant_id = uuid4()
     programme_id = uuid4()
     tenant_repo.create_tenant = AsyncMock(
         return_value=TenantReadModel(
             tenant_id=tenant_id,
             name="programme:smoke",
-            workspace_root="/tmp/gateflow-ws",
+            workspace_root=workspace_root,
             repos=[],
             board=None,
         )
@@ -144,7 +166,9 @@ async def test_validate_then_create_happy_path() -> None:
     assert result.tenant_id == tenant_id
     assert result.repo_catalogue == candidates
     tenant_repo.create_tenant.assert_awaited_once()
+    assert tenant_repo.create_tenant.await_args.kwargs["workspace_root"] == workspace_root
     programme_repo.create_programme.assert_awaited_once()
+    assert programme_repo.create_programme.await_args.kwargs["workspace_root"] == workspace_root
 
 
 @pytest.mark.asyncio

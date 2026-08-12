@@ -10,14 +10,16 @@ Authorization), and JWT product auth.
 from __future__ import annotations
 
 import sys
-import tempfile
-from pathlib import Path
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
-from tests._helpers.tests_config import load_tests_config, require_programme_pat
+from tests._helpers.tests_config import (
+    load_tests_config,
+    require_gateflow_workspace_root,
+    require_programme_pat,
+)
 
 
 def _pat() -> str:
@@ -35,14 +37,17 @@ def main() -> int:
     org = prog.org.strip() or "drivestream-lab"
     repo = prog.repo.strip() or "prayog-meta"
     ref = prog.ref.strip() or None
-    workspace = Path(tempfile.mkdtemp(prefix="gf014-harness-"))
+    try:
+        workspace = require_gateflow_workspace_root()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
+        return 1
 
     with httpx.Client(base_url=base, timeout=180.0) as client:
         try:
             token, tenant_id, _ = provision_programme_tenant_admin(
                 client,
                 pat=pat,
-                workspace_root=str(workspace.resolve()),
                 org=org,
                 repo=repo,
                 ref=ref,

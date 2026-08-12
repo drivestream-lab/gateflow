@@ -17,22 +17,25 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
-import tempfile
-from pathlib import Path
 
 import httpx
 
 from tests._helpers.api_paths import require_base_url
-from tests._helpers.tests_config import load_tests_config, smoke_wave_start_fields
+from tests._helpers.tests_config import (
+    load_tests_config,
+    require_gateflow_workspace_root,
+    smoke_wave_start_fields,
+)
 from tests._helpers.verify_jwt_auth import auth_headers, provision_programme_tenant_admin
 
 
 def _pat() -> str:
     cfg = load_tests_config()
-    return (cfg.programme.pat.strip() or cfg.fixtures.tenant_pat.strip())
+    return cfg.programme.pat.strip() or cfg.fixtures.tenant_pat.strip()
 
 
 def main() -> int:
@@ -40,18 +43,17 @@ def main() -> int:
     cfg = load_tests_config()
     pat = _pat()
     if not pat:
-        print(
-            "[ERROR] tests/config.yaml must set programme.pat (or fixtures.tenant_pat)"
-        )
+        print("[ERROR] tests/config.yaml must set programme.pat (or fixtures.tenant_pat)")
         return 1
 
     org = str(cfg.fixtures.tenant_org.strip() or cfg.gateflow.org)
     repo = str(cfg.fixtures.tenant_repo.strip() or cfg.gateflow.repo)
     start_url = f"{base}/api/v1/waves/implement/start"
-    workspace_root = Path(
-        cfg.fixtures.tenant_workspace_root.strip()
-        or tempfile.mkdtemp(prefix="gateflow-ws-lifecycle-")
-    ).resolve()
+    try:
+        workspace_root = require_gateflow_workspace_root()
+    except RuntimeError as exc:
+        print(f"[ERROR] {exc}")
+        return 1
     workspace_root.mkdir(parents=True, exist_ok=True)
     target = workspace_root / org / repo
 
@@ -62,7 +64,6 @@ def main() -> int:
             token, tenant_id, _ = provision_programme_tenant_admin(
                 client,
                 pat=pat,
-                workspace_root=str(workspace_root),
                 org=programme_org,
                 repo=programme_repo,
                 name_prefix="verify-ws",

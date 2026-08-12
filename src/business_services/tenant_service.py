@@ -1,7 +1,9 @@
-"""Tenant registry business service (INIT-GATEFLOW-012 W0 / INIT-GATEFLOW-013 W1)."""
+"""Tenant registry business service (INIT-GATEFLOW-012 / INIT-GATEFLOW-014).
 
-import secrets
-from pathlib import Path
+Tenant rows are created only via Programme validate-then-create.
+Open ``POST /tenants`` register is deleted (REQ-34).
+"""
+
 from typing import Optional
 from uuid import UUID
 
@@ -13,17 +15,14 @@ from src.exceptions.app_exceptions import (
     NotFoundError,
     UnauthorizedError,
     UnprocessableEntityError,
-    ValidationError,
 )
 from src.infra_services.postgres_service import PostgresService
-from src.models.programme_readiness_models import ReadinessSourceType
 from src.models.programme_connection_models import ProgrammeConnectionReadModel
+from src.models.programme_readiness_models import ReadinessSourceType
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantListResponse,
     TenantReadModel,
-    TenantRegisterRequest,
-    TenantRegisterResponse,
     TenantResolvedContext,
     TenantUserAttachRequest,
     TenantUserAttachResponse,
@@ -31,7 +30,7 @@ from src.models.tenant_models import (
 
 
 class TenantService(BaseBusinessService):
-    """Register / attach / read tenants; PAT never returned on any response."""
+    """Read / attach tenants; PAT never returned on any response."""
 
     @inject
     def __init__(
@@ -42,48 +41,6 @@ class TenantService(BaseBusinessService):
         super().__init__()
         self._postgres_service = postgres_service
         self._tenant_repository = tenant_repository
-
-    async def register_tenant(self, request: TenantRegisterRequest) -> TenantRegisterResponse:
-        if not Path(request.workspace_root).is_absolute():
-            raise ValidationError(
-                message="workspace_root must be an absolute path",
-                field_errors={"workspace_root": "must_be_absolute"},
-            )
-        if request.repos:
-            self.logger.warning(
-                "Tenant registration rejected non-empty repos",
-                repo_count=len(request.repos),
-            )
-            raise UnprocessableEntityError(
-                message="repos is retired; admit repos via programme selection only",
-                details={"reason": "repos_not_allowed"},
-            )
-
-        bearer_token = secrets.token_urlsafe(32)
-        async with self._postgres_service.transaction() as session:
-            read = await self._tenant_repository.create_tenant(
-                session,
-                name=request.name,
-                pat=request.pat,
-                bearer_token=bearer_token,
-                workspace_root=request.workspace_root,
-                repos=[],
-                board=request.board,
-            )
-
-        self.logger.info(
-            "Tenant registered",
-            tenant_id=str(read.tenant_id),
-            repo_count=len(read.repos),
-        )
-        return TenantRegisterResponse(
-            tenant_id=read.tenant_id,
-            name=read.name,
-            bearer_token=bearer_token,
-            repos=read.repos,
-            workspace_root=read.workspace_root,
-            board=read.board,
-        )
 
     async def attach_user(
         self,

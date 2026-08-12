@@ -24,44 +24,6 @@ class TenantBoardDefault(BaseModel):
     project_number: int = Field(gt=0)
 
 
-class TenantRegisterRequest(BaseModel):
-    """POST /api/v1/tenants body.
-
-    ``repos`` is retired (INIT-GATEFLOW-013 REQ-12): must be absent or empty.
-    Active repos are admitted only via programme selection.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(min_length=1, description="Tenant display name")
-    pat: str = Field(min_length=1, description="GitHub PAT (never echoed in responses)")
-    repos: Optional[list[TenantRepoRef]] = Field(
-        default=None,
-        description="Retired — must be absent or empty; non-empty is rejected (REQ-12)",
-    )
-    workspace_root: str = Field(
-        min_length=1,
-        description="Absolute path for tenant workspaces",
-    )
-    board: Optional[TenantBoardDefault] = Field(
-        default=None,
-        description="Optional default board project_owner/project_number",
-    )
-
-
-class TenantRegisterResponse(BaseModel):
-    """Registration success — bearer token returned once."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    tenant_id: UUID
-    name: str
-    bearer_token: str = Field(description="Tenant-scoped bearer token (one-time return)")
-    repos: list[TenantRepoRef]
-    workspace_root: str
-    board: Optional[TenantBoardDefault] = None
-
-
 class TenantUserAttachRequest(BaseModel):
     """POST /api/v1/tenants/{tenant_id}/users body."""
 

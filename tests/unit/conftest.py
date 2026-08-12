@@ -32,6 +32,8 @@ def reset_settings() -> None:
     os.environ["GITHUB_PERSONAL_ACCESS_TOKEN"] = "test-forge-pat"
     # Force test token — do not inherit a different value from a sourced .env
     os.environ["PROGRAMME_SERVICE_TOKEN"] = "test-programme-token"
+    # Required for OrchestrationSettings — programme clones use this host root
+    os.environ["GATEFLOW_WORKSPACE_ROOT"] = "/tmp/gateflow-test-workspaces"
     for name in (
         "AppSettings",
         "JWTSettings",

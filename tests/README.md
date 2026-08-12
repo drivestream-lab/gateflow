@@ -214,6 +214,7 @@ See also: `docs/runbooks/w1-runtime-api-worker.md`,
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | `GATEFLOW_HANDOFF_ROOT` settings | — | `test_orchestration_settings` |
+| `GATEFLOW_WORKSPACE_ROOT` settings (programme clones) | — | `test_orchestration_settings` |
 | PromptResolver resolve/bind/render | — | `test_prompt_resolver` |
 | Required `ticket_id` on wave-start | `verify_wave_start` (supply ticket) | `test_wave_start` |
 | Message-only Cursor + anti-hardcode | — | `test_cursor_agent_runner` |
@@ -732,12 +733,11 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_catalogue_refresh` (
 |------------|---------------|--------|
 | JWT tenant list/detail; open register gone (REQ-36/38) | `verify_tenant_registry` | `test_tenant_routes` |
 | PAT never in responses (REQ-02/32) | `verify_tenant_registry` | `test_tenant_service`, `test_tenant_routes` |
-| Registration rejects `repos[]` (INIT-013 REQ-12) | `verify_tenant_registry` | `test_tenant_service` |
-| Absolute `workspace_root` → 400 (REQ-07) | `verify_tenant_registry` | `test_tenant_service` |
+| Open register deleted; repos via programme select only | `verify_dead_doors_deleted`, `verify_repo_selection` | `test_tenant_routes` (-k register) |
 | Tenant token 401 + attach boundary (REQ-04; ADR-011) | `verify_tenant_registry` | `test_tenant_token`, `test_tenant_routes` |
 | Board default when project omitted (REQ-08) | secondary | `test_board_service` (`test_resolve_board_default_*`) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables). PAT probe at registration retired — probe runs on programme select (INIT-013 W1).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_tenant_registry` (API + human DDL for tenants tables).
 
 ### Tenant registry (INIT-GATEFLOW-012 W0)
 
