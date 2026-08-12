@@ -8,6 +8,7 @@ import pytest
 
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.database.postgres.schema.run_store_schema import RunEventSchema
+from src.models.run_store_types import RunOutcomeType
 
 
 @pytest.mark.asyncio
@@ -83,8 +84,6 @@ async def test_record_api_trigger_appends_event() -> None:
 
 @pytest.mark.asyncio
 async def test_record_stage_duration_failed_outcome() -> None:
-    from src.models.run_store_types import RunOutcomeType
-
     run_event_repo = MagicMock()
     run_event_repo.append_event = AsyncMock()
     emitter = MetricsEmitter(
@@ -109,3 +108,73 @@ async def test_record_stage_duration_failed_outcome() -> None:
     assert event.payload["outcome"] == "failed"
     assert event.payload["duration_ms"] == 42
     assert event.payload["runner"] == "cursor"
+
+
+@pytest.mark.asyncio
+async def test_record_stage_duration_success_outcome() -> None:
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    emitter = MetricsEmitter(
+        run_repository=MagicMock(),
+        run_event_repository=run_event_repo,
+        stage_repository=MagicMock(),
+    )
+    await emitter.record_stage_duration(
+        MagicMock(),
+        uuid4(),
+        "loop-spec",
+        10,
+        outcome="success",
+    )
+    event = run_event_repo.append_event.await_args.args[1]
+    assert event.outcome_type == RunOutcomeType.SUCCESS
+    assert event.payload["outcome"] == "success"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        ("success", RunOutcomeType.SUCCESS),
+        ("failed", RunOutcomeType.FAILED),
+        ("findings", RunOutcomeType.FINDINGS),
+        ("stopped", RunOutcomeType.STOPPED),
+        ("blocked", RunOutcomeType.BLOCKED),
+        ("pending", RunOutcomeType.PENDING),
+    ],
+)
+async def test_record_stage_duration_full_outcome_vocabulary(
+    outcome: str, expected: RunOutcomeType
+) -> None:
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    emitter = MetricsEmitter(
+        run_repository=MagicMock(),
+        run_event_repository=run_event_repo,
+        stage_repository=MagicMock(),
+    )
+    await emitter.record_stage_duration(
+        MagicMock(),
+        uuid4(),
+        "loop-spec",
+        5,
+        outcome=outcome,
+    )
+    event = run_event_repo.append_event.await_args.args[1]
+    assert event.outcome_type == expected
+    assert event.payload["outcome"] == outcome
+
+
+@pytest.mark.asyncio
+async def test_record_stage_duration_unset_outcome_maps_to_none() -> None:
+    run_event_repo = MagicMock()
+    run_event_repo.append_event = AsyncMock()
+    emitter = MetricsEmitter(
+        run_repository=MagicMock(),
+        run_event_repository=run_event_repo,
+        stage_repository=MagicMock(),
+    )
+    await emitter.record_stage_duration(MagicMock(), uuid4(), "loop-spec", 5)
+    event = run_event_repo.append_event.await_args.args[1]
+    assert event.outcome_type is None
+    assert event.payload["outcome"] is None

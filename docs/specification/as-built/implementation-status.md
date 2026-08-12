@@ -23,6 +23,17 @@
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
+## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Full outcome vocabulary on stage_completed | REQ-01, REQ-02 | `metrics_emitter.record_stage_duration` | `test_metrics_emitter` | N/A (P15) | ADR-017 write path companion |
+| stage_outcome from handoff.outcome | REQ-01, REQ-02 | `run_orchestrator._run_orchestrated_stage` | `test_run_orchestrator` (-k stage_outcome_vocabulary) | N/A | Agent failure stays FAILED |
+| lane in JSONB payload | REQ-16 (write) | orchestrator + emitter `lane=` | -k lane_payload | N/A | ADR-017 Option C; no schema column |
+| No backfill of historical rows | REQ-03 (half) | inspection (TASK-W0-04) | review | N/A | Boundary reporting completes in W1 |
+
+**INIT-GATEFLOW-015 W0 status:** **human_approved** at wave-acceptance — Draft PR [#234](https://github.com/drivestream-lab/gateflow/pull/234) @ `0d9bbc7` label `wave-accepted` (+ Pass-2 tip `c3a0720`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

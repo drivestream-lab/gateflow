@@ -128,27 +128,34 @@ class MetricsEmitter(BaseBusinessService):
         runner: Optional[str] = None,
         model_id: Optional[str] = None,
         model_profile: Optional[str] = None,
+        lane: Optional[str] = None,
     ) -> None:
         """Append a stage_completed duration event for metrics aggregation."""
+        outcome_type: Optional[RunOutcomeType] = None
+        if outcome is not None:
+            try:
+                outcome_type = RunOutcomeType(outcome)
+            except ValueError:
+                # Unrecognized string — leave None (caller silence, not data loss).
+                outcome_type = None
+        event_payload: dict[str, object] = {
+            "event_type": "stage_completed",
+            "duration_ms": duration_ms,
+            "outcome": outcome,
+            "runner": runner,
+            "model_id": model_id,
+            "model_profile": model_profile,
+        }
+        if lane is not None and lane.strip():
+            event_payload["lane"] = lane.strip()
         await self._run_event_repository.append_event(
             session,
             RunEventCreate(
                 run_id=run_id,
                 event_type="stage_completed",
                 workflow_node=workflow_node,
-                outcome_type=(
-                    RunOutcomeType.SUCCESS
-                    if outcome == "success"
-                    else RunOutcomeType.FAILED if outcome == "failed" else None
-                ),
-                payload={
-                    "event_type": "stage_completed",
-                    "duration_ms": duration_ms,
-                    "outcome": outcome,
-                    "runner": runner,
-                    "model_id": model_id,
-                    "model_profile": model_profile,
-                },
+                outcome_type=outcome_type,
+                payload=event_payload,
             ),
         )
         self.logger.info(

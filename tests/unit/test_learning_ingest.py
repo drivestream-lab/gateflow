@@ -348,7 +348,9 @@ async def test_orchestrator_calls_learning_ingest_after_handoff() -> None:
 
     assert summary.dispatched is True
     assert "learning" in order
-    assert order.index("publish") < order.index("handoff")
+    # REQ-01 may ingest handoff during the stage (before publish) for outcome
+    # persistence; learning ingest must still run after publish.
+    assert order.index("publish") < order.index("learning")
     assert order.index("handoff") < order.index("learning")
     assert order.count("learning") == 1
     learning.ingest_after_learning_extract.assert_awaited()
