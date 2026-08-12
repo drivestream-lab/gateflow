@@ -1,10 +1,11 @@
-"""Programme-token run metrics API (FR-13) + CAP-02/CAP-03 efficacy surfaces."""
+"""Programme-token run metrics API (FR-13) + CAP-02/CAP-03/CAP-04 efficacy surfaces."""
 
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
 import src.api.dependencies as api_deps
+from src.business_services.delivery_scorecard_service import DeliveryScorecardService
 from src.business_services.factory_effectiveness_service import FactoryEffectivenessService
 from src.business_services.metrics_emitter import MetricsEmitter
 from src.business_services.skill_efficacy_service import SkillEfficacyService
@@ -12,6 +13,7 @@ from src.common.auth.dependencies import require_role
 from src.infra_services.postgres_service import PostgresService
 from src.models.auth_models import AuthContext
 from src.models.control_plane_models import RunMetricsResponse
+from src.models.delivery_scorecard_models import DeliveryScorecardResponse
 from src.models.factory_effectiveness_models import FactoryEffectivenessResponse
 from src.models.role_types import RoleType
 from src.models.skill_efficacy_models import SkillEfficacyResponse
@@ -29,6 +31,10 @@ def _get_skill_efficacy_service() -> SkillEfficacyService:
 
 def _get_factory_effectiveness_service() -> FactoryEffectivenessService:
     return api_deps.get_factory_effectiveness_service()
+
+
+def _get_delivery_scorecard_service() -> DeliveryScorecardService:
+    return api_deps.get_delivery_scorecard_service()
 
 
 def _get_postgres_service() -> PostgresService:
@@ -77,6 +83,21 @@ async def get_factory_effectiveness(
     assert auth.tenant_id is not None
     async with postgres_service.get_session() as session:
         return await factory_effectiveness_service.get_factory_effectiveness(
+            session,
+            tenant_id=auth.tenant_id,
+        )
+
+
+@router.get("/metrics/delivery-scorecard", response_model=DeliveryScorecardResponse)
+async def get_delivery_scorecard(
+    auth: AuthContext = Depends(require_role(RoleType.TENANT_ADMIN)),
+    delivery_scorecard_service: DeliveryScorecardService = Depends(_get_delivery_scorecard_service),
+    postgres_service: PostgresService = Depends(_get_postgres_service),
+) -> DeliveryScorecardResponse:
+    """Tenant-scoped delivery scorecard metrics (CAP-04 / REQ-18–REQ-23)."""
+    assert auth.tenant_id is not None
+    async with postgres_service.get_session() as session:
+        return await delivery_scorecard_service.get_delivery_scorecard(
             session,
             tenant_id=auth.tenant_id,
         )

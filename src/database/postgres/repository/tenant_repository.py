@@ -187,6 +187,23 @@ class TenantRepository(BasePostgresRepository[TenantSchema]):
             repo=repo_row.repo,
         )
 
+    async def resolve_tenant_id_for_org_repo(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[UUID]:
+        """Read-time org+repo → tenant_id for CAP-04 EPIC scoping (ADR-018 Option A).
+
+        Extracts only ``tenant_id`` from ``find_workspace_credential_by_org_repo``.
+        Ambiguous multi-tenant registration fails closed (propagates ValueError).
+        """
+        credential = await self.find_workspace_credential_by_org_repo(session, org=org, repo=repo)
+        if credential is None:
+            return None
+        return credential.tenant_id
+
     async def get_harness_verified(
         self,
         session: AsyncSession,

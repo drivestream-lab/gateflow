@@ -58,6 +58,18 @@
 
 **INIT-GATEFLOW-015 W2 status:** **human_approved** at wave-acceptance — Draft PR [#236](https://github.com/drivestream-lab/gateflow/pull/236) @ `293b012` label `wave-accepted` (+ Pass-2 tip `e105d1f`); Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-015 W3 — Delivery Scorecard API)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| GET /metrics/delivery-scorecard | REQ-18, REQ-23 | `delivery_scorecard_service` + route | `test_delivery_scorecard_service` | `verify_delivery_scorecard` (opt-in) | Tenant-scoped; as_of + cumulative + 90d delta |
+| Rework post-checkpoint-only | REQ-19 | `compute_rework_rate` | -k rework | N/A | Pre-checkpoint loops excluded |
+| Closed-with-evidence | REQ-20 | closure/completion composition | -k closed_with_evidence | N/A | |
+| Factory coverage % | REQ-21 | ADR-018 org+repo resolve | -k factory_coverage | verify | EPIC denominator scoped |
+| Intent→merge absent | REQ-22 | models | -k models | verify | Field never present |
+
+**INIT-GATEFLOW-015 W3 status:** **human_approved** at wave-acceptance — Draft PR [#237](https://github.com/drivestream-lab/gateflow/pull/237) @ `fa78255` label `wave-accepted` (+ Pass-2 tip `1914818`); Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-015.md`](Implementation-Status-INIT-GATEFLOW-015.md). Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-014 W0 — seed platform_admin + JWT login)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
