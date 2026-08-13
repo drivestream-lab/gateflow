@@ -17,6 +17,11 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
+**Local spec draft (016, Gate 1 pending):** [`product/INIT-GATEFLOW-016-gateflow.md`](product/INIT-GATEFLOW-016-gateflow.md)
+(Person directory + N:N programme membership; breaking replace of INIT-014
+combined create+attach+JWT; login snapshot + select-programme; CAP-01…04 /
+REQ-01–REQ-29. Meta PRD / impact map **not filed** — not feasibility-ready.)
+
 **Active initiative (015 spec draft):** [`product/INIT-GATEFLOW-015-gateflow.md`](product/INIT-GATEFLOW-015-gateflow.md)
 (Skill efficacy, factory effectiveness, and delivery-copilot productivity
 metrics — CAP-01 outcome-persistence prerequisite fix (`stage_completed` +

@@ -4,7 +4,7 @@
 |-------|-------|
 | Initiative | INIT-GATEFLOW-014 |
 | Spec | `docs/specification/product/INIT-GATEFLOW-014-gateflow.md` |
-| Updated | 2026-08-11 |
+| Updated | 2026-08-13 |
 
 ## Wave status
 
@@ -34,6 +34,8 @@
 | Programme persist | REQ-08,11,12,14 | `programme_schema` + repository | `test_programme_repository` | — | Human DDL |
 | Validate-then-create | REQ-08,09,10,13 | `ProgrammeService` | `test_programme_service` | `verify_programme_onboarding` | Fail-closed |
 | Admin create/list | REQ-08,17,18 | `programme_admin_routes` | `test_programme_admin_routes` | `verify_programme_onboarding` | JWT required |
+| Platform catalogue readout | REQ-48 | `programmes.repo_catalogue` | `test_programme_repository`, `test_programme_service` | `verify_programme_onboarding` | Persist at create; GET/list |
+| Catalogue resync (both roles) | REQ-49 | platform `POST …/catalogue/refresh`; tenant refresh writes JSONB | `test_programme_service`, `test_programme_onboarding` | `verify_programme_onboarding`, `verify_catalogue_refresh` | Fail-closed; not fleet membership |
 | Attach tenant_admin | REQ-15,16,44,47 | `ProgrammeService.attach` | `test_programme_service` (-k attach) | `verify_programme_onboarding` | Idempotent |
 | Agent catalogue | REQ-19,20,40,45 | catalogue schema/repo/service | catalogue unit tests | `verify_agent_catalogue` | No env fallback |
 | Effective runner | REQ-21,22,41,42 | `resolve_effective_runner` | `test_platform_agent_catalogue_service` | `verify_agent_catalogue` | |

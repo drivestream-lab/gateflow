@@ -105,6 +105,10 @@ def main() -> int:
         if "pat" in refresh_body or "pat" in refresh_body.get("connection", {}):
             print("[ERROR] refresh response leaked pat")
             return 1
+        refresh_catalogue = refresh_body.get("repo_catalogue")
+        if not isinstance(refresh_catalogue, list) or not refresh_catalogue:
+            print(f"[ERROR] tenant refresh missing repo_catalogue: {refresh_body}")
+            return 1
         synced_after = refresh_body["connection"]["last_synced_at"]
         if not synced_after:
             print(f"[ERROR] missing last_synced_at after refresh: {refresh_body}")
@@ -131,6 +135,13 @@ def main() -> int:
             print(
                 "[ERROR] catalogue lost candidates after refresh",
                 f"before={sorted(keys_before)} after={sorted(keys_after)}",
+            )
+            return 1
+        refresh_keys = _candidate_keys(refresh_catalogue)
+        if refresh_keys != keys_after:
+            print(
+                "[ERROR] refresh repo_catalogue does not match GET catalogue",
+                f"refresh={sorted(refresh_keys)} after={sorted(keys_after)}",
             )
             return 1
 

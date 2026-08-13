@@ -149,6 +149,7 @@ class ProgrammeService(BaseBusinessService):
                 github_app_id=None,
                 github_installation_id=None,
                 lane_defaults=ProgrammeLaneDefaultsDocument(),
+                repo_catalogue=candidates,
             )
 
         self.logger.info(
@@ -248,6 +249,70 @@ class ProgrammeService(BaseBusinessService):
                 programme_id,
                 ProgrammeLaneDefaultsDocument(defaults=request.defaults),
             )
+
+    async def refresh_catalogue(self, programme_id: UUID) -> ProgrammeReadModel:
+        """Fetch meta and rewrite programmes.repo_catalogue (REQ-49). No Fleet connect required."""
+        async with self._postgres_service.transaction() as session:
+            programme = await self._programme_repository.get_by_id(session, programme_id)
+            pat = await self._programme_repository.get_pat(session, programme_id)
+        if programme is None:
+            raise NotFoundError(resource_type="programme", resource_id=programme_id)
+        if pat is None:
+            raise UnprocessableEntityError(
+                message="Programme has no stored GitHub PAT",
+                details={"reason": "programme_pat_missing", "programme_id": str(programme_id)},
+            )
+
+        credential = TenantWorkspaceCredential(
+            tenant_id=programme.tenant_id,
+            workspace_root=programme.workspace_root,
+            pat=pat,
+            org=programme.meta_org,
+            repo=programme.meta_repo,
+        )
+        try:
+            await self._git_client.resolve_workspace(credential, ref=programme.meta_ref)
+        except TenantGitWorkspaceError as exc:
+            self.logger.error(
+                "Programme catalogue refresh git failed",
+                programme_id=str(programme_id),
+                org=programme.meta_org,
+                repo=programme.meta_repo,
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={
+                    "reason": exc.reason,
+                    "org": programme.meta_org,
+                    "repo": programme.meta_repo,
+                },
+            ) from exc
+
+        meta_root = Path(programme.workspace_root) / programme.meta_org / programme.meta_repo
+        try:
+            candidates = parse_candidates(meta_root, org=programme.meta_org)
+        except CatalogueParseError as exc:
+            self.logger.warning(
+                "Programme catalogue refresh parse rejected",
+                programme_id=str(programme_id),
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": exc.reason},
+            ) from exc
+
+        async with self._postgres_service.transaction() as session:
+            updated = await self._programme_repository.update_repo_catalogue(
+                session, programme_id, candidates
+            )
+        self.logger.info(
+            "Programme catalogue refreshed",
+            programme_id=str(programme_id),
+            candidate_count=len(candidates),
+        )
+        return updated
 
 
 def get_programme_service() -> ProgrammeService:

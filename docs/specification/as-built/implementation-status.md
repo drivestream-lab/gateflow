@@ -88,6 +88,8 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Programme validate-then-create | REQ-08–10,13 | `programme_service`, `programme_admin_routes` | `test_programme_service`, `test_programme_admin_routes` | `verify_programme_onboarding` | PAT/meta fail-closed; workspace from `GATEFLOW_WORKSPACE_ROOT` |
+| Platform programme catalogue readout | REQ-48 | `programmes.repo_catalogue` JSONB + `ProgrammeReadModel` | `test_programme_service`, `test_programme_repository` | `verify_programme_onboarding` | Persist at create; GET/list; not fleet membership |
+| Platform / tenant catalogue resync | REQ-49 | `POST /programmes/{id}/catalogue/refresh`; tenant refresh writes JSONB | `test_programme_service`, `test_programme_onboarding` | `verify_programme_onboarding`, `verify_catalogue_refresh` | Git+parse; fail-closed; selections unchanged |
 | Attach tenant_admin | REQ-15,16,44,47 | `ProgrammeService.attach_tenant_admin` | `test_programme_service` | `verify_programme_onboarding` | Idempotent |
 | Agent catalogue + resolve | REQ-19–22,40–42,45 | `platform_agent_catalogue_*` | catalogue unit tests | `verify_agent_catalogue` | No `CursorAgentSettings` |
 | Meta-connection rename | AF-1 | `catalogue_connection_routes/service` | onboarding/selection units | — | Table name unchanged |
@@ -172,7 +174,7 @@
 
 | Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
 |------------|----------|------------|-------------------|-------------|-------|
-| Catalogue refresh re-sync | REQ-07, REQ-24 | `POST …/programme/catalogue/refresh` | `test_programme_onboarding` | `verify_catalogue_refresh` | bumps `last_synced_at`; ADR-012 |
+| Catalogue refresh re-sync | REQ-07, REQ-24, REQ-49 | `POST …/programme/catalogue/refresh` | `test_programme_onboarding` | `verify_catalogue_refresh` | bumps `last_synced_at`; writes `programmes.repo_catalogue`; ADR-012 |
 | Selections / readiness untouched | REQ-25 | `refresh_catalogue` | `test_refresh_catalogue_*` | `verify_catalogue_refresh` | no membership writers |
 
 **INIT-GATEFLOW-013 W4 status:** **human_approved** at wave-acceptance — Draft PR [#209](https://github.com/drivestream-lab/gateflow/pull/209) @ `670799e` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W4 **pass**. Board [#204](https://github.com/drivestream-lab/gateflow/issues/204). Last eng wave for INIT-013 on gateflow — merge/publish at `wave-signoff` only; then initiative closure.

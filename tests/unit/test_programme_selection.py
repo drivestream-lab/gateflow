@@ -113,6 +113,7 @@ def _service(
     svc = CatalogueConnectionService(
         postgres_service=postgres,
         tenant_repository=repo,
+        programme_repository=MagicMock(),
         tenant_git_workspace_client=git,
         github_pat_probe=probe,
         run_repository=run_repo,

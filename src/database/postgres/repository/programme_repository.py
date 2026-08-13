@@ -10,6 +10,7 @@ from src.database.postgres.repository.base_repository import BasePostgresReposit
 from src.database.postgres.schema.programme_schema import ProgrammeSchema
 from src.di.qualified_types import PostgresSessionFactory
 from src.models.lane_types import LaneType
+from src.models.programme_catalogue_models import CatalogueCandidate
 from src.models.programme_models import (
     LaneRunnerDefault,
     ProgrammeLaneDefaultsDocument,
@@ -34,6 +35,13 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
             defaults[lane] = LaneRunnerDefault.model_validate(value)
         return ProgrammeLaneDefaultsDocument(defaults=defaults)
 
+    def _repo_catalogue_from_row(self, raw: object) -> list[CatalogueCandidate]:
+        if raw is None:
+            return []
+        if not isinstance(raw, list):
+            raise ValueError("programmes.repo_catalogue must be a JSON list")
+        return [CatalogueCandidate.model_validate(item) for item in raw]
+
     def _to_read_model(self, row: ProgrammeSchema) -> ProgrammeReadModel:
         return ProgrammeReadModel(
             id=row.id,
@@ -46,6 +54,7 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
             lane_defaults=self._lane_defaults_from_row(row.lane_defaults),
             github_app_id=row.github_app_id,
             github_installation_id=row.github_installation_id,
+            repo_catalogue=self._repo_catalogue_from_row(row.repo_catalogue),
         )
 
     async def create_programme(
@@ -62,11 +71,13 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
         github_app_id: Optional[str] = None,
         github_installation_id: Optional[str] = None,
         lane_defaults: Optional[ProgrammeLaneDefaultsDocument] = None,
+        repo_catalogue: Optional[list[CatalogueCandidate]] = None,
     ) -> ProgrammeReadModel:
         doc = lane_defaults or ProgrammeLaneDefaultsDocument()
         payload = {
             lane.value: default.model_dump(mode="json") for lane, default in doc.defaults.items()
         }
+        catalogue = repo_catalogue or []
         row = ProgrammeSchema(
             name=name,
             tenant_id=tenant_id,
@@ -78,6 +89,7 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
             github_app_id=github_app_id,
             github_installation_id=github_installation_id,
             lane_defaults=payload,
+            repo_catalogue=[c.model_dump(mode="json") for c in catalogue],
         )
         session.add(row)
         await session.flush()
@@ -88,6 +100,16 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
         self, session: AsyncSession, programme_id: UUID
     ) -> Optional[ProgrammeReadModel]:
         row = await session.get(ProgrammeSchema, programme_id)
+        if row is None:
+            return None
+        return self._to_read_model(row)
+
+    async def get_by_tenant_id(
+        self, session: AsyncSession, tenant_id: UUID
+    ) -> Optional[ProgrammeReadModel]:
+        stmt = select(ProgrammeSchema).where(ProgrammeSchema.tenant_id == tenant_id)
+        result = await session.execute(stmt)
+        row = result.scalar_one_or_none()
         if row is None:
             return None
         return self._to_read_model(row)
@@ -116,6 +138,20 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
             lane.value: default.model_dump(mode="json")
             for lane, default in lane_defaults.defaults.items()
         }
+        await session.flush()
+        await session.refresh(row)
+        return self._to_read_model(row)
+
+    async def update_repo_catalogue(
+        self,
+        session: AsyncSession,
+        programme_id: UUID,
+        repo_catalogue: list[CatalogueCandidate],
+    ) -> ProgrammeReadModel:
+        row = await session.get(ProgrammeSchema, programme_id)
+        if row is None:
+            raise LookupError(f"programme {programme_id} not found")
+        row.repo_catalogue = [c.model_dump(mode="json") for c in repo_catalogue]
         await session.flush()
         await session.refresh(row)
         return self._to_read_model(row)

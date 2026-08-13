@@ -652,6 +652,8 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; 
 | Capability | Verify | Pytest |
 |------------|--------|--------|
 | Validate-then-create + list + role gate | `verify_programme_onboarding` | `test_programme_service`, `test_programme_admin_routes` |
+| Platform catalogue readout on GET (REQ-48) | `verify_programme_onboarding` | `test_programme_service`, `test_programme_repository` |
+| Platform catalogue resync (REQ-49) | `verify_programme_onboarding` | `test_programme_service`, `test_programme_admin_routes` |
 | Attach tenant_admin (incl. unknown / idempotent) | `verify_programme_onboarding` | `test_programme_service` (-k attach) |
 | Provision + effective runner | `verify_agent_catalogue` | `test_platform_agent_catalogue_service` |
 
@@ -721,7 +723,7 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_status` (Lau
 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
-| Re-sync programme meta (REQ-24) | `verify_catalogue_refresh` | `test_programme_onboarding` |
+| Re-sync programme meta (REQ-24, REQ-49) | `verify_catalogue_refresh` | `test_programme_onboarding` |
 | Selections untouched (REQ-25) | `verify_catalogue_refresh` | `test_refresh_catalogue_*` |
 | Catalogue reflects latest sync (REQ-07) | `verify_catalogue_refresh` | parser + onboarding |
 

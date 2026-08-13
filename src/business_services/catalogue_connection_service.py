@@ -10,6 +10,7 @@ from uuid import UUID
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import RunRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
 from src.engine.catalogue_parser import CatalogueParseError, parse_candidates
@@ -60,6 +61,7 @@ class CatalogueConnectionService(BaseBusinessService):
         self,
         postgres_service: PostgresService,
         tenant_repository: TenantRepository,
+        programme_repository: ProgrammeRepository,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
         github_pat_probe: GithubPatProbe,
         run_repository: RunRepository,
@@ -68,6 +70,7 @@ class CatalogueConnectionService(BaseBusinessService):
         super().__init__()
         self._postgres_service = postgres_service
         self._tenant_repository = tenant_repository
+        self._programme_repository = programme_repository
         self._git_client = tenant_git_workspace_client
         self._github_pat_probe = github_pat_probe
         self._run_repository = run_repository
@@ -206,12 +209,13 @@ class CatalogueConnectionService(BaseBusinessService):
         *,
         resolved: TenantResolvedContext,
     ) -> ProgrammeCatalogueRefreshResponse:
-        """Re-sync programme meta checkout; never mutate selections or readiness (REQ-24/25)."""
+        """Re-sync programme meta checkout; persist catalogue snapshot; never mutate selections (REQ-24/25/49)."""
         self._assert_tenant_match(tenant_id, resolved)
 
         async with self._postgres_service.transaction() as session:
             connection = await self._tenant_repository.get_programme_connection(session, tenant_id)
             auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
+            programme = await self._programme_repository.get_by_tenant_id(session, tenant_id)
 
         if connection is None:
             raise UnprocessableEntityError(
@@ -220,6 +224,11 @@ class CatalogueConnectionService(BaseBusinessService):
             )
         if auth is None:
             raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+        if programme is None:
+            raise UnprocessableEntityError(
+                message="No Programme for tenant",
+                details={"reason": "programme_not_found", "tenant_id": str(tenant_id)},
+            )
 
         workspace_root, pat = auth
         credential = TenantWorkspaceCredential(
@@ -248,6 +257,20 @@ class CatalogueConnectionService(BaseBusinessService):
                 },
             ) from exc
 
+        meta_root = Path(workspace_root) / connection.org / connection.repo
+        try:
+            candidates = parse_candidates(meta_root, org=connection.org)
+        except CatalogueParseError as exc:
+            self.logger.warning(
+                "Programme catalogue refresh parse rejected",
+                tenant_id=str(tenant_id),
+                reason=exc.reason,
+            )
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": exc.reason},
+            ) from exc
+
         async with self._postgres_service.transaction() as session:
             updated = await self._tenant_repository.upsert_programme_connection(
                 session,
@@ -256,15 +279,23 @@ class CatalogueConnectionService(BaseBusinessService):
                 repo=connection.repo,
                 ref=connection.ref,
             )
+            await self._programme_repository.update_repo_catalogue(
+                session, programme.id, candidates
+            )
 
         self.logger.info(
             "Programme catalogue refreshed",
             tenant_id=str(tenant_id),
+            programme_id=str(programme.id),
             org=updated.org,
             repo=updated.repo,
             ref=updated.ref,
+            candidate_count=len(candidates),
         )
-        return ProgrammeCatalogueRefreshResponse(connection=updated)
+        return ProgrammeCatalogueRefreshResponse(
+            connection=updated,
+            repo_catalogue=candidates,
+        )
 
     async def select_repos(
         self,
