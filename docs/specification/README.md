@@ -17,10 +17,10 @@
 Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `verify_all`
 (does not include deep lane prove-its). Pass-2 closeout verify is INIT-007.
 
-**Local spec draft (016, Gate 1 pending):** [`product/INIT-GATEFLOW-016-gateflow.md`](product/INIT-GATEFLOW-016-gateflow.md)
-(Person directory + N:N programme membership; breaking replace of INIT-014
-combined create+attach+JWT; login snapshot + select-programme; CAP-01…04 /
-REQ-01–REQ-29. Meta PRD / impact map **not filed** — not feasibility-ready.)
+**INIT-GATEFLOW-016 (this repo: out of scope / monitor):** [`product/INIT-GATEFLOW-016-gateflow.md`](product/INIT-GATEFLOW-016-gateflow.md)
+(Gate 1 on [prayog-meta#41](https://github.com/drivestream-lab/prayog-meta/pull/41)
+assigned Mission Control to **gateflow-ops**; gateflow has no H2 scope digest.
+Pre-Gate-1 person-directory outline withdrawn. Do not implement under this id.)
 
 **Active initiative (015 spec draft):** [`product/INIT-GATEFLOW-015-gateflow.md`](product/INIT-GATEFLOW-015-gateflow.md)
 (Skill efficacy, factory effectiveness, and delivery-copilot productivity
