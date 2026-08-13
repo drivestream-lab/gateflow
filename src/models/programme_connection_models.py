@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.models.programme_catalogue_models import CatalogueCandidate
+
 
 class ProgrammeConnectRequest(BaseModel):
     """POST …/programme/connect body."""
@@ -46,3 +48,7 @@ class ProgrammeCatalogueRefreshResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     connection: ProgrammeConnectionReadModel
+    repo_catalogue: list[CatalogueCandidate] = Field(
+        default_factory=list,
+        description="Parsed candidates written to programmes.repo_catalogue (REQ-49)",
+    )

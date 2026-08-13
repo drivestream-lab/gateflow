@@ -63,6 +63,19 @@ async def get_programme(
     return await service.get_programme(programme_id)
 
 
+@programme_router.post(
+    "/{programme_id}/catalogue/refresh",
+    response_model=ProgrammeReadModel,
+)
+async def refresh_programme_catalogue(
+    programme_id: UUID,
+    _auth: AuthContext = Depends(require_role(RoleType.PLATFORM_ADMIN)),
+    service: ProgrammeService = Depends(get_programme_service),
+) -> ProgrammeReadModel:
+    """Fetch meta and rewrite persisted repo_catalogue (REQ-49). Select/onboard stay tenant_admin."""
+    return await service.refresh_catalogue(programme_id)
+
+
 @programme_router.post("/{programme_id}/wipe", response_model=ProgrammeWipeResult)
 async def wipe_programme(
     programme_id: UUID,

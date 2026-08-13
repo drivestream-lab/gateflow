@@ -71,7 +71,7 @@ async def refresh_programme_catalogue(
     resolved: Annotated[TenantResolvedContext, Depends(require_tenant_resolved)],
     service: CatalogueConnectionService = Depends(get_catalogue_connection_service),
 ) -> ProgrammeCatalogueRefreshResponse:
-    """Re-sync programme meta; selections and readiness answers stay unchanged (REQ-24/25)."""
+    """Re-sync programme meta; persist catalogue snapshot; selections unchanged (REQ-24/25/49)."""
     return await service.refresh_catalogue(tenant_id, resolved=resolved)
 
 

@@ -1,6 +1,6 @@
 """Live verify: Programme validate-then-create + attach (INIT-GATEFLOW-014 W1).
 
-prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-15,REQ-17,REQ-18,REQ-44
+prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-15,REQ-17,REQ-18,REQ-44,REQ-48,REQ-49
 
 Requires running API + Postgres with human-applied ``programmes`` DDL,
 JWT key material, seeded platform_admin, ``GATEFLOW_WORKSPACE_ROOT``, and a
@@ -73,7 +73,48 @@ def main() -> int:
             print(f"[ERROR] create: {created.status_code} {created.text}")
             return 1
         programme_id = str(created.json()["programme_id"])
+        create_catalogue = created.json().get("repo_catalogue")
+        if not isinstance(create_catalogue, list) or not create_catalogue:
+            print("[ERROR] create missing non-empty repo_catalogue")
+            return 1
         print(f"[OK] create programme {programme_id}")
+
+        detail = client.get(f"/api/v1/programmes/{programme_id}", headers=headers)
+        if detail.status_code != 200:
+            print(f"[ERROR] get: {detail.status_code} {detail.text}")
+            return 1
+        got = detail.json()
+        if "pat" in got or "github_pat" in got:
+            print("[ERROR] programme GET leaked PAT")
+            return 1
+        if got.get("repo_catalogue") != create_catalogue:
+            print("[ERROR] GET repo_catalogue does not match create")
+            return 1
+        print("[OK] GET programme returns persisted repo_catalogue")
+
+        refreshed = client.post(
+            f"/api/v1/programmes/{programme_id}/catalogue/refresh",
+            headers=headers,
+        )
+        if refreshed.status_code != 200:
+            print(f"[ERROR] platform catalogue refresh: {refreshed.status_code} {refreshed.text}")
+            return 1
+        refresh_body = refreshed.json()
+        if "pat" in refresh_body or "github_pat" in refresh_body:
+            print("[ERROR] platform catalogue refresh leaked PAT")
+            return 1
+        refresh_catalogue = refresh_body.get("repo_catalogue")
+        if not isinstance(refresh_catalogue, list) or not refresh_catalogue:
+            print("[ERROR] platform refresh missing non-empty repo_catalogue")
+            return 1
+        after_refresh = client.get(f"/api/v1/programmes/{programme_id}", headers=headers)
+        if after_refresh.status_code != 200:
+            print(f"[ERROR] get after refresh: {after_refresh.status_code} {after_refresh.text}")
+            return 1
+        if after_refresh.json().get("repo_catalogue") != refresh_catalogue:
+            print("[ERROR] GET repo_catalogue does not match platform refresh")
+            return 1
+        print("[OK] platform_admin catalogue refresh persisted repo_catalogue")
 
         listed = client.get("/api/v1/programmes", headers=headers)
         if listed.status_code != 200:

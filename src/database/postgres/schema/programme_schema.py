@@ -1,4 +1,4 @@
-"""ORM schema for Programme entity (INIT-GATEFLOW-014 W1)."""
+"""ORM schema for Programme entity (INIT-GATEFLOW-014 W1 / REQ-48)."""
 
 from typing import Any, Optional
 from uuid import UUID
@@ -32,3 +32,4 @@ class ProgrammeSchema(PostgresBaseModel):
     github_app_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     github_installation_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     lane_defaults: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    repo_catalogue: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)

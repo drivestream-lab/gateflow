@@ -71,6 +71,10 @@ class ProgrammeReadModel(BaseModel):
     github_installation_id: Optional[str] = Field(
         default=None, description="Reserved unused App field (REQ-14)"
     )
+    repo_catalogue: list[CatalogueCandidate] = Field(
+        default_factory=list,
+        description="Meta-derived candidates persisted at create and catalogue refresh; not fleet membership",
+    )
 
 
 class ProgrammeCreateResult(BaseModel):
