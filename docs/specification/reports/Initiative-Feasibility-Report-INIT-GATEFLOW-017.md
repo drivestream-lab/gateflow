@@ -129,7 +129,7 @@ modules, and JWT encoding (Q-1 / Q-5).
 
 | Spec REQ | Relevant ADR(s) | Status | Code evidence | Finding |
 |----------|-----------------|--------|----------------|---------|
-| REQ-09, REQ-16, REQ-18 | ADR-014 (claim shape); NEW-ADR | **conflict** | `src/common/auth/middleware.py` (`tenant_admin token missing tenant_id`); `src/common/auth/dependencies.py` `require_programme_scope`; `src/business_services/auth_identity_service.py` `mint_user_jwt`; `tests/unit/test_auth_middleware.py` `test_tenant_admin_missing_tenant_id_401` | `ALTERNATIVE: remint a tenant_id claim onto the user JWT at programme-select vs authorize programme scope by server-side lookup without a tenant_id claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup` |
+| REQ-09, REQ-16, REQ-18 | ADR-014 (claim shape); NEW-ADR | **conflict** | `src/common/auth/middleware.py` (`tenant_admin token missing tenant_id`); `src/common/auth/dependencies.py` `require_programme_scope`; `src/business_services/auth_identity_service.py` `mint_user_jwt`; `tests/unit/test_auth_middleware.py` `test_tenant_admin_missing_tenant_id_401` | `ALTERNATIVE: remint a tenant_id claim onto the identity JWT at programme-select vs authorize programme scope by server-side lookup without a tenant_id claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup` |
 | REQ-23, REQ-24 (014) kept | ADR-016 | **aligned** once a session is bound to one programme | `require_programme_scope`; `RunSchema.tenant_id` | N/A — delivery scoping unchanged after enter |
 | REQ-01, REQ-06, REQ-10 | ADR-001 | **aligned** (new tables/columns via Alembic create script) | `user_identity_schema.py` 1:1 `tenant_id`; no membership table | N/A — schema shape is TDD, not a second ADR, once session model is chosen |
 | REQ-15 / wipe | none (014 wipe was 1:1) | missing decision in wipe collaborator only | `programme_wipe_service.py` `delete_for_tenant` | ordinary PE (FF-02) — not NEW-ADR |
@@ -138,7 +138,7 @@ modules, and JWT encoding (Q-1 / Q-5).
 
 | ID | Check | Spec quote | Governing doc | Finding |
 |----|-------|------------|---------------|---------|
-| FF-01 | F13 | "Programme is authorization, not a second login" | ADR-014 (Accepted) — Option A claim shape `sub`/`tenant_id`/`role`; revisit trigger “finer-grained than role + programme binding” | `ALTERNATIVE: remint a tenant_id claim onto the user JWT at programme-select vs authorize programme scope by server-side lookup without a tenant_id claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup` |
+| FF-01 | F13 | "Programme is authorization, not a second login" | ADR-014 (Accepted) — Option A claim shape `sub`/`tenant_id`/`role`; revisit trigger “finer-grained than role + programme binding” | `ALTERNATIVE: remint a tenant_id claim onto the identity JWT at programme-select vs authorize programme scope by server-side lookup without a tenant_id claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup` |
 
 F14: no spec wording contradicts MDC. Identity APIs will need Pydantic models in
 `src/models/`, `*_service` naming, body-only writes, and Alembic via
@@ -221,7 +221,7 @@ None.
 
 #### Blocking for implementation plan
 
-1. **FF-01** — `ALTERNATIVE:` remint a `tenant_id` claim onto the user JWT at programme-select vs authorize programme scope by server-side lookup without a `tenant_id` claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup.
+1. **FF-01** — `ALTERNATIVE:` remint a `tenant_id` claim onto the identity JWT at programme-select vs authorize programme scope by server-side lookup without a `tenant_id` claim; revoke live JWTs on suspend or password-set via identity token-version stamp vs denylist vs per-request identity status lookup.
 2. **FF-02** — Wipe collaborator: stop `delete_for_tenant`; remove grants for that programme only.
 
 #### Defer with default
