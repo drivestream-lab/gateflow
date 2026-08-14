@@ -33,7 +33,7 @@
 
 ## Capability matrix (INIT-GATEFLOW-017 W2 — delete 014 doors + wipe collaborator)
 
-**INIT-GATEFLOW-017 W2 status:** **human_approved** at wave-acceptance — PR [#251](https://github.com/drivestream-lab/gateflow/pull/251) @ `a40ab9c` label `wave-accepted`; Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-017 W2 status:** **human_approved** at wave-acceptance — PR [#251](https://github.com/drivestream-lab/gateflow/pull/251) @ `a40ab9c` label `wave-accepted` (+ Pass-2 tip `77e2c49`); Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
