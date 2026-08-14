@@ -7,10 +7,11 @@ a GitHub PAT as ``Authorization``.
 SSOT: ``tests/config.yaml``
 
   auth.platform_admin.identifier + password — seed/login
-  auth.tenant_admin.identifier + password — login; if empty, bootstrap attaches
-  programme.programme_id — optional programme for attach reuse
+  auth.tenant_admin.identifier + password — login; if empty, bootstrap
+    enter → grant → login
+  programme.programme_id — optional programme for grant reuse
 
-tenant_id is taken from the minted JWT claims (not config).
+tenant_id comes from the programme create/GET response (JWT has no tenant_id).
 """
 
 from __future__ import annotations
@@ -114,6 +115,59 @@ def require_tenant_admin_token(client: httpx.Client | None = None) -> str:
     return ensure_verify_tenant_session(client)
 
 
+def enter_grant_login(
+    client: httpx.Client,
+    admin_headers: dict[str, str],
+    programme_id: str,
+    *,
+    email: str,
+    password: str,
+    display_name: str,
+) -> str:
+    """Enter identity, grant programme, login. Returns identity JWT (no remint)."""
+    entered = client.post(
+        "/api/v1/identities",
+        headers=admin_headers,
+        json={"display_name": display_name, "email": email, "password": password},
+    )
+    if entered.status_code != 200:
+        raise RuntimeError(f"enter identity failed {entered.status_code}: {entered.text}")
+    identity_id = entered.json().get("id")
+    if not identity_id:
+        raise RuntimeError(f"enter missing id: {entered.json()}")
+    granted = client.post(
+        f"/api/v1/programmes/{programme_id}/grants",
+        headers=admin_headers,
+        json={"identity_id": identity_id},
+    )
+    if granted.status_code != 200:
+        raise RuntimeError(f"grant failed {granted.status_code}: {granted.text}")
+    login = client.post(
+        "/api/auth/login",
+        json={"credential_identifier": email, "password": password},
+    )
+    if login.status_code != 200:
+        raise RuntimeError(f"login after grant failed {login.status_code}: {login.text}")
+    token = login.json().get("access_token")
+    if not token:
+        raise RuntimeError(f"login missing access_token: {login.json()}")
+    return str(token)
+
+
+def _tenant_id_for_programme(
+    client: httpx.Client, admin_headers: dict[str, str], programme_id: str
+) -> str:
+    detail = client.get(f"/api/v1/programmes/{programme_id}", headers=admin_headers)
+    if detail.status_code != 200:
+        raise RuntimeError(
+            f"get programme {programme_id} failed {detail.status_code}: {detail.text}"
+        )
+    tenant_id = str(detail.json().get("tenant_id") or "").strip()
+    if not tenant_id:
+        raise RuntimeError(f"programme missing tenant_id: {detail.json()}")
+    return tenant_id
+
+
 def _resolve_programme_id_for_attach(client: httpx.Client, admin_headers: dict[str, str]) -> str:
     cfg = load_tests_config()
     configured = cfg.programme.programme_id.strip()
@@ -158,11 +212,11 @@ def _resolve_programme_id_for_attach(client: httpx.Client, admin_headers: dict[s
 
 
 def ensure_verify_tenant_session(client: httpx.Client | None = None) -> str:
-    """Return tenant_admin JWT; attach+write-back when auth.tenant_admin empty.
+    """Return tenant_admin JWT; enter→grant→login when auth.tenant_admin empty.
 
-    List/attach when a programme exists; otherwise create programme for configured
+    List/grant when a programme exists; otherwise create programme for configured
     meta (default prayog-meta) using ``programme.pat`` from tests/config.yaml,
-    then attach. Writes tenant credentials to tests/config.yaml for reuse.
+    then enter and grant. Writes tenant credentials to tests/config.yaml for reuse.
     """
     cfg = load_tests_config()
     has_tenant = bool(cfg.auth.tenant_admin.identifier.strip() and cfg.auth.tenant_admin.password)
@@ -177,19 +231,14 @@ def ensure_verify_tenant_session(client: httpx.Client | None = None) -> str:
 
         identifier = f"tenant_admin_{uuid4().hex[:8]}@smoke.local"
         password = f"smoke-{uuid4().hex[:12]}"
-        attach = http.post(
-            f"/api/v1/programmes/{programme_id}/tenant-admins",
-            headers=admin_headers,
-            json={
-                "credential_identifier": identifier,
-                "password": password,
-            },
+        token = enter_grant_login(
+            http,
+            admin_headers,
+            programme_id,
+            email=identifier,
+            password=password,
+            display_name=identifier,
         )
-        if attach.status_code != 200:
-            raise RuntimeError(f"attach tenant_admin failed {attach.status_code}: {attach.text}")
-        token = attach.json().get("access_token")
-        if not token:
-            raise RuntimeError(f"attach missing access_token: {attach.json()}")
 
         patch_tests_config(
             {
@@ -202,7 +251,7 @@ def ensure_verify_tenant_session(client: httpx.Client | None = None) -> str:
                 "programme": {"programme_id": programme_id},
             }
         )
-        return str(token)
+        return token
 
     if client is not None:
         return _run(client)
@@ -229,24 +278,25 @@ def provision_programme_tenant_admin(
     ref: str | None = None,
     name_prefix: str = "smoke-w4",
 ) -> tuple[str, str, str]:
-    """Create Programme + attach tenant_admin; return (jwt, tenant_id, programme_id).
+    """Create Programme + enter/grant/login; return (jwt, tenant_id, programme_id).
 
     When ``auth.tenant_admin`` credentials are set, login instead of creating
-    (reuse existing identity). ``programme.programme_id`` may fill programme_id
-    when skipping create. Programme PAT stays in the create body — never as
-    Authorization. Workspace root is ``GATEFLOW_WORKSPACE_ROOT`` on the API.
+    (reuse existing identity). ``programme.programme_id`` fills programme_id
+    when skipping create; tenant_id comes from GET programme. Programme PAT
+    stays in the create body — never as Authorization. Workspace root is
+    ``GATEFLOW_WORKSPACE_ROOT`` on the API.
     """
+    admin = login_platform_admin(client)
+    admin_headers = auth_headers(admin)
     try:
         token = login_tenant_admin(client)
-        tenant_id = tenant_id_from_token(token)
-        if tenant_id:
-            programme_id = load_tests_config().programme.programme_id.strip() or tenant_id
+        programme_id = load_tests_config().programme.programme_id.strip()
+        if programme_id:
+            tenant_id = _tenant_id_for_programme(client, admin_headers, programme_id)
             return token, tenant_id, programme_id
     except RuntimeError:
         pass
 
-    admin = login_platform_admin(client)
-    admin_headers = auth_headers(admin)
     body: dict[str, object] = {
         "name": f"{name_prefix}-{uuid4().hex[:8]}",
         "meta_org": org,
@@ -264,12 +314,12 @@ def provision_programme_tenant_admin(
 
     tenant_cred = f"tenant_admin_{uuid4().hex[:8]}@smoke.local"
     password = "smoke-tenant-admin"
-    attach = client.post(
-        f"/api/v1/programmes/{programme_id}/tenant-admins",
-        headers=admin_headers,
-        json={"credential_identifier": tenant_cred, "password": password},
+    token = enter_grant_login(
+        client,
+        admin_headers,
+        programme_id,
+        email=tenant_cred,
+        password=password,
+        display_name=tenant_cred,
     )
-    if attach.status_code != 200:
-        raise RuntimeError(f"attach tenant_admin failed {attach.status_code}: {attach.text}")
-    token = str(attach.json()["access_token"])
     return token, tenant_id, programme_id

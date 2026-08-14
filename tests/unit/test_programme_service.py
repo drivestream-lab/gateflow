@@ -15,11 +15,9 @@ from src.exceptions.app_exceptions import NotFoundError, UnprocessableEntityErro
 from src.infra_services.tenant_git_workspace_client import TenantGitWorkspaceError
 from src.models.programme_catalogue_models import CatalogueCandidate
 from src.models.programme_models import (
-    AttachTenantAdminRequest,
     ProgrammeOnboardRequest,
     ProgrammeReadModel,
 )
-from src.models.role_types import RoleType
 from src.models.tenant_models import PatProbeResult, TenantReadModel
 
 
@@ -37,7 +35,7 @@ def _service(
     probe_ok: bool = True,
     probe_reason: str | None = None,
     git_error: Exception | None = None,
-) -> tuple[ProgrammeService, MagicMock, MagicMock, MagicMock, MagicMock, MagicMock]:
+) -> tuple[ProgrammeService, MagicMock, MagicMock, MagicMock]:
     postgres = MagicMock()
 
     @asynccontextmanager
@@ -48,9 +46,6 @@ def _service(
     programme_repo = MagicMock()
     programme_repo.update_repo_catalogue = AsyncMock()
     tenant_repo = MagicMock()
-    user_repo = MagicMock()
-    auth = MagicMock()
-    auth.mint_user_jwt.return_value = "jwt-token"
     probe = MagicMock()
     probe.verify_read_access = AsyncMock(
         return_value=PatProbeResult(ok=probe_ok, reason=probe_reason)
@@ -65,12 +60,10 @@ def _service(
         postgres_service=postgres,
         programme_repository=programme_repo,
         tenant_repository=tenant_repo,
-        user_identity_repository=user_repo,
-        auth_identity_service=auth,
         github_pat_probe=probe,
         tenant_git_workspace_client=git,
     )
-    return svc, programme_repo, tenant_repo, user_repo, auth, git
+    return svc, programme_repo, tenant_repo, git
 
 
 def _onboard_request(**overrides: str) -> ProgrammeOnboardRequest:
@@ -86,9 +79,7 @@ def _onboard_request(**overrides: str) -> ProgrammeOnboardRequest:
 
 @pytest.mark.asyncio
 async def test_validate_then_create_rejects_bad_pat_with_zero_rows() -> None:
-    svc, programme_repo, tenant_repo, _, _, _ = _service(
-        probe_ok=False, probe_reason="unauthorized"
-    )
+    svc, programme_repo, tenant_repo, _ = _service(probe_ok=False, probe_reason="unauthorized")
     with pytest.raises(UnprocessableEntityError) as exc:
         await svc.validate_then_create(_onboard_request())
     assert exc.value.details["reason"] == "pat_probe_failed"
@@ -98,7 +89,7 @@ async def test_validate_then_create_rejects_bad_pat_with_zero_rows() -> None:
 
 @pytest.mark.asyncio
 async def test_validate_then_create_rejects_bad_meta_with_zero_rows() -> None:
-    svc, programme_repo, tenant_repo, _, _, _ = _service()
+    svc, programme_repo, tenant_repo, _ = _service()
     with patch(
         "src.business_services.programme_service.parse_candidates",
         side_effect=CatalogueParseError("bad", reason="programme_yaml_missing"),
@@ -138,7 +129,7 @@ def test_workspace_root_on_onboard_body_rejected() -> None:
 
 @pytest.mark.asyncio
 async def test_validate_then_create_happy_path(tmp_path) -> None:
-    svc, programme_repo, tenant_repo, _, _, _ = _service()
+    svc, programme_repo, tenant_repo, _ = _service()
     workspace_root = str(tmp_path / "gateflow-ws")
     tenant_id = uuid4()
     programme_id = uuid4()
@@ -179,7 +170,7 @@ async def test_validate_then_create_happy_path(tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_get_programme_returns_stored_catalogue() -> None:
-    svc, programme_repo, _, _, _, _ = _service()
+    svc, programme_repo, _, _ = _service()
     programme_id = uuid4()
     tenant_id = uuid4()
     catalogue = [
@@ -206,50 +197,9 @@ async def test_get_programme_returns_stored_catalogue() -> None:
     assert "pat" not in got.model_dump()
 
 
-@pytest.mark.asyncio
-async def test_attach_unknown_programme_rejects() -> None:
-    svc, programme_repo, _, user_repo, _, _ = _service()
-    programme_repo.get_by_id = AsyncMock(return_value=None)
-    with pytest.raises(UnprocessableEntityError) as exc:
-        await svc.attach_tenant_admin(
-            uuid4(),
-            AttachTenantAdminRequest(
-                credential_identifier="admin@example.com",
-                password="secret",
-            ),
-        )
-    assert exc.value.details["reason"] == "programme_not_found"
-    user_repo.create_identity.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_attach_idempotent_re_attach() -> None:
-    svc, programme_repo, _, user_repo, auth, _ = _service()
-    programme_id = uuid4()
-    tenant_id = uuid4()
-    user_id = uuid4()
-    programme = MagicMock()
-    programme.tenant_id = tenant_id
-    programme_repo.get_by_id = AsyncMock(return_value=programme)
-    existing = MagicMock()
-    existing.id = user_id
-    existing.role = RoleType.TENANT_ADMIN
-    existing.tenant_id = tenant_id
-    user_repo.get_by_credential_identifier = AsyncMock(return_value=existing)
-    user_repo.create_identity = AsyncMock()
-
-    result = await svc.attach_tenant_admin(
-        programme_id,
-        AttachTenantAdminRequest(
-            credential_identifier="admin@example.com",
-            password="secret",
-        ),
-    )
-    assert result.created is False
-    assert result.user_id == user_id
-    assert result.access_token == "jwt-token"
-    user_repo.create_identity.assert_not_called()
-    auth.mint_user_jwt.assert_called_once()
+def test_attach_tenant_admin_method_removed() -> None:
+    """REQ-21: 014 create+bind door is deleted — no remint attach method."""
+    assert not hasattr(ProgrammeService, "attach_tenant_admin")
 
 
 def _programme_read(*, programme_id, tenant_id, catalogue=None) -> ProgrammeReadModel:
@@ -267,7 +217,7 @@ def _programme_read(*, programme_id, tenant_id, catalogue=None) -> ProgrammeRead
 
 @pytest.mark.asyncio
 async def test_refresh_catalogue_persists_parsed_candidates() -> None:
-    svc, programme_repo, _, _, _, git = _service()
+    svc, programme_repo, _, git = _service()
     programme_id = uuid4()
     tenant_id = uuid4()
     candidates = [
@@ -303,7 +253,7 @@ async def test_refresh_catalogue_persists_parsed_candidates() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_catalogue_unknown_programme_404() -> None:
-    svc, programme_repo, _, _, _, git = _service()
+    svc, programme_repo, _, git = _service()
     programme_repo.get_by_id = AsyncMock(return_value=None)
     programme_repo.get_pat = AsyncMock(return_value=None)
     with pytest.raises(NotFoundError):
@@ -314,7 +264,7 @@ async def test_refresh_catalogue_unknown_programme_404() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_catalogue_git_fail_skips_persist() -> None:
-    svc, programme_repo, _, _, _, _ = _service(
+    svc, programme_repo, _, _ = _service(
         git_error=TenantGitWorkspaceError(
             "fetch failed",
             reason="fetch_failed:network",
@@ -335,7 +285,7 @@ async def test_refresh_catalogue_git_fail_skips_persist() -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_catalogue_parse_fail_skips_persist() -> None:
-    svc, programme_repo, _, _, _, _ = _service()
+    svc, programme_repo, _, _ = _service()
     programme_id = uuid4()
     programme_repo.get_by_id = AsyncMock(
         return_value=_programme_read(programme_id=programme_id, tenant_id=uuid4())

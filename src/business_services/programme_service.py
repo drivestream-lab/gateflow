@@ -1,4 +1,4 @@
-"""Programme validate-then-create, list, and tenant_admin attach (INIT-GATEFLOW-014 W1)."""
+"""Programme validate-then-create and list (INIT-GATEFLOW-014 W1; attach door deleted in 017 W2)."""
 
 import secrets
 import shutil
@@ -7,12 +7,10 @@ from uuid import UUID, uuid4
 
 from injector import inject
 
-from src.business_services.auth_identity_service import AuthIdentityService
 from src.business_services.base_business_service import BaseBusinessService
 from src.configs.orchestration_settings import OrchestrationSettings
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
-from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
 from src.engine.catalogue_parser import CatalogueParseError, parse_candidates
 from src.exceptions.app_exceptions import (
     NotFoundError,
@@ -25,17 +23,13 @@ from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceError,
 )
 from src.models.programme_models import (
-    AttachTenantAdminRequest,
-    AttachTenantAdminResponse,
     ProgrammeCreateResult,
     ProgrammeLaneDefaultsDocument,
     ProgrammeLaneDefaultsUpdateRequest,
     ProgrammeOnboardRequest,
     ProgrammeReadModel,
 )
-from src.models.role_types import RoleType
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
-from src.utils.password_hashing import hash_password
 
 
 class ProgrammeService(BaseBusinessService):
@@ -47,8 +41,6 @@ class ProgrammeService(BaseBusinessService):
         postgres_service: PostgresService,
         programme_repository: ProgrammeRepository,
         tenant_repository: TenantRepository,
-        user_identity_repository: UserIdentityRepository,
-        auth_identity_service: AuthIdentityService,
         github_pat_probe: GithubPatProbe,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
     ) -> None:
@@ -56,8 +48,6 @@ class ProgrammeService(BaseBusinessService):
         self._postgres_service = postgres_service
         self._programme_repository = programme_repository
         self._tenant_repository = tenant_repository
-        self._user_identity_repository = user_identity_repository
-        self._auth_identity_service = auth_identity_service
         self._github_pat_probe = github_pat_probe
         self._git_client = tenant_git_workspace_client
         self._orchestration = OrchestrationSettings.get_instance()
@@ -173,64 +163,6 @@ class ProgrammeService(BaseBusinessService):
         if programme is None:
             raise NotFoundError(resource_type="programme", resource_id=programme_id)
         return programme
-
-    async def attach_tenant_admin(
-        self,
-        programme_id: UUID,
-        request: AttachTenantAdminRequest,
-    ) -> AttachTenantAdminResponse:
-        async with self._postgres_service.transaction() as session:
-            programme = await self._programme_repository.get_by_id(session, programme_id)
-            if programme is None:
-                raise UnprocessableEntityError(
-                    message="Unknown programme",
-                    details={"reason": "programme_not_found", "programme_id": str(programme_id)},
-                )
-
-            existing = await self._user_identity_repository.get_by_credential_identifier(
-                session, request.credential_identifier
-            )
-            created = False
-            if existing is None:
-                identity = await self._user_identity_repository.create_identity(
-                    session,
-                    credential_identifier=request.credential_identifier,
-                    password_hash=hash_password(request.password),
-                    role=RoleType.TENANT_ADMIN,
-                    display_name=request.credential_identifier,
-                )
-                created = True
-            else:
-                if existing.role != RoleType.TENANT_ADMIN:
-                    raise UnprocessableEntityError(
-                        message="Credential already bound to a different identity",
-                        details={"reason": "credential_conflict"},
-                    )
-                identity = existing
-                self.logger.info(
-                    "Idempotent tenant_admin re-attach",
-                    programme_id=str(programme_id),
-                    user_id=str(identity.id),
-                )
-
-        token = self._auth_identity_service.mint_user_jwt(
-            user_id=identity.id,
-            role=RoleType.TENANT_ADMIN,
-            session_epoch=identity.session_epoch,
-        )
-        self.logger.info(
-            "tenant_admin attached",
-            programme_id=str(programme_id),
-            user_id=str(identity.id),
-            created=created,
-        )
-        return AttachTenantAdminResponse(
-            user_id=identity.id,
-            tenant_id=programme.tenant_id,
-            programme_id=programme_id,
-            access_token=token,
-            created=created,
-        )
 
     async def set_lane_defaults(
         self,

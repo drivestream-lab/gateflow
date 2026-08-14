@@ -1,6 +1,6 @@
 """Live verify: consolidated old-door refusal (INIT-GATEFLOW-014 W4 / REQ-37).
 
-prayog:covers: refuse,old-doors,REQ-37
+prayog:covers: refuse,old-doors,REQ-20,REQ-21,REQ-37
 
 Asserts in one script:
   - opaque programme-style token → 401 on control-plane
@@ -81,6 +81,26 @@ def main() -> int:
             )
             return 1
         print(f"[OK] refuse-open-register-deleted ({r.status_code})")
+
+        r = client.post(
+            f"/api/v1/programmes/{uuid4()}/tenant-admins",
+            headers=auth_headers(admin),
+            json={"credential_identifier": "gone@smoke.local", "password": "x"},
+        )
+        if r.status_code not in (404, 405):
+            print(f"[ERROR] 014 attach door expected 404/405, " f"got {r.status_code}: {r.text}")
+            return 1
+        print(f"[OK] refuse-014-attach-deleted ({r.status_code})")
+
+        r = client.post(
+            f"/api/v1/tenants/{uuid4()}/users",
+            headers=auth_headers(admin),
+            json={"identity": "alice@example.com"},
+        )
+        if r.status_code not in (404, 405):
+            print(f"[ERROR] 012 users door expected 404/405, " f"got {r.status_code}: {r.text}")
+            return 1
+        print(f"[OK] refuse-012-users-deleted ({r.status_code})")
 
     print("[OK] verify_old_doors_refused complete")
     return 0

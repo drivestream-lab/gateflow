@@ -107,6 +107,20 @@ def test_register_route_gone_with_platform_admin_jwt(
     assert response.status_code in (404, 405)
 
 
+def test_historic_users_route_gone_with_jwt(
+    tenant_client: tuple[TestClient, MagicMock],
+) -> None:
+    """REQ-20: historic handle-attach POST /tenants/{id}/users is deleted."""
+    client, _ = tenant_client
+    token = mint_test_jwt(role=RoleType.PLATFORM_ADMIN)
+    response = client.post(
+        f"/api/v1/tenants/{uuid4()}/users",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"identity": "alice@example.com"},
+    )
+    assert response.status_code in (404, 405)
+
+
 def test_list_401_without_token(tenant_client: tuple[TestClient, MagicMock]) -> None:
     client, _ = tenant_client
     response = client.get("/api/v1/tenants")

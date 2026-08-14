@@ -31,6 +31,10 @@
 
 **INIT-GATEFLOW-017 W1 status:** **human_approved** at wave-acceptance — PR [#250](https://github.com/drivestream-lab/gateflow/pull/250) @ `b224fe6` label `wave-accepted` (+ Pass-2 tip `2e23724`); Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-017 W2 — delete 014 doors + wipe collaborator)
+
+**INIT-GATEFLOW-017 W2 status:** implemented — pending `wave-acceptance`. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Not `human_approved` until `wave-accepted` on the tip.
+
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
