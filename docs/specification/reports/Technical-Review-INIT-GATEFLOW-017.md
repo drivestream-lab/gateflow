@@ -15,7 +15,7 @@
 | Date | 2026-08-13 |
 | Branch | `chore/INIT-GATEFLOW-017-spec-gateflow` (spec PR [#243](https://github.com/drivestream-lab/gateflow/pull/243) — TDD published via Forge) |
 | Initiative segment | `INIT-GATEFLOW-017` |
-| Status | Draft |
+| Status | Accepted |
 | Review deadline | 2026-08-20 |
 | Deciders | PE: @drivestream-lab/prayog-pe-team — explicit LGTM required, not approval by silence |
 
@@ -189,7 +189,7 @@ exists. Redis is health/cache only (`RedisService`); not used for sessions.
 
 | Finding | Classification | ADR file / TDD section | product_constraints | Product exclusions | Recommendation / default | Status | Digest |
 |---------|----------------|------------------------|---------------------|--------------------|--------------------------|--------|--------|
-| FF-01 | ADR_REQUIRED | `docs/specification/adr/adr-019-identity-jwt-programme-scope-and-session-epoch.md` | `[REQ-09, REQ-12, REQ-14, REQ-16, REQ-18]` | See those REQ ids | Option B — membership lookup + `session_epoch`; no remint; no Redis denylist | Draft | `sha256:496b0f3f5e8511ced54c6207f4d307989f96b7014985679f9aa5e3351c77f13b` |
+| FF-01 | ADR_REQUIRED | `docs/specification/adr/adr-019-identity-jwt-programme-scope-and-session-epoch.md` | `[REQ-12, REQ-14, REQ-16]` | See those REQ ids | Option B — membership lookup + `session_epoch`; no remint; no Redis denylist | Accepted | `sha256:2fbe1ecdb1a73335982e365dd57bcbff12d4b51e328c95be124cc2efa9e86d25` |
 | FF-02 | TDD_ONLY | §9 FF-02 | `[REQ-10, REQ-21]` + wipe non-goal | Delete-identity remains out of product | Wipe deletes memberships only | Resolved | N/A |
 | FF-03 | TDD_ONLY | §9 FF-03 | `[REQ-20, REQ-21]` | — | Rewrite `provision_programme_tenant_admin` to enter → grant → login | Resolved | N/A |
 
@@ -323,8 +323,8 @@ None.
 | PM questions outstanding | 3 deferred non-blocking |
 | Domain questions outstanding | 0 |
 | Selected workflow outcome | `pass` |
-| Ready for PE review | YES |
-| **Ready for /spec-implementation-plan** | **NO — final exact-head PE approval required** |
+| Ready for PE review | YES — accepted 2026-08-14 by @nikd10x |
+| **Ready for /spec-implementation-plan** | **YES — after `/commit-workspace` publishes Accepted files to PR #243** |
 
 ---
 
@@ -341,8 +341,8 @@ None.
 | T7 Data contract ownership | PASS | models + Alembic create script |
 | T8 Dependency graph | PASS | api → business → repo → schema; middleware stays decode-only |
 | T9 Engineering questions zero | PASS | FF-01–03 and Q-1/Q-5 resolved; Q-2 deferred with default |
-| T10 PE review readiness | PASS | Draft ADR + TDD; `ready_for_plan: false` |
-| T11 ADR artifact integrity | PASS | ADR-019 Draft exists; lint digest `sha256:496b0f3f5e8511ced54c6207f4d307989f96b7014985679f9aa5e3351c77f13b` |
+| T10 PE review readiness | PASS | ADR-019 + TDD Accepted by @nikd10x 2026-08-14; `ready_for_plan: true` after `/commit-workspace` |
+| T11 ADR artifact integrity | PASS | ADR-019 Accepted; lint `adr_boundary_lint.py 4/4, PASS, sha256:2fbe1ecdb1a73335982e365dd57bcbff12d4b51e328c95be124cc2efa9e86d25` |
 | T12 Product-boundary integrity | PASS | ADR `--strict` 6/6 PASS; TDD `--tdd` 2 sources PASS; independent re-read (context-reset after subagent abort): REQ ids only, one Option B, flags false |
 
 ---
@@ -415,12 +415,18 @@ handoff:
     adr_required_count: 1
     tdd_only_count: 2
     deferred_with_default_count: 0
-    draft_adr_files:
+    accepted_adr_files:
       - docs/specification/adr/adr-019-identity-jwt-programme-scope-and-session-epoch.md
-    draft_adr_lint_evidence:
-      - "adr_boundary_lint.py 6/6, PASS, sha256:496b0f3f5e8511ced54c6207f4d307989f96b7014985679f9aa5e3351c77f13b"
+    accepted_adr_lint_evidence:
+      - "adr_boundary_lint.py 4/4, PASS, sha256:2fbe1ecdb1a73335982e365dd57bcbff12d4b51e328c95be124cc2efa9e86d25"
+    pe_acceptance:
+      accepted_by: "@nikd10x"
+      accepted_at: "2026-08-14"
+      evidence: "Explicit PE acceptance via Cursor chat, Draft spec PR #243"
+      adrs_accepted:
+        - adr-019-identity-jwt-programme-scope-and-session-epoch.md
     ready_for_pe_review: true
-    ready_for_plan: false
+    ready_for_plan: true
     pm_open_items:
       - PM-1
       - PM-2
@@ -429,8 +435,8 @@ handoff:
     codegraph_provider: degraded-none
     grounding_depth: deep
   next_candidates:
-    - technical-review-approval
-  human_checkpoint: true
+    - spec-implementation-plan
+  human_checkpoint: false
   external_action: false
   forge:
     action: commit_workspace
