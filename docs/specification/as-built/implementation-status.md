@@ -29,7 +29,7 @@
 
 ## Capability matrix (INIT-GATEFLOW-017 W1 — identity directory + grant/detach)
 
-**INIT-GATEFLOW-017 W1 status:** implemented — unit green; **not** `human_approved` until `wave-acceptance` on the Draft PR tip. Board [#246](https://github.com/drivestream-lab/gateflow/issues/246). Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md).
+**INIT-GATEFLOW-017 W1 status:** **human_approved** at wave-acceptance — PR [#250](https://github.com/drivestream-lab/gateflow/pull/250) @ `b224fe6` label `wave-accepted`; Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
