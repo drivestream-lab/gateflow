@@ -19,7 +19,7 @@
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
-| Identity columns + memberships | REQ-21 | `user_identity_schema`, `programme_membership_schema`, Alembic `9713e795e01c` | `test_user_identity_repository`, `test_programme_membership_repository` | — | Human applies `run_postgres_migration.sh` |
+| Identity columns + memberships | REQ-21 | `user_identity_schema`, `programme_membership_schema`, Alembic `58462eaba680` | `test_user_identity_repository`, `test_programme_membership_repository` | — | Human applies `run_postgres_migration.sh` |
 | Session epoch + no programme claim | REQ-12, REQ-14, REQ-16 | middleware + `require_role` / `require_programme_scope` + mint | `test_auth_middleware`, `test_auth_dependencies`, `test_auth_identity_service` | `verify_jwt_login` | ADR-019 Option B |
 | Login snapshot `{grants: []}` + email | REQ-03, REQ-18 | `AuthIdentityService.login` | `test_auth_identity_service` | `verify_jwt_login` | Enter/grant is W1; enter-programme is W3 |
 

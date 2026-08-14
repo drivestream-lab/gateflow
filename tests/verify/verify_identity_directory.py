@@ -2,7 +2,7 @@
 
 prayog:covers: identity,directory,REQ-01,REQ-02,REQ-04,REQ-05,REQ-06,REQ-09,REQ-10,REQ-11,REQ-12,REQ-14,REQ-22,REQ-30
 
-Requires running API + Postgres with human-applied W0 Alembic ``9713e795e01c``,
+Requires running API + Postgres with human-applied Alembic ``58462eaba680``,
 JWT key material, ``auth.platform_admin`` in ``tests/config.yaml``, and at least
 one onboarded programme.
 
