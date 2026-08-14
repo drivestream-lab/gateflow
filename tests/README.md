@@ -66,6 +66,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
 # .venv/bin/python -m tests.verify.verify_identity_directory   # INIT-017 W1 enter/grant/detach
 # .venv/bin/python -m tests.verify.verify_dead_doors_deleted   # INIT-017 W2 014/012 doors gone
+# .venv/bin/python -m tests.verify.verify_cross_programme_isolation  # INIT-017 W3 enter + isolation
 # .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 onboard (017 W2: no attach)
 # .venv/bin/python -m tests.verify.verify_agent_catalogue      # INIT-014 W1 agent catalogue
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
@@ -680,6 +681,16 @@ Human live-verify (017 W1): `.venv/bin/python -m tests.verify.verify_identity_di
 | Onboard still creates; helper enter→grant→login | `verify_programme_onboarding` | `test_programme_service` |
 
 Human live-verify (017 W2): `.venv/bin/python -m tests.verify.verify_dead_doors_deleted` (API up; `auth.platform_admin`). Optional inspect: `verify_programme_onboarding`.
+
+## Feature map (INIT-GATEFLOW-017 W3 — enter programme + isolation)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Enter granted / not granted; no remint | `verify_cross_programme_isolation` | `test_auth_identity_service` |
+| Login/me grant snapshot; zero-grant signed in | `verify_jwt_login` | `test_auth_identity_service` |
+| Two-programme delivery; platform_admin 403 | `verify_cross_programme_isolation` | `test_auth_dependencies` |
+
+Human live-verify (017 W3): `.venv/bin/python -m tests.verify.verify_cross_programme_isolation` (API up; two onboarded programmes; W0 Alembic; `auth.platform_admin`). Optional inspect: `verify_jwt_login`.
 
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 

@@ -1,6 +1,6 @@
-"""Live verify: JWT seed + login (INIT-GATEFLOW-014 W0 / INIT-GATEFLOW-017 W0).
+"""Live verify: JWT seed + login + enter-programme snapshot (INIT-GATEFLOW-017 W3).
 
-prayog:covers: jwt,login,REQ-01,REQ-02,REQ-03,REQ-43,REQ-18
+prayog:covers: jwt,login,REQ-01,REQ-02,REQ-03,REQ-43,REQ-18,REQ-16
 
 Requires running API + Postgres with human-applied ``user_identities`` DDL,
 JWT key material (``JWT_*``), and ``auth.platform_admin`` in ``tests/config.yaml``.
@@ -16,12 +16,14 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from jose import jwt
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import require_platform_admin_credentials
+from tests._helpers.verify_jwt_auth import auth_headers, enter_grant_login, login_platform_admin
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -133,6 +135,79 @@ def main() -> int:
             print(f"[ERROR] login refuse must not return a token: {r.text}")
             return 1
         print("[OK] login-refuse")
+
+        me = client.get("/api/auth/me", headers=auth_headers(str(access_token)))
+        if me.status_code != 200:
+            print(f"[ERROR] me expected 200, got {me.status_code}: {me.text}")
+            return 1
+        me_body = me.json()
+        if not isinstance(me_body.get("grants"), list):
+            print(f"[ERROR] me missing grants: {me_body}")
+            return 1
+        if "password" in me_body or "identities" in me_body:
+            print(f"[ERROR] me leaked password or roster: {me_body}")
+            return 1
+        print("[OK] me snapshot")
+
+        refused = client.post(
+            "/api/auth/session/programme",
+            headers=auth_headers(str(access_token)),
+            json={"programme_id": "00000000-0000-0000-0000-000000000000"},
+        )
+        if refused.status_code != 403:
+            print(
+                f"[ERROR] enter ungranted expected 403, got {refused.status_code}: {refused.text}"
+            )
+            return 1
+        details = (refused.json().get("error") or {}).get("details") or {}
+        if details.get("reason") != "not granted":
+            print(f"[ERROR] enter ungranted reason: {refused.text}")
+            return 1
+        print("[OK] enter ungranted 403")
+
+        programmes = client.get("/api/v1/programmes", headers=auth_headers(str(access_token)))
+        if programmes.status_code == 200 and programmes.json():
+            programme_id = str(programmes.json()[0].get("id") or "")
+            if programme_id:
+                try:
+                    admin = login_platform_admin(client)
+                    email = f"jwt_login_{uuid4().hex[:8]}@smoke.local"
+                    password = f"smoke-{uuid4().hex[:12]}"
+                    tenant_token = enter_grant_login(
+                        client,
+                        auth_headers(admin),
+                        programme_id,
+                        email=email,
+                        password=password,
+                        display_name=email,
+                    )
+                except RuntimeError as exc:
+                    print(f"[ERROR] enter-grant-login: {exc}")
+                    return 1
+                granted_login = client.post(
+                    "/api/auth/login",
+                    json={"credential_identifier": email, "password": password},
+                )
+                if granted_login.status_code != 200:
+                    print(
+                        f"[ERROR] granted login: {granted_login.status_code} {granted_login.text}"
+                    )
+                    return 1
+                granted_grants = granted_login.json().get("grants")
+                if not isinstance(granted_grants, list) or not granted_grants:
+                    print(f"[ERROR] granted login missing grants: {granted_login.json()}")
+                    return 1
+                entered = client.post(
+                    "/api/auth/session/programme",
+                    headers=auth_headers(tenant_token),
+                    json={"programme_id": programme_id},
+                )
+                if entered.status_code != 200 or "access_token" in entered.json():
+                    print(f"[ERROR] enter granted: {entered.status_code} {entered.text}")
+                    return 1
+                print("[OK] granted login snapshot + enter (no remint)")
+        else:
+            print("[OK] granted-enter-skip (no onboarded programme)")
 
     print("[OK] verify_jwt_login passed")
     return 0
