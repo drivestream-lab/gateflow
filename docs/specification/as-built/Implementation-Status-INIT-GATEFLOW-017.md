@@ -10,7 +10,7 @@
 
 | Wave | Goal | Status | Evidence |
 |------|------|--------|----------|
-| W0 | Membership schema + identity JWT session | **human_approved** | Board [#245](https://github.com/drivestream-lab/gateflow/issues/245); PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) accept tip `3da2d02` label `wave-accepted`; Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
+| W0 | Membership schema + identity JWT session | **human_approved** | Board [#245](https://github.com/drivestream-lab/gateflow/issues/245); PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) accept tip `3da2d02` label `wave-accepted` (+ Pass-2 tip `f28afde`); Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Identity directory + grant/detach | not started | Board [#246](https://github.com/drivestream-lab/gateflow/issues/246) |
 | W2 | Delete 014 doors + wipe collaborator | not started | Board [#247](https://github.com/drivestream-lab/gateflow/issues/247) |
 | W3 | Enter programme + isolation + as-built | not started | Board [#248](https://github.com/drivestream-lab/gateflow/issues/248) |

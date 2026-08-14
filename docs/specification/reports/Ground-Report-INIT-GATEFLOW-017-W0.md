@@ -6,7 +6,7 @@
 | Spec | `docs/specification/product/INIT-GATEFLOW-017-gateflow.md` |
 | Initiative | INIT-GATEFLOW-017 |
 | Date | 2026-08-14 |
-| Wave head (exact) | Accept tip `3da2d02fb90220a8f035596e5b9c61464d760d9e` (`wave-accepted`); Pass-2 docs land on the same branch via `/commit-workspace` |
+| Wave head (exact) | Accept tip `3da2d02fb90220a8f035596e5b9c61464d760d9e` (`wave-accepted`); Pass-2 tip `f28afde7b666e9e9ca4ed0ff054c623daa6af87c` |
 | PR URL (if any) | https://github.com/drivestream-lab/gateflow/pull/249 — read-only context |
 | Status | Draft |
 | Review deadline | 2026-08-18 |
@@ -93,7 +93,7 @@ N/A — profile/`ground_command` is N/A for this repo. Manual scan performed.
 > from this skill. Human approved was `wave-acceptance`. At `wave-signoff`
 > the human merges/publishes the **exact wave head** only.
 
-- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/249 @ `3da2d02fb90220a8f035596e5b9c61464d760d9e` — **expected reviewed head SHA** (accept tip; Pass-2 docs follow on the same branch)
+- PR URL / wave head: https://github.com/drivestream-lab/gateflow/pull/249 @ `f28afde7b666e9e9ca4ed0ff054c623daa6af87c` — **expected reviewed head SHA** (Pass-2 tip; accept tip remains `3da2d02`)
 - Ground Report path: `docs/specification/reports/Ground-Report-INIT-GATEFLOW-017-W0.md`
 - Accept evidence: `wave-accepted` on tip (wave-acceptance) — human approved already
 - Wave-Execution path: `docs/specification/reports/Wave-Execution-INIT-GATEFLOW-017-W0.md`
@@ -148,7 +148,7 @@ handoff:
       - REQ-16
       - REQ-18
       - REQ-21
-    reviewed_head_sha: 3da2d02fb90220a8f035596e5b9c61464d760d9e
+    reviewed_head_sha: f28afde7b666e9e9ca4ed0ff054c623daa6af87c
     pr_url: https://github.com/drivestream-lab/gateflow/pull/249
   next_candidates:
     - wave-done-action
