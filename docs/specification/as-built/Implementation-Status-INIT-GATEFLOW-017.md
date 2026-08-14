@@ -13,7 +13,7 @@
 | W0 | Membership schema + identity JWT session | **human_approved** | Board [#245](https://github.com/drivestream-lab/gateflow/issues/245); PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) accept tip `3da2d02` label `wave-accepted` (+ Pass-2 tip `f28afde`); Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
 | W1 | Identity directory + grant/detach | **human_approved** | Board [#246](https://github.com/drivestream-lab/gateflow/issues/246); PR [#250](https://github.com/drivestream-lab/gateflow/pull/250) accept tip `b224fe6` label `wave-accepted` (+ Pass-2 tip `2e23724`); Ground-Report W1 **pass**; Learning-Extract W1 `items: []` |
 | W2 | Delete 014 doors + wipe collaborator | **human_approved** | Board [#247](https://github.com/drivestream-lab/gateflow/issues/247); PR [#251](https://github.com/drivestream-lab/gateflow/pull/251) accept tip `a40ab9c` label `wave-accepted` (+ Pass-2 tip `77e2c49`); Ground-Report W2 **pass**; Learning-Extract W2 `items: []` |
-| W3 | Enter programme + isolation + as-built | not started | Board [#248](https://github.com/drivestream-lab/gateflow/issues/248) |
+| W3 | Enter programme + isolation + as-built | **human_approved** | Board [#248](https://github.com/drivestream-lab/gateflow/issues/248); PR [#253](https://github.com/drivestream-lab/gateflow/pull/253) accept tip `e0d7a24` label `wave-accepted` (+ Pass-2 tip `4b0aca4`); Ground-Report W3 **pass**; Learning-Extract W3 `items: []` |
 
 ## W0 capability detail
 
@@ -40,3 +40,11 @@
 | Historic users door deleted | REQ-20 | `tenant_routes` — no `POST …/users` | `test_historic_users_route_gone_with_jwt` | `verify_dead_doors_deleted` | A-7 |
 | Wipe keeps identity | REQ-10, REQ-15, REQ-21 | `ProgrammeWipeService` deletes memberships then programme | `test_programme_wipe_service` | `verify_wipe_cutover` | ACTIVE 409 unchanged |
 | Provision helper | REQ-21, REQ-27 | `enter_grant_login` in `verify_jwt_auth` | — | `verify_programme_onboarding` | No remint; onboard create unchanged |
+
+## W3 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Enter programme (no remint) | REQ-16, REQ-18 | `GET /api/auth/me`, `POST /api/auth/session/programme` | `test_auth_identity_service` | `verify_cross_programme_isolation` | ADR-019 Option B; 403 `not granted` |
+| Grant snapshot on login/me | REQ-16, REQ-18, REQ-26 | `AuthIdentityService.login` / `me` | `test_auth_identity_service` | `verify_jwt_login` | No password; no factory roster |
+| Two-programme delivery + platform_admin refuse | REQ-17, REQ-19, REQ-23 | membership + `require_tenant_resolved` | `test_auth_dependencies` | `verify_cross_programme_isolation` | Path tenant after membership (ADR-016) |

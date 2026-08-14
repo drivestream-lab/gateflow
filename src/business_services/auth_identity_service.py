@@ -8,11 +8,25 @@ from jose import jwt
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.configs.jwt_settings import JWTSettings
+from src.database.postgres.repository.programme_membership_repository import (
+    ProgrammeMembershipRepository,
+)
 from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
-from src.exceptions.app_exceptions import UnauthorizedError, UnprocessableEntityError
+from src.exceptions.app_exceptions import (
+    ForbiddenError,
+    UnauthorizedError,
+    UnprocessableEntityError,
+)
 from src.infra_services.postgres_service import PostgresService
-from src.models.auth_models import LoginRequest, LoginResponse, UserIdentityReadModel
+from src.models.auth_models import (
+    AuthContext,
+    AuthSessionSnapshot,
+    LoginRequest,
+    LoginResponse,
+    UserIdentityReadModel,
+)
 from src.models.identity_status_types import IdentityStatusType
+from src.models.programme_membership_models import ProgrammeMembershipReadModel
 from src.models.role_types import RoleType
 from src.utils.password_hashing import hash_password, verify_password
 
@@ -32,11 +46,30 @@ class AuthIdentityService(BaseBusinessService):
         self,
         postgres_service: PostgresService,
         user_identity_repository: UserIdentityRepository,
+        programme_membership_repository: ProgrammeMembershipRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._repository = user_identity_repository
+        self._memberships = programme_membership_repository
         self._jwt_settings = JWTSettings.get_instance()
+
+    def _to_snapshot(
+        self,
+        identity: UserIdentityReadModel,
+        grants: list[ProgrammeMembershipReadModel],
+        *,
+        entered_programme_id: UUID | None = None,
+    ) -> AuthSessionSnapshot:
+        return AuthSessionSnapshot(
+            id=identity.id,
+            display_name=identity.display_name,
+            email=identity.credential_identifier,
+            status=identity.status,
+            role=identity.role,
+            grants=grants,
+            entered_programme_id=entered_programme_id,
+        )
 
     def _signing_key(self) -> str:
         settings = self._jwt_settings
@@ -131,12 +164,61 @@ class AuthIdentityService(BaseBusinessService):
                 role=identity.role,
                 session_epoch=identity.session_epoch,
             )
+            grants = await self._memberships.list_by_identity(session, identity.id)
             self.logger.info(
                 "Login succeeded",
                 user_id=str(identity.id),
                 role=identity.role.value,
+                grant_count=len(grants),
             )
-            return LoginResponse(access_token=token, grants=[])
+            return LoginResponse(access_token=token, grants=grants)
+
+    async def me(self, auth: AuthContext) -> AuthSessionSnapshot:
+        """Return the signed-in identity snapshot (no password, no factory roster)."""
+        async with self._postgres_service.transaction() as session:
+            identity = await self._repository.get_by_id(session, auth.user_id)
+            if identity is None:
+                raise UnauthorizedError(
+                    message="Identity not found for token",
+                    details={"reason": "unknown identity", "user_id": str(auth.user_id)},
+                )
+            grants = await self._memberships.list_by_identity(session, identity.id)
+            self.logger.info(
+                "Session snapshot",
+                user_id=str(identity.id),
+                grant_count=len(grants),
+            )
+            return self._to_snapshot(identity, grants)
+
+    async def enter_programme(self, auth: AuthContext, programme_id: UUID) -> AuthSessionSnapshot:
+        """Authorize enter of a granted programme without reminting the JWT."""
+        async with self._postgres_service.transaction() as session:
+            identity = await self._repository.get_by_id(session, auth.user_id)
+            if identity is None:
+                raise UnauthorizedError(
+                    message="Identity not found for token",
+                    details={"reason": "unknown identity", "user_id": str(auth.user_id)},
+                )
+            membership = await self._memberships.get_by_identity_and_programme(
+                session, identity_id=identity.id, programme_id=programme_id
+            )
+            if membership is None:
+                self.logger.warning(
+                    "Enter programme refused",
+                    user_id=str(identity.id),
+                    programme_id=str(programme_id),
+                )
+                raise ForbiddenError(
+                    message="Caller is not granted the requested programme",
+                    details={"reason": "not granted", "programme_id": str(programme_id)},
+                )
+            grants = await self._memberships.list_by_identity(session, identity.id)
+            self.logger.info(
+                "Entered programme",
+                user_id=str(identity.id),
+                programme_id=str(programme_id),
+            )
+            return self._to_snapshot(identity, grants, entered_programme_id=programme_id)
 
 
 def get_auth_identity_service() -> AuthIdentityService:

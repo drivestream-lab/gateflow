@@ -40,7 +40,32 @@ class LoginResponse(BaseModel):
     token_type: str = Field(default="bearer", description="Bearer token type")
     grants: list[ProgrammeMembershipReadModel] = Field(
         default_factory=list,
-        description="Programmes this identity may enter (empty until grants exist)",
+        description="Programmes this identity may enter (empty when none granted)",
+    )
+
+
+class EnterProgrammeRequest(BaseModel):
+    """POST /api/auth/session/programme body."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    programme_id: UUID = Field(description="Programme the signed-in identity will enter")
+
+
+class AuthSessionSnapshot(BaseModel):
+    """Signed-in identity snapshot (no password, no factory roster, no remint)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    display_name: str
+    email: str
+    status: IdentityStatusType
+    role: RoleType
+    grants: list[ProgrammeMembershipReadModel] = Field(default_factory=list)
+    entered_programme_id: Optional[UUID] = Field(
+        default=None,
+        description="Programme entered this request; omitted on GET /me",
     )
 
 

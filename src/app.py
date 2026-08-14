@@ -78,7 +78,7 @@ def create_app() -> FastAPI:
             "/health",
             "/internal",
             "/webhooks",
-            "/api/auth",
+            "/api/auth/login",
         ],
         algorithm=jwt_settings.algorithm,
         private_key_path=jwt_settings.private_key_path,

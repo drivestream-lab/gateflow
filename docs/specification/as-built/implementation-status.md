@@ -23,17 +23,9 @@
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
-## Capability matrix (INIT-GATEFLOW-017 W0 — membership schema + identity JWT session)
+## Capability matrix (INIT-GATEFLOW-017 — one human, many programmes, one login)
 
-**INIT-GATEFLOW-017 W0 status:** **human_approved** at wave-acceptance — PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) @ `3da2d02` label `wave-accepted` (+ Pass-2 tip `f28afde`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
-
-## Capability matrix (INIT-GATEFLOW-017 W1 — identity directory + grant/detach)
-
-**INIT-GATEFLOW-017 W1 status:** **human_approved** at wave-acceptance — PR [#250](https://github.com/drivestream-lab/gateflow/pull/250) @ `b224fe6` label `wave-accepted` (+ Pass-2 tip `2e23724`); Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
-
-## Capability matrix (INIT-GATEFLOW-017 W2 — delete 014 doors + wipe collaborator)
-
-**INIT-GATEFLOW-017 W2 status:** **human_approved** at wave-acceptance — PR [#251](https://github.com/drivestream-lab/gateflow/pull/251) @ `a40ab9c` label `wave-accepted` (+ Pass-2 tip `77e2c49`); Ground-Report W2 **pass**; Learning-Extract W2 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
+**INIT-GATEFLOW-017 status:** W0–W3 **human_approved** at wave-acceptance — PRs [#249](https://github.com/drivestream-lab/gateflow/pull/249), [#250](https://github.com/drivestream-lab/gateflow/pull/250), [#251](https://github.com/drivestream-lab/gateflow/pull/251), [#253](https://github.com/drivestream-lab/gateflow/pull/253) @ `e0d7a24` label `wave-accepted` (+ Pass-2 tip `4b0aca4`); Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
