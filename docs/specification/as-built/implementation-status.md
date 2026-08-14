@@ -25,7 +25,7 @@
 
 ## Capability matrix (INIT-GATEFLOW-017 — one human, many programmes, one login)
 
-**INIT-GATEFLOW-017 status:** W0–W2 **human_approved** at wave-acceptance (PRs [#249](https://github.com/drivestream-lab/gateflow/pull/249), [#250](https://github.com/drivestream-lab/gateflow/pull/250), [#251](https://github.com/drivestream-lab/gateflow/pull/251)). W3 implemented on `feature/INIT-GATEFLOW-017-w3-enter-programme` — not `human_approved` until `wave-acceptance`. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md).
+**INIT-GATEFLOW-017 status:** W0–W3 **human_approved** at wave-acceptance — PRs [#249](https://github.com/drivestream-lab/gateflow/pull/249), [#250](https://github.com/drivestream-lab/gateflow/pull/250), [#251](https://github.com/drivestream-lab/gateflow/pull/251), [#253](https://github.com/drivestream-lab/gateflow/pull/253) @ `e0d7a24` label `wave-accepted`; Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
