@@ -1,4 +1,4 @@
-"""User identity repository (INIT-GATEFLOW-014 W0)."""
+"""User identity repository (INIT-GATEFLOW-017 W0)."""
 
 from typing import Optional
 from uuid import UUID
@@ -10,11 +10,12 @@ from src.database.postgres.repository.base_repository import BasePostgresReposit
 from src.database.postgres.schema.user_identity_schema import UserIdentitySchema
 from src.di.qualified_types import PostgresSessionFactory
 from src.models.auth_models import UserIdentityReadModel
+from src.models.identity_status_types import IdentityStatusType
 from src.models.role_types import RoleType
 
 
 class UserIdentityRepository(BasePostgresRepository[UserIdentitySchema]):
-    """Persist and look up user identities by credential identifier."""
+    """Persist and look up user identities by id or credential identifier."""
 
     def __init__(self, session_factory: PostgresSessionFactory) -> None:
         super().__init__(UserIdentitySchema, session_factory)
@@ -24,7 +25,9 @@ class UserIdentityRepository(BasePostgresRepository[UserIdentitySchema]):
             id=row.id,
             credential_identifier=row.credential_identifier,
             role=RoleType(row.role),
-            tenant_id=row.tenant_id,
+            display_name=row.display_name,
+            status=IdentityStatusType(row.status),
+            session_epoch=row.session_epoch,
             password_hash=row.password_hash,
         )
 
@@ -35,17 +38,29 @@ class UserIdentityRepository(BasePostgresRepository[UserIdentitySchema]):
         credential_identifier: str,
         password_hash: str,
         role: RoleType,
-        tenant_id: Optional[UUID] = None,
+        display_name: str,
+        status: IdentityStatusType = IdentityStatusType.ACTIVE,
+        session_epoch: int = 0,
     ) -> UserIdentityReadModel:
         row = UserIdentitySchema(
             credential_identifier=credential_identifier,
             password_hash=password_hash,
             role=role.value,
-            tenant_id=tenant_id,
+            display_name=display_name,
+            status=status.value,
+            session_epoch=session_epoch,
         )
         session.add(row)
         await session.flush()
         await session.refresh(row)
+        return self._to_read_model(row)
+
+    async def get_by_id(
+        self, session: AsyncSession, identity_id: UUID
+    ) -> Optional[UserIdentityReadModel]:
+        row = await session.get(UserIdentitySchema, identity_id)
+        if row is None:
+            return None
         return self._to_read_model(row)
 
     async def get_by_credential_identifier(
@@ -61,13 +76,3 @@ class UserIdentityRepository(BasePostgresRepository[UserIdentitySchema]):
         if row is None:
             return None
         return self._to_read_model(row)
-
-    async def delete_for_tenant(self, session: AsyncSession, tenant_id: UUID) -> int:
-        """Remove identities bound to a tenant (tenant_admin cutover wipe)."""
-        stmt = select(UserIdentitySchema).where(UserIdentitySchema.tenant_id == tenant_id)
-        result = await session.execute(stmt)
-        rows = list(result.scalars().all())
-        for row in rows:
-            await session.delete(row)
-        await session.flush()
-        return len(rows)

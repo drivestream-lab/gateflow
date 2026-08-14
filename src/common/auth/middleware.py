@@ -102,8 +102,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             except (ValueError, TypeError):
                 return _unauthorized("Invalid tenant_id in token")
 
-        if role == RoleType.TENANT_ADMIN and tenant_id is None:
-            return _unauthorized("tenant_admin token missing tenant_id")
+        session_epoch_raw = payload.get("session_epoch")
+        session_epoch = 0
+        if session_epoch_raw is not None and session_epoch_raw != "":
+            try:
+                session_epoch = int(session_epoch_raw)
+            except (ValueError, TypeError):
+                return _unauthorized("Invalid session_epoch in token")
 
         owner_id: Optional[UUID] = None
         if str(role_raw).strip().lower() in _OWNER_ROLES:
@@ -119,6 +124,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 "tenant_id": tenant_id,
                 "role": role,
                 "owner_id": owner_id,
+                "session_epoch": session_epoch,
             }
         )
         setattr(request.state, "auth", auth_context)

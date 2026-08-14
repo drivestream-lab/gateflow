@@ -1,6 +1,6 @@
-"""Live verify: JWT seed + login (INIT-GATEFLOW-014 W0).
+"""Live verify: JWT seed + login (INIT-GATEFLOW-014 W0 / INIT-GATEFLOW-017 W0).
 
-prayog:covers: jwt,login,REQ-01,REQ-02,REQ-03,REQ-43
+prayog:covers: jwt,login,REQ-01,REQ-02,REQ-03,REQ-43,REQ-18
 
 Requires running API + Postgres with human-applied ``user_identities`` DDL,
 JWT key material (``JWT_*``), and ``auth.platform_admin`` in ``tests/config.yaml``.
@@ -91,6 +91,10 @@ def main() -> int:
         if not access_token:
             print(f"[ERROR] login happy missing access_token: {body}")
             return 1
+        grants = body.get("grants")
+        if not isinstance(grants, list):
+            print(f"[ERROR] login happy missing grants array: {body}")
+            return 1
         print("[OK] login-happy-path")
 
         # Decode without verify for shape check; middleware verifies on protected routes later.
@@ -99,12 +103,15 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001 — live script surface
             print(f"[ERROR] login JWT unreadable: {exc}")
             return 1
-        for key in ("sub", "role", "iss", "aud", "exp", "iat"):
+        for key in ("sub", "role", "iss", "aud", "exp", "iat", "session_epoch"):
             if key not in claims:
                 print(f"[ERROR] login JWT missing claim {key}: {claims}")
                 return 1
         if claims.get("role") != "platform_admin":
             print(f"[ERROR] expected role=platform_admin, got {claims.get('role')}")
+            return 1
+        if "tenant_id" in claims:
+            print(f"[ERROR] login JWT must not carry tenant_id: {claims}")
             return 1
         print("[OK] login JWT claim shape")
 

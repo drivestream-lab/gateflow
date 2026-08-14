@@ -197,14 +197,11 @@ class ProgrammeService(BaseBusinessService):
                     credential_identifier=request.credential_identifier,
                     password_hash=hash_password(request.password),
                     role=RoleType.TENANT_ADMIN,
-                    tenant_id=programme.tenant_id,
+                    display_name=request.credential_identifier,
                 )
                 created = True
             else:
-                if (
-                    existing.role != RoleType.TENANT_ADMIN
-                    or existing.tenant_id != programme.tenant_id
-                ):
+                if existing.role != RoleType.TENANT_ADMIN:
                     raise UnprocessableEntityError(
                         message="Credential already bound to a different identity",
                         details={"reason": "credential_conflict"},
@@ -219,7 +216,7 @@ class ProgrammeService(BaseBusinessService):
         token = self._auth_identity_service.mint_user_jwt(
             user_id=identity.id,
             role=RoleType.TENANT_ADMIN,
-            tenant_id=programme.tenant_id,
+            session_epoch=identity.session_epoch,
         )
         self.logger.info(
             "tenant_admin attached",

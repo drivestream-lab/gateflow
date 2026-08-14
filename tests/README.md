@@ -645,7 +645,18 @@ See also: `docs/specification/product/INIT-GATEFLOW-007-gateflow.md`.
 | Seed + login happy/refuse | `verify_jwt_login` | `test_auth_identity_service` |
 | Claim shape round-trip | `verify_jwt_login` | `test_auth_middleware` (-k claim_shape) |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human DDL for `user_identities` — see `DDL-NOTE-INIT-GATEFLOW-014-W0-user-identities.md`; JWT key material configured; `auth.platform_admin` in `tests/config.yaml`).
+Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; human-applied Alembic including `9713e795e01c`; JWT key material configured; `auth.platform_admin` in `tests/config.yaml`).
+
+## Feature map (INIT-GATEFLOW-017 W0 — membership + identity JWT session)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Membership unique pair | — | `test_programme_membership_repository` |
+| Missing `tenant_id` not 401; epoch/status | — | `test_auth_middleware`, `test_auth_dependencies` |
+| Login snapshot + no `tenant_id` claim | `verify_jwt_login` | `test_auth_identity_service` |
+| Email identifier (REQ-03) + empty grants (REQ-18) | `verify_jwt_login` | `test_auth_identity_service` |
+
+Human live-verify (017 W0): `.venv/bin/python -m tests.verify.verify_jwt_login` after `./scripts/run_postgres_migration.sh head`.
 
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 

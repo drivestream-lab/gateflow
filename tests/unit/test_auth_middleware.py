@@ -136,12 +136,35 @@ def test_unrecognized_role_401() -> None:
     assert "role" in body["error"]["message"].lower()
 
 
-def test_tenant_admin_missing_tenant_id_401() -> None:
+def test_tenant_admin_missing_tenant_id_not_401() -> None:
+    """ADR-019: TENANT_ADMIN JWT without tenant_id is accepted at the edge."""
     client = _client()
     token = _mint(role=RoleType.TENANT_ADMIN.value, tenant_id=None)
     response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert response.status_code == 200
+
+
+def test_session_epoch_claim_round_trips() -> None:
+    user_id = uuid4()
+    token = _mint(
+        sub=str(user_id),
+        role=RoleType.PLATFORM_ADMIN.value,
+        extra={"session_epoch": 3},
+    )
+    captured: dict[str, Any] = {}
+
+    async def capture(request: Request) -> Response:
+        captured["auth"] = getattr(request.state, "auth", None)
+        return JSONResponse({"ok": True})
+
+    app = Starlette(routes=[Route("/protected", capture)])
+    app.add_middleware(AuthMiddleware, config=_auth_config())
+    client = TestClient(app)
+    response = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    auth = captured["auth"]
+    assert isinstance(auth, AuthContext)
+    assert auth.session_epoch == 3
 
 
 def test_claim_shape_platform_admin_round_trip() -> None:

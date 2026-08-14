@@ -48,6 +48,9 @@ build-backend = "poetry.core.masonry.api"
 asyncio_mode = "auto"
 testpaths = ["tests/unit"]
 pythonpath = ["."]
+markers = [
+    "real_session_gate: run ADR-019 identity/membership checks (default unit tests bypass them)",
+]
 
 [tool.black]
 line-length = 100

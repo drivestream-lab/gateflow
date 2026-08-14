@@ -6,6 +6,9 @@ from src.database.postgres.repository.learning_repository import LearningReposit
 from src.database.postgres.repository.platform_agent_catalogue_repository import (
     PlatformAgentCatalogueRepository,
 )
+from src.database.postgres.repository.programme_membership_repository import (
+    ProgrammeMembershipRepository,
+)
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import (
     JobRepository,
@@ -72,6 +75,13 @@ class RepositoryModule(Module):
         self, postgres_service: PostgresService
     ) -> ProgrammeRepository:
         return ProgrammeRepository(session_factory=postgres_service.get_session_factory())
+
+    @provider
+    @singleton
+    def provide_programme_membership_repository(
+        self, postgres_service: PostgresService
+    ) -> ProgrammeMembershipRepository:
+        return ProgrammeMembershipRepository(session_factory=postgres_service.get_session_factory())
 
     @provider
     @singleton

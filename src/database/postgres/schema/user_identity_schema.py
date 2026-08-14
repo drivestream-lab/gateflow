@@ -1,10 +1,6 @@
-"""ORM schema for Gateflow-issued user identities (INIT-GATEFLOW-014 W0)."""
+"""ORM schema for Gateflow-issued user identities (INIT-GATEFLOW-017 W0)."""
 
-from typing import Optional
-from uuid import UUID
-
-from sqlalchemy import String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.database.postgres.schema.base_postgres_schema import PostgresBaseModel
@@ -21,4 +17,6 @@ class UserIdentitySchema(PostgresBaseModel):
     credential_identifier: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(64), nullable=False)
-    tenant_id: Mapped[Optional[UUID]] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    session_epoch: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

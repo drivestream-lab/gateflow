@@ -23,6 +23,16 @@
 | Implement-lane prove-it | `tests/verify/verify_implement_lane.py` | Prior live pass 2026-07-25; **forge dogfood (stage_commit) deferred** |
 | CI | `.github/workflows/ci.yml` | Placeholder |
 
+## Capability matrix (INIT-GATEFLOW-017 W0 — membership schema + identity JWT session)
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Identity columns + memberships | REQ-21 | `user_identity_schema`, `programme_membership_schema`, Alembic `9713e795e01c` | `test_user_identity_repository`, `test_programme_membership_repository` | — | Human applies `run_postgres_migration.sh` |
+| Session epoch + no programme claim | REQ-12, REQ-14, REQ-16 | middleware + `require_role` / `require_programme_scope` + mint | `test_auth_middleware`, `test_auth_dependencies`, `test_auth_identity_service` | `verify_jwt_login` | ADR-019 Option B |
+| Login snapshot `{grants: []}` + email | REQ-03, REQ-18 | `AuthIdentityService.login` | `test_auth_identity_service` | `verify_jwt_login` | Enter/grant is W1; enter-programme is W3 |
+
+**INIT-GATEFLOW-017 W0 status:** implemented — unit green; **not** `human_approved` until `wave-acceptance` on the Draft PR tip. Board [#245](https://github.com/drivestream-lab/gateflow/issues/245).
+
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

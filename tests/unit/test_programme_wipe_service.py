@@ -26,7 +26,7 @@ def _programme(*, tenant_id=None) -> ProgrammeReadModel:
     )
 
 
-def _service() -> tuple[ProgrammeWipeService, MagicMock, MagicMock, MagicMock, MagicMock]:
+def _service() -> tuple[ProgrammeWipeService, MagicMock, MagicMock, MagicMock]:
     postgres = MagicMock()
 
     @asynccontextmanager
@@ -37,20 +37,18 @@ def _service() -> tuple[ProgrammeWipeService, MagicMock, MagicMock, MagicMock, M
     programme_repo = MagicMock()
     tenant_repo = MagicMock()
     run_repo = MagicMock()
-    user_repo = MagicMock()
     svc = ProgrammeWipeService(
         postgres_service=postgres,
         programme_repository=programme_repo,
         tenant_repository=tenant_repo,
         run_repository=run_repo,
-        user_identity_repository=user_repo,
     )
-    return svc, programme_repo, tenant_repo, run_repo, user_repo
+    return svc, programme_repo, tenant_repo, run_repo
 
 
 @pytest.mark.asyncio
 async def test_wipe_refuses_when_active_run_present() -> None:
-    svc, programme_repo, tenant_repo, run_repo, user_repo = _service()
+    svc, programme_repo, tenant_repo, run_repo = _service()
     programme = _programme()
     programme_repo.get_by_id = AsyncMock(return_value=programme)
     active = RunModel(
@@ -72,18 +70,16 @@ async def test_wipe_refuses_when_active_run_present() -> None:
     run_repo.delete_runs_for_tenant.assert_not_called()
     programme_repo.delete_programme.assert_not_called()
     tenant_repo.delete_tenant.assert_not_called()
-    user_repo.delete_for_tenant.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_wipe_clears_rows_when_idle() -> None:
-    svc, programme_repo, tenant_repo, run_repo, user_repo = _service()
+    svc, programme_repo, tenant_repo, run_repo = _service()
     programme = _programme()
     programme_repo.get_by_id = AsyncMock(return_value=programme)
     run_repo.find_active_run_for_tenant = AsyncMock(return_value=None)
     run_repo.delete_runs_for_tenant = AsyncMock(return_value=2)
     programme_repo.delete_programme = AsyncMock(return_value=True)
-    user_repo.delete_for_tenant = AsyncMock(return_value=1)
     tenant_repo.delete_tenant = AsyncMock(return_value=True)
 
     result = await svc.wipe_programme(programme.id)
@@ -93,13 +89,12 @@ async def test_wipe_clears_rows_when_idle() -> None:
     assert result.tenant_id == programme.tenant_id
     run_repo.delete_runs_for_tenant.assert_awaited()
     programme_repo.delete_programme.assert_awaited()
-    user_repo.delete_for_tenant.assert_awaited()
     tenant_repo.delete_tenant.assert_awaited()
 
 
 @pytest.mark.asyncio
 async def test_wipe_unknown_programme_not_found() -> None:
-    svc, programme_repo, _, run_repo, _ = _service()
+    svc, programme_repo, _, run_repo = _service()
     missing = uuid4()
     programme_repo.get_by_id = AsyncMock(return_value=None)
 

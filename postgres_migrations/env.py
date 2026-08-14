@@ -15,6 +15,7 @@ import src.database.postgres.schema.run_store_schema  # noqa: F401 — register 
 import src.database.postgres.schema.tenant_schema  # noqa: F401 — register ORM tables
 import src.database.postgres.schema.user_identity_schema  # noqa: F401 — register ORM tables
 import src.database.postgres.schema.programme_schema  # noqa: F401 — register ORM tables
+import src.database.postgres.schema.programme_membership_schema  # noqa: F401 — register ORM tables
 import src.database.postgres.schema.platform_agent_catalogue_schema  # noqa: F401 — register ORM tables
 
 target_metadata = postgres_metadata
