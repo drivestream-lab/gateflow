@@ -1,13 +1,14 @@
-"""Auth route dependencies for Gateflow-issued user JWTs (INIT-GATEFLOW-014)."""
+"""Auth route dependencies for Gateflow-issued user JWTs (INIT-GATEFLOW-017)."""
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 from fastapi import Path, Request
 
 from src.exceptions.app_exceptions import ForbiddenError, UnauthorizedError
 from src.logging import get_logger
-from src.models.auth_models import AuthContext
+from src.models.auth_models import AuthContext, UserIdentityReadModel
+from src.models.identity_status_types import IdentityStatusType
 from src.models.role_types import RoleType
 from src.models.tenant_models import TenantResolvedContext
 
@@ -25,12 +26,75 @@ def get_auth_context(request: Request) -> AuthContext:
     return auth
 
 
-def require_role(*allowed: RoleType) -> Callable[[Request], AuthContext]:
-    """FastAPI dependency factory — require one of the allowed roles."""
+async def load_identity_for_session(user_id: UUID) -> UserIdentityReadModel | None:
+    """Load identity by JWT sub. Overridable in unit tests."""
+    from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
+    from src.di.dependency_container import provide_service
+    from src.infra_services.postgres_service import PostgresService
+
+    postgres = provide_service(PostgresService)
+    repository = provide_service(UserIdentityRepository)
+    async with postgres.transaction() as session:
+        return await repository.get_by_id(session, user_id)
+
+
+async def identity_has_programme_grant(*, user_id: UUID, path_tenant_id: UUID) -> bool:
+    """True when a membership exists for (user, programme of path tenant)."""
+    from src.database.postgres.repository.programme_membership_repository import (
+        ProgrammeMembershipRepository,
+    )
+    from src.database.postgres.repository.programme_repository import ProgrammeRepository
+    from src.di.dependency_container import provide_service
+    from src.infra_services.postgres_service import PostgresService
+
+    postgres = provide_service(PostgresService)
+    programme_repository = provide_service(ProgrammeRepository)
+    membership_repository = provide_service(ProgrammeMembershipRepository)
+    async with postgres.transaction() as session:
+        programme = await programme_repository.get_by_tenant_id(session, path_tenant_id)
+        if programme is None:
+            return False
+        membership = await membership_repository.get_by_identity_and_programme(
+            session, identity_id=user_id, programme_id=programme.id
+        )
+        return membership is not None
+
+
+async def assert_live_session(auth: AuthContext) -> AuthContext:
+    """Refuse inactive identity or JWT session_epoch mismatch (ADR-019)."""
+    identity = await load_identity_for_session(auth.user_id)
+    if identity is None:
+        logger.warning("Identity missing for JWT sub", user_id=str(auth.user_id))
+        raise UnauthorizedError(
+            message="Identity not found for token",
+            details={"reason": "unknown identity", "user_id": str(auth.user_id)},
+        )
+    if identity.status == IdentityStatusType.SUSPENDED:
+        logger.warning("Suspended identity refused", user_id=str(auth.user_id))
+        raise UnauthorizedError(
+            message="Identity is suspended",
+            details={"reason": "suspended", "user_id": str(auth.user_id)},
+        )
+    if auth.session_epoch != identity.session_epoch:
+        logger.warning(
+            "Session epoch mismatch",
+            user_id=str(auth.user_id),
+            jwt_session_epoch=auth.session_epoch,
+            row_session_epoch=identity.session_epoch,
+        )
+        raise UnauthorizedError(
+            message="Session is no longer valid",
+            details={"reason": "session_epoch_mismatch", "user_id": str(auth.user_id)},
+        )
+    return auth
+
+
+def require_role(*allowed: RoleType) -> Callable[[Request], Awaitable[AuthContext]]:
+    """FastAPI dependency factory — require one of the allowed roles and a live session."""
 
     allowed_set = frozenset(allowed)
 
-    def _dependency(request: Request) -> AuthContext:
+    async def _dependency(request: Request) -> AuthContext:
         auth = get_auth_context(request)
         if auth.role not in allowed_set:
             logger.warning(
@@ -48,33 +112,33 @@ def require_role(*allowed: RoleType) -> Callable[[Request], AuthContext]:
                     "user_id": str(auth.user_id),
                 },
             )
-        return auth
+        return await assert_live_session(auth)
 
     return _dependency
 
 
-def require_programme_scope(path_tenant_id: UUID) -> Callable[[Request], AuthContext]:
-    """Factory — require JWT tenant_id to match the path/resource tenant (TDD §3.2)."""
+def require_programme_scope(path_tenant_id: UUID) -> Callable[[Request], Awaitable[AuthContext]]:
+    """Factory — authorize from a membership row for the path tenant (ADR-019)."""
 
-    def _dependency(request: Request) -> AuthContext:
+    async def _dependency(request: Request) -> AuthContext:
         auth = get_auth_context(request)
-        if auth.tenant_id is None or auth.tenant_id != path_tenant_id:
-            bound = str(auth.tenant_id) if auth.tenant_id is not None else None
+        granted = await identity_has_programme_grant(
+            user_id=auth.user_id, path_tenant_id=path_tenant_id
+        )
+        if not granted:
             logger.warning(
-                "Tenant scope mismatch for route",
+                "Programme grant missing for route",
                 user_id=str(auth.user_id),
                 role=auth.role.value,
                 requested_tenant_id=str(path_tenant_id),
-                bound_tenant_id=bound,
             )
             raise ForbiddenError(
-                message="Caller tenant scope does not match the requested programme",
+                message="Caller is not granted the requested programme",
                 details={
-                    "reason": "tenant_scope_mismatch",
+                    "reason": "not_granted",
                     "user_id": str(auth.user_id),
                     "role": auth.role.value,
                     "requested_tenant_id": str(path_tenant_id),
-                    "bound_tenant_id": bound,
                 },
             )
         return auth
@@ -82,20 +146,19 @@ def require_programme_scope(path_tenant_id: UUID) -> Callable[[Request], AuthCon
     return _dependency
 
 
-def require_path_programme_scope(
+async def require_path_programme_scope(
     request: Request,
     tenant_id: UUID = Path(..., description="Tenant bound to the Programme"),
 ) -> AuthContext:
-    """Route dependency — compare AuthContext.tenant_id to path `{tenant_id}`."""
-    return require_programme_scope(tenant_id)(request)
+    """Route dependency — membership for path `{tenant_id}`."""
+    return await require_programme_scope(tenant_id)(request)
 
 
-def require_tenant_resolved(
+async def require_tenant_resolved(
     request: Request,
     tenant_id: UUID = Path(..., description="Tenant bound to the Programme"),
 ) -> TenantResolvedContext:
-    """tenant_admin JWT + matching path tenant → TenantResolvedContext for legacy service APIs."""
-    require_role(RoleType.TENANT_ADMIN)(request)
-    auth = require_programme_scope(tenant_id)(request)
-    assert auth.tenant_id is not None
-    return TenantResolvedContext(tenant_id=auth.tenant_id, name="")
+    """tenant_admin + membership for path tenant → TenantResolvedContext (ADR-016 path tenant)."""
+    await require_role(RoleType.TENANT_ADMIN)(request)
+    await require_programme_scope(tenant_id)(request)
+    return TenantResolvedContext(tenant_id=tenant_id, name="")

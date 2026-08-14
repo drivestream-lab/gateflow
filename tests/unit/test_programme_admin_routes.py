@@ -18,14 +18,16 @@ from src.models.programme_models import ProgrammeCreateResult, ProgrammeReadMode
 from src.models.role_types import RoleType
 
 
-def test_require_role_allows_platform_admin() -> None:
+@pytest.mark.asyncio
+async def test_require_role_allows_platform_admin() -> None:
     dep = require_role(RoleType.PLATFORM_ADMIN)
     request = MagicMock()
     request.state.auth = AuthContext(user_id=uuid4(), role=RoleType.PLATFORM_ADMIN)
-    assert dep(request).role == RoleType.PLATFORM_ADMIN
+    assert (await dep(request)).role == RoleType.PLATFORM_ADMIN
 
 
-def test_require_role_forbids_tenant_admin() -> None:
+@pytest.mark.asyncio
+async def test_require_role_forbids_tenant_admin() -> None:
     dep = require_role(RoleType.PLATFORM_ADMIN)
     request = MagicMock()
     request.state.auth = AuthContext(
@@ -34,7 +36,7 @@ def test_require_role_forbids_tenant_admin() -> None:
         tenant_id=uuid4(),
     )
     with pytest.raises(ForbiddenError):
-        dep(request)
+        await dep(request)
 
 
 def test_create_programme_route_platform_admin() -> None:

@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.models.identity_status_types import IdentityStatusType
+from src.models.programme_membership_models import ProgrammeMembershipReadModel
 from src.models.role_types import RoleType
 
 
@@ -17,6 +19,7 @@ class AuthContext(BaseModel):
     tenant_id: Optional[UUID] = Field(default=None, description="Tenant scope when present")
     role: RoleType = Field(description="Role code from JWT")
     owner_id: Optional[UUID] = Field(default=None, description="Owner identifier when applicable")
+    session_epoch: int = Field(default=0, description="JWT session epoch compared to identity row")
 
 
 class LoginRequest(BaseModel):
@@ -24,26 +27,32 @@ class LoginRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    credential_identifier: str = Field(description="Login identifier (e.g. email)")
+    credential_identifier: str = Field(description="Login identifier (email)")
     password: str = Field(description="Password for the identity")
 
 
 class LoginResponse(BaseModel):
-    """Successful login response carrying a Gateflow-issued JWT."""
+    """Successful login response carrying a Gateflow-issued JWT and grant snapshot."""
 
     model_config = ConfigDict(extra="forbid")
 
     access_token: str = Field(description="Gateflow-issued user JWT")
     token_type: str = Field(default="bearer", description="Bearer token type")
+    grants: list[ProgrammeMembershipReadModel] = Field(
+        default_factory=list,
+        description="Programmes this identity may enter (empty until grants exist)",
+    )
 
 
 class UserIdentityReadModel(BaseModel):
-    """Persisted user identity (password hash never returned)."""
+    """Persisted user identity (password hash never returned on list/search)."""
 
     model_config = ConfigDict(extra="forbid", from_attributes=True)
 
     id: UUID
     credential_identifier: str
     role: RoleType
-    tenant_id: Optional[UUID] = Field(default=None)
+    display_name: str
+    status: IdentityStatusType
+    session_epoch: int
     password_hash: str = Field(description="Stored credential hash — internal only")

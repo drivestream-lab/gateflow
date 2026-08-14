@@ -1,4 +1,4 @@
-"""Unit tests for UserIdentityRepository (INIT-GATEFLOW-014 W0)."""
+"""Unit tests for UserIdentityRepository (INIT-GATEFLOW-017 W0)."""
 
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -7,6 +7,7 @@ import pytest
 
 from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
 from src.database.postgres.schema.user_identity_schema import UserIdentitySchema
+from src.models.identity_status_types import IdentityStatusType
 from src.models.role_types import RoleType
 from src.utils.password_hashing import hash_password, verify_password
 
@@ -17,7 +18,6 @@ async def test_create_and_read_by_credential_identifier() -> None:
     session = AsyncMock()
     session.add = MagicMock()
     session.flush = AsyncMock()
-    session.refresh = AsyncMock()
 
     created_id = uuid4()
     password_digest = hash_password("secret")
@@ -33,9 +33,13 @@ async def test_create_and_read_by_credential_identifier() -> None:
         credential_identifier="platform_admin@smoke.local",
         password_hash=password_digest,
         role=RoleType.PLATFORM_ADMIN,
+        display_name="Platform Admin",
     )
     assert created.credential_identifier == "platform_admin@smoke.local"
     assert created.role == RoleType.PLATFORM_ADMIN
+    assert created.display_name == "Platform Admin"
+    assert created.status == IdentityStatusType.ACTIVE
+    assert created.session_epoch == 0
     assert created.id == created_id
     session.add.assert_called_once()
 
@@ -43,7 +47,9 @@ async def test_create_and_read_by_credential_identifier() -> None:
         credential_identifier="platform_admin@smoke.local",
         password_hash=password_digest,
         role=RoleType.PLATFORM_ADMIN.value,
-        tenant_id=None,
+        display_name="Platform Admin",
+        status=IdentityStatusType.ACTIVE.value,
+        session_epoch=0,
     )
     stored.id = created_id
 
@@ -67,3 +73,24 @@ async def test_get_by_credential_identifier_missing() -> None:
     repo = UserIdentityRepository(session_factory=MagicMock())
     found = await repo.get_by_credential_identifier(session, "missing@example.com")
     assert found is None
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_returns_row() -> None:
+    session = AsyncMock()
+    identity_id = uuid4()
+    stored = UserIdentitySchema(
+        credential_identifier="a@b.example",
+        password_hash="hash",
+        role=RoleType.TENANT_ADMIN.value,
+        display_name="A",
+        status=IdentityStatusType.ACTIVE.value,
+        session_epoch=2,
+    )
+    stored.id = identity_id
+    session.get = AsyncMock(return_value=stored)
+    repo = UserIdentityRepository(session_factory=MagicMock())
+    found = await repo.get_by_id(session, identity_id)
+    assert found is not None
+    assert found.id == identity_id
+    assert found.session_epoch == 2

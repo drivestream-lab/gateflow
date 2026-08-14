@@ -1,4 +1,4 @@
-"""Login routes for Gateflow-issued user JWTs (INIT-GATEFLOW-014 W0)."""
+"""Login routes for Gateflow-issued user JWTs (INIT-GATEFLOW-017 W0)."""
 
 from fastapi import APIRouter, Depends
 
@@ -16,5 +16,5 @@ async def login(
     body: LoginRequest,
     service: AuthIdentityService = Depends(get_auth_identity_service),
 ) -> LoginResponse:
-    """Exchange credentials for a Gateflow-issued user JWT (no UI)."""
+    """Exchange credentials for a Gateflow-issued user JWT and grant snapshot (no UI)."""
     return await service.login(body)

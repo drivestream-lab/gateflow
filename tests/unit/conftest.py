@@ -19,6 +19,24 @@ _FIXTURE_JWT_PUBLIC = Path(__file__).resolve().parents[1] / "fixtures" / "jwt_pu
 
 
 @pytest.fixture(autouse=True)
+def bypass_live_session_and_membership_gates(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Route unit tests inject AuthContext; ADR-019 row checks are opted in per test."""
+    if request.node.get_closest_marker("real_session_gate"):
+        return
+
+    async def _live(auth: object) -> object:
+        return auth
+
+    async def _granted(*, user_id: object, path_tenant_id: object) -> bool:
+        return True
+
+    monkeypatch.setattr("src.common.auth.dependencies.assert_live_session", _live)
+    monkeypatch.setattr("src.common.auth.dependencies.identity_has_programme_grant", _granted)
+
+
+@pytest.fixture(autouse=True)
 def reset_settings() -> None:
     """Clear settings singletons and force RS256 fixture PEMs for in-process tests."""
     # Force committed test PEMs — do not inherit developer auth-keys/.env paths

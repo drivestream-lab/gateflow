@@ -8,7 +8,6 @@ from src.business_services.base_business_service import BaseBusinessService
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import RunRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
-from src.database.postgres.repository.user_identity_repository import UserIdentityRepository
 from src.exceptions.app_exceptions import ConflictError, NotFoundError
 from src.infra_services.postgres_service import PostgresService
 from src.models.programme_models import ProgrammeWipeResult
@@ -24,14 +23,12 @@ class ProgrammeWipeService(BaseBusinessService):
         programme_repository: ProgrammeRepository,
         tenant_repository: TenantRepository,
         run_repository: RunRepository,
-        user_identity_repository: UserIdentityRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._programme_repository = programme_repository
         self._tenant_repository = tenant_repository
         self._run_repository = run_repository
-        self._user_identity_repository = user_identity_repository
 
     async def wipe_programme(self, programme_id: UUID) -> ProgrammeWipeResult:
         """Delete programme + child tenant + shared secrets; refuse mid-run (REQ-46)."""
@@ -64,9 +61,6 @@ class ProgrammeWipeService(BaseBusinessService):
                 session, programme.tenant_id
             )
             await self._programme_repository.delete_programme(session, programme_id)
-            deleted_identities = await self._user_identity_repository.delete_for_tenant(
-                session, programme.tenant_id
-            )
             await self._tenant_repository.delete_tenant(session, programme.tenant_id)
 
             self.logger.info(
@@ -74,7 +68,6 @@ class ProgrammeWipeService(BaseBusinessService):
                 programme_id=str(programme_id),
                 tenant_id=str(programme.tenant_id),
                 deleted_runs=deleted_runs,
-                deleted_identities=deleted_identities,
             )
             return ProgrammeWipeResult(
                 programme_id=programme_id,
