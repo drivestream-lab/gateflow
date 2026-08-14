@@ -1,6 +1,6 @@
-"""Live verify: Programme validate-then-create + attach (INIT-GATEFLOW-014 W1).
+"""Live verify: Programme validate-then-create (INIT-GATEFLOW-014 W1 / 017 W2).
 
-prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-15,REQ-17,REQ-18,REQ-44,REQ-48,REQ-49
+prayog:covers: programme-onboarding,REQ-08,REQ-10,REQ-17,REQ-18,REQ-27,REQ-44,REQ-48,REQ-49
 
 Requires running API + Postgres with human-applied ``programmes`` DDL,
 JWT key material, seeded platform_admin, ``GATEFLOW_WORKSPACE_ROOT``, and a
@@ -22,7 +22,7 @@ import httpx
 
 from tests._helpers.api_paths import require_base_url
 from tests._helpers.tests_config import load_tests_config, require_programme_pat
-from tests._helpers.verify_jwt_auth import login_platform_admin
+from tests._helpers.verify_jwt_auth import enter_grant_login, login_platform_admin
 
 
 def main() -> int:
@@ -125,17 +125,30 @@ def main() -> int:
             return 1
         print("[OK] platform_admin list programmes")
 
-        tenant_cred = f"tenant_admin_{uuid4().hex[:8]}@smoke.local"
-        attach = client.post(
+        gone = client.post(
             f"/api/v1/programmes/{programme_id}/tenant-admins",
             headers=headers,
-            json={"credential_identifier": tenant_cred, "password": "smoke-tenant-admin"},
+            json={"credential_identifier": "gone@smoke.local", "password": "x"},
         )
-        if attach.status_code != 200:
-            print(f"[ERROR] attach: {attach.status_code} {attach.text}")
+        if gone.status_code not in (404, 405):
+            print(f"[ERROR] 014 attach door expected 404/405 got {gone.status_code}: {gone.text}")
             return 1
-        tenant_token = attach.json()["access_token"]
-        print("[OK] attach tenant_admin")
+        print("[OK] 014 attach door gone")
+
+        tenant_cred = f"tenant_admin_{uuid4().hex[:8]}@smoke.local"
+        try:
+            tenant_token = enter_grant_login(
+                client,
+                headers,
+                programme_id,
+                email=tenant_cred,
+                password="smoke-tenant-admin",
+                display_name=tenant_cred,
+            )
+        except RuntimeError as exc:
+            print(f"[ERROR] enter-grant-login: {exc}")
+            return 1
+        print("[OK] enter then grant then login")
 
         forbidden = client.get(
             "/api/v1/programmes",
@@ -145,29 +158,6 @@ def main() -> int:
             print(f"[ERROR] tenant_admin list expected 403 got {forbidden.status_code}")
             return 1
         print("[OK] tenant_admin forbidden on programme list")
-
-        unknown = client.post(
-            f"/api/v1/programmes/{uuid4()}/tenant-admins",
-            headers=headers,
-            json={
-                "credential_identifier": f"x_{uuid4().hex[:6]}@smoke.local",
-                "password": "x",
-            },
-        )
-        if unknown.status_code != 422:
-            print(f"[ERROR] unknown programme expected 422 got {unknown.status_code}")
-            return 1
-        print("[OK] attach unknown programme rejected")
-
-        again = client.post(
-            f"/api/v1/programmes/{programme_id}/tenant-admins",
-            headers=headers,
-            json={"credential_identifier": tenant_cred, "password": "smoke-tenant-admin"},
-        )
-        if again.status_code != 200 or again.json().get("created") is not False:
-            print(f"[ERROR] idempotent re-attach failed: {again.status_code} {again.text}")
-            return 1
-        print("[OK] idempotent re-attach")
 
     print("[PASS] verify_programme_onboarding")
     return 0

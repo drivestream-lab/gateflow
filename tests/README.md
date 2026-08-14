@@ -36,7 +36,7 @@ make check && make test
 # optional worker: .venv/bin/python -m src.worker_main
 # Prefer: make run  (API + worker; required for wave-start / implement-lane)
 # Fill tests/config.yaml: auth.platform_admin + client.github_webhook_secret
-#   (tenant_admin may be empty — verify_all bootstrap attaches + writes back)
+#   (tenant_admin may be empty — verify_all bootstrap enter→grant→login + writes back)
 #   If no Programme yet: set programme.pat (prayog-meta create body) in config.yaml
 #   Runtime .env: DB / CURSOR_API_KEY / webhook secret / singleton forge GITHUB_*
 # .venv/bin/python -m tests.verify.verify_all
@@ -65,7 +65,8 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_repo_selection       # select/deselect + setup workspace (JWT)
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
 # .venv/bin/python -m tests.verify.verify_identity_directory   # INIT-017 W1 enter/grant/detach
-# .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 Programme onboard/attach
+# .venv/bin/python -m tests.verify.verify_dead_doors_deleted   # INIT-017 W2 014/012 doors gone
+# .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 onboard (017 W2: no attach)
 # .venv/bin/python -m tests.verify.verify_agent_catalogue      # INIT-014 W1 agent catalogue
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
 # .venv/bin/python -m tests.verify.verify_implement_lane  # opt-in deep wave (Draft PR via wave-pr-action)
@@ -670,6 +671,16 @@ Human live-verify (017 W0): `.venv/bin/python -m tests.verify.verify_jwt_login` 
 
 Human live-verify (017 W1): `.venv/bin/python -m tests.verify.verify_identity_directory` (API up; W0 Alembic applied; `auth.platform_admin`; at least one onboarded programme).
 
+## Feature map (INIT-GATEFLOW-017 W2 — delete 014 doors + wipe collaborator)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| 014 attach + 012 users doors gone | `verify_dead_doors_deleted` | `test_attach_tenant_admin_method_removed`, `test_historic_users_route_gone_with_jwt` |
+| Wipe keeps identity; ACTIVE 409 | `verify_wipe_cutover` | `test_programme_wipe_service` |
+| Onboard still creates; helper enter→grant→login | `verify_programme_onboarding` | `test_programme_service` |
+
+Human live-verify (017 W2): `.venv/bin/python -m tests.verify.verify_dead_doors_deleted` (API up; `auth.platform_admin`). Optional inspect: `verify_programme_onboarding`.
+
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 
 | Capability | Verify | Pytest |
@@ -677,7 +688,7 @@ Human live-verify (017 W1): `.venv/bin/python -m tests.verify.verify_identity_di
 | Validate-then-create + list + role gate | `verify_programme_onboarding` | `test_programme_service`, `test_programme_admin_routes` |
 | Platform catalogue readout on GET (REQ-48) | `verify_programme_onboarding` | `test_programme_service`, `test_programme_repository` |
 | Platform catalogue resync (REQ-49) | `verify_programme_onboarding` | `test_programme_service`, `test_programme_admin_routes` |
-| Attach tenant_admin (incl. unknown / idempotent) | `verify_programme_onboarding` | `test_programme_service` (-k attach) |
+| Attach tenant_admin (deleted 017 W2) | `verify_dead_doors_deleted` | `test_attach_tenant_admin_method_removed` |
 | Provision + effective runner | `verify_agent_catalogue` | `test_platform_agent_catalogue_service` |
 
 Human live-verify: `.venv/bin/python -m tests.verify.verify_programme_onboarding` then `.venv/bin/python -m tests.verify.verify_agent_catalogue` (API up; human DDL — `DDL-NOTE-INIT-GATEFLOW-014-W1-programmes-agent-catalogue.md`; `GATEFLOW_PROGRAMME_PAT`; JWT seed/login). Distinct from INIT-013 `verify_programme_connect` (meta-catalogue connection).

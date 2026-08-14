@@ -5,6 +5,9 @@ from uuid import UUID
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
+from src.database.postgres.repository.programme_membership_repository import (
+    ProgrammeMembershipRepository,
+)
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import RunRepository
 from src.database.postgres.repository.tenant_repository import TenantRepository
@@ -14,7 +17,10 @@ from src.models.programme_models import ProgrammeWipeResult
 
 
 class ProgrammeWipeService(BaseBusinessService):
-    """Wipe a Programme and its child tenant when no ACTIVE run exists (REQ-35, REQ-46)."""
+    """Wipe a Programme and its child tenant when no ACTIVE run exists (REQ-35, REQ-46).
+
+    Memberships for the programme are removed; identity rows remain (FF-02 / REQ-10).
+    """
 
     @inject
     def __init__(
@@ -23,12 +29,14 @@ class ProgrammeWipeService(BaseBusinessService):
         programme_repository: ProgrammeRepository,
         tenant_repository: TenantRepository,
         run_repository: RunRepository,
+        programme_membership_repository: ProgrammeMembershipRepository,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
         self._programme_repository = programme_repository
         self._tenant_repository = tenant_repository
         self._run_repository = run_repository
+        self._membership_repository = programme_membership_repository
 
     async def wipe_programme(self, programme_id: UUID) -> ProgrammeWipeResult:
         """Delete programme + child tenant + shared secrets; refuse mid-run (REQ-46)."""
@@ -57,6 +65,14 @@ class ProgrammeWipeService(BaseBusinessService):
                     },
                 )
 
+            memberships = await self._membership_repository.list_by_programme(session, programme_id)
+            for membership in memberships:
+                await self._membership_repository.delete_membership(
+                    session,
+                    identity_id=membership.identity_id,
+                    programme_id=programme_id,
+                )
+
             deleted_runs = await self._run_repository.delete_runs_for_tenant(
                 session, programme.tenant_id
             )
@@ -68,6 +84,7 @@ class ProgrammeWipeService(BaseBusinessService):
                 programme_id=str(programme_id),
                 tenant_id=str(programme.tenant_id),
                 deleted_runs=deleted_runs,
+                deleted_memberships=len(memberships),
             )
             return ProgrammeWipeResult(
                 programme_id=programme_id,

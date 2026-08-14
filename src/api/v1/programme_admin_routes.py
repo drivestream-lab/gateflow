@@ -29,8 +29,6 @@ from src.models.identity_models import IdentityGrantRequest, IdentityReadModel
 from src.models.lane_types import LaneType
 from src.models.programme_membership_models import ProgrammeMembershipReadModel
 from src.models.programme_models import (
-    AttachTenantAdminRequest,
-    AttachTenantAdminResponse,
     ProgrammeCreateResult,
     ProgrammeLaneDefaultsUpdateRequest,
     ProgrammeOnboardRequest,
@@ -122,16 +120,6 @@ async def list_programme_members(
     service: IdentityDirectoryService = Depends(get_identity_directory_service),
 ) -> list[IdentityReadModel]:
     return await service.list_members(programme_id)
-
-
-@programme_router.post("/{programme_id}/tenant-admins", response_model=AttachTenantAdminResponse)
-async def attach_tenant_admin(
-    programme_id: UUID,
-    body: AttachTenantAdminRequest,
-    _auth: AuthContext = Depends(require_role(RoleType.PLATFORM_ADMIN)),
-    service: ProgrammeService = Depends(get_programme_service),
-) -> AttachTenantAdminResponse:
-    return await service.attach_tenant_admin(programme_id, body)
 
 
 @programme_router.put("/{programme_id}/lane-defaults", response_model=ProgrammeReadModel)

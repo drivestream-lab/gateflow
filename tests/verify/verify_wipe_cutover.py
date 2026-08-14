@@ -102,6 +102,32 @@ def main() -> int:
             return 1
         print(f"[OK] create programme for wipe {programme_id}")
 
+        email = f"wipe-keep-{uuid4().hex[:8]}@smoke.local"
+        try:
+            entered = client.post(
+                "/api/v1/identities",
+                headers=headers,
+                json={
+                    "display_name": email,
+                    "email": email,
+                    "password": "smoke-wipe-keep",
+                },
+            )
+            if entered.status_code != 200:
+                raise RuntimeError(f"enter failed {entered.status_code}: {entered.text}")
+            identity_id = str(entered.json()["id"])
+            granted = client.post(
+                f"/api/v1/programmes/{programme_id}/grants",
+                headers=headers,
+                json={"identity_id": identity_id},
+            )
+            if granted.status_code != 200:
+                raise RuntimeError(f"grant failed {granted.status_code}: {granted.text}")
+        except RuntimeError as exc:
+            print(f"[ERROR] enter/grant before wipe: {exc}")
+            return 1
+        print(f"[OK] granted identity {identity_id} (must remain after wipe)")
+
         try:
             run_id = asyncio.run(_insert_active_run(tenant_id))
         except Exception as exc:
@@ -138,6 +164,16 @@ def main() -> int:
             print(f"[ERROR] wiped programme expected gone, got {gone.status_code}: {gone.text}")
             return 1
         print("[OK] programme gone after wipe")
+
+        still = client.get("/api/v1/identities", headers=headers, params={"q": email})
+        if still.status_code != 200:
+            print(f"[ERROR] list identity after wipe: {still.status_code} {still.text}")
+            return 1
+        ids = {str(row.get("id")) for row in still.json()}
+        if identity_id not in ids:
+            print(f"[ERROR] identity {identity_id} missing after wipe: {still.json()}")
+            return 1
+        print("[OK] identity row remains after wipe")
 
     print("[OK] verify_wipe_cutover complete")
     return 0
