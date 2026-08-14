@@ -64,6 +64,7 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
 # .venv/bin/python -m tests.verify.verify_repo_selection       # select/deselect + setup workspace (JWT)
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
+# .venv/bin/python -m tests.verify.verify_identity_directory   # INIT-017 W1 enter/grant/detach
 # .venv/bin/python -m tests.verify.verify_programme_onboarding # INIT-014 W1 Programme onboard/attach
 # .venv/bin/python -m tests.verify.verify_agent_catalogue      # INIT-014 W1 agent catalogue
 # .venv/bin/python -m tests.verify.verify_create_tickets  # WorkManifest → EPIC/wave seed
@@ -657,6 +658,17 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_jwt_login` (API up; 
 | Email identifier (REQ-03) + empty grants (REQ-18) | `verify_jwt_login` | `test_auth_identity_service` |
 
 Human live-verify (017 W0): `.venv/bin/python -m tests.verify.verify_jwt_login` after `./scripts/run_postgres_migration.sh head`.
+
+## Feature map (INIT-GATEFLOW-017 W1 — identity directory + grant/detach)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Enter / list / search (no password) | `verify_identity_directory` | `test_identity_directory_service`, `test_identity_routes` |
+| Grant / detach / membership views | `verify_identity_directory` | `test_identity_directory_service` |
+| Suspend / password-set epoch | `verify_identity_directory` | `test_identity_directory_service` |
+| Wrong actor 403 | `verify_identity_directory` | `test_identity_routes` |
+
+Human live-verify (017 W1): `.venv/bin/python -m tests.verify.verify_identity_directory` (API up; W0 Alembic applied; `auth.platform_admin`; at least one onboarded programme).
 
 ## Feature map (INIT-GATEFLOW-014 W1 — Programme + agent catalogue)
 

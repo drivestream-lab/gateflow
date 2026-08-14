@@ -27,6 +27,10 @@
 
 **INIT-GATEFLOW-017 W0 status:** **human_approved** at wave-acceptance — PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) @ `3da2d02` label `wave-accepted` (+ Pass-2 tip `f28afde`); Ground-Report W0 **pass**; Learning-Extract W0 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
+## Capability matrix (INIT-GATEFLOW-017 W1 — identity directory + grant/detach)
+
+**INIT-GATEFLOW-017 W1 status:** **human_approved** at wave-acceptance — PR [#250](https://github.com/drivestream-lab/gateflow/pull/250) @ `b224fe6` label `wave-accepted` (+ Pass-2 tip `2e23724`); Ground-Report W1 **pass**; Learning-Extract W1 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
+
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |

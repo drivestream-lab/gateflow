@@ -7,6 +7,7 @@ from src.api.v1.checkpoints_routes import router as checkpoints_router
 from src.api.v1.forge_routes import router as forge_router
 from src.api.v1.initiatives_routes import router as initiatives_router
 from src.api.v1.metrics_routes import router as metrics_router
+from src.api.v1.identity_routes import identity_router
 from src.api.v1.programme_admin_routes import (
     agent_catalogue_router,
     programme_router as programme_admin_router,
@@ -26,5 +27,6 @@ api_router.include_router(board_router, tags=["Board"])
 api_router.include_router(checkpoints_router, tags=["Checkpoints"])
 api_router.include_router(tenant_router, tags=["Tenants"])
 api_router.include_router(catalogue_connection_router, tags=["CatalogueConnection"])
+api_router.include_router(identity_router)
 api_router.include_router(programme_admin_router)
 api_router.include_router(agent_catalogue_router)

@@ -3,7 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.postgres.repository.base_repository import BasePostgresRepository
@@ -54,3 +54,42 @@ class ProgrammeMembershipRepository(BasePostgresRepository[ProgrammeMembershipSc
         if row is None:
             return None
         return self._to_read_model(row)
+
+    async def list_by_identity(
+        self, session: AsyncSession, identity_id: UUID
+    ) -> list[ProgrammeMembershipReadModel]:
+        stmt = select(ProgrammeMembershipSchema).where(
+            ProgrammeMembershipSchema.identity_id == identity_id
+        )
+        result = await session.execute(stmt)
+        return [self._to_read_model(row) for row in result.scalars().all()]
+
+    async def list_by_programme(
+        self, session: AsyncSession, programme_id: UUID
+    ) -> list[ProgrammeMembershipReadModel]:
+        stmt = select(ProgrammeMembershipSchema).where(
+            ProgrammeMembershipSchema.programme_id == programme_id
+        )
+        result = await session.execute(stmt)
+        return [self._to_read_model(row) for row in result.scalars().all()]
+
+    async def delete_membership(
+        self,
+        session: AsyncSession,
+        *,
+        identity_id: UUID,
+        programme_id: UUID,
+    ) -> Optional[ProgrammeMembershipReadModel]:
+        existing = await self.get_by_identity_and_programme(
+            session, identity_id=identity_id, programme_id=programme_id
+        )
+        if existing is None:
+            return None
+        await session.execute(
+            delete(ProgrammeMembershipSchema).where(
+                ProgrammeMembershipSchema.identity_id == identity_id,
+                ProgrammeMembershipSchema.programme_id == programme_id,
+            )
+        )
+        await session.flush()
+        return existing
