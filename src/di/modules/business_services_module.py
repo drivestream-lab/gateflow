@@ -4,6 +4,7 @@ from injector import Binder, Module, singleton
 
 from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.auth_identity_service import AuthIdentityService
+from src.business_services.identity_directory_service import IdentityDirectoryService
 from src.business_services.board_service import BoardService
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.closure_start_service import ClosureStartService
@@ -62,6 +63,7 @@ class BusinessServicesModule(Module):
         binder.bind(BoardService, scope=singleton)
         binder.bind(TenantService, scope=singleton)
         binder.bind(AuthIdentityService, scope=singleton)
+        binder.bind(IdentityDirectoryService, scope=singleton)
         binder.bind(ProgrammeService, scope=singleton)
         binder.bind(ProgrammeWipeService, scope=singleton)
         binder.bind(PlatformAgentCatalogueService, scope=singleton)

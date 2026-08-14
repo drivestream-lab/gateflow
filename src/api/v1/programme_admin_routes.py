@@ -5,6 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
+from src.business_services.identity_directory_service import (
+    IdentityDirectoryService,
+    get_identity_directory_service,
+)
 from src.business_services.platform_agent_catalogue_service import (
     PlatformAgentCatalogueService,
     get_platform_agent_catalogue_service,
@@ -14,14 +18,16 @@ from src.business_services.programme_wipe_service import (
     ProgrammeWipeService,
     get_programme_wipe_service,
 )
-from src.common.auth.dependencies import require_role
+from src.common.auth.dependencies import require_directory_admin, require_role
 from src.models.agent_catalogue_models import (
     AgentCatalogueEntryReadModel,
     AgentCatalogueProvisionRequest,
     EffectiveRunner,
 )
 from src.models.auth_models import AuthContext
+from src.models.identity_models import IdentityGrantRequest, IdentityReadModel
 from src.models.lane_types import LaneType
+from src.models.programme_membership_models import ProgrammeMembershipReadModel
 from src.models.programme_models import (
     AttachTenantAdminRequest,
     AttachTenantAdminResponse,
@@ -84,6 +90,38 @@ async def wipe_programme(
 ) -> ProgrammeWipeResult:
     """Wipe programme + child tenant + shared secrets (REQ-35); refuse mid-run (REQ-46)."""
     return await service.wipe_programme(programme_id)
+
+
+@programme_router.post("/{programme_id}/grants", response_model=ProgrammeMembershipReadModel)
+async def grant_programme_identity(
+    programme_id: UUID,
+    body: IdentityGrantRequest,
+    _auth: AuthContext = Depends(require_directory_admin),
+    service: IdentityDirectoryService = Depends(get_identity_directory_service),
+) -> ProgrammeMembershipReadModel:
+    return await service.grant(programme_id, body.identity_id)
+
+
+@programme_router.delete(
+    "/{programme_id}/grants/{identity_id}",
+    response_model=ProgrammeMembershipReadModel,
+)
+async def detach_programme_identity(
+    programme_id: UUID,
+    identity_id: UUID,
+    _auth: AuthContext = Depends(require_directory_admin),
+    service: IdentityDirectoryService = Depends(get_identity_directory_service),
+) -> ProgrammeMembershipReadModel:
+    return await service.detach(programme_id, identity_id)
+
+
+@programme_router.get("/{programme_id}/grants", response_model=list[IdentityReadModel])
+async def list_programme_members(
+    programme_id: UUID,
+    _auth: AuthContext = Depends(require_directory_admin),
+    service: IdentityDirectoryService = Depends(get_identity_directory_service),
+) -> list[IdentityReadModel]:
+    return await service.list_members(programme_id)
 
 
 @programme_router.post("/{programme_id}/tenant-admins", response_model=AttachTenantAdminResponse)

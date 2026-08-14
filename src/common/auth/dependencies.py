@@ -89,6 +89,26 @@ async def assert_live_session(auth: AuthContext) -> AuthContext:
     return auth
 
 
+async def require_directory_admin(request: Request) -> AuthContext:
+    """platform_admin only — identity/grant acts use reason ``wrong actor`` (REQ-22)."""
+    auth = get_auth_context(request)
+    if auth.role != RoleType.PLATFORM_ADMIN:
+        logger.warning(
+            "Directory actor forbidden",
+            user_id=str(auth.user_id),
+            role=auth.role.value,
+        )
+        raise ForbiddenError(
+            message="Caller is not permitted for identity directory acts",
+            details={
+                "reason": "wrong actor",
+                "role": auth.role.value,
+                "user_id": str(auth.user_id),
+            },
+        )
+    return await assert_live_session(auth)
+
+
 def require_role(*allowed: RoleType) -> Callable[[Request], Awaitable[AuthContext]]:
     """FastAPI dependency factory — require one of the allowed roles and a live session."""
 

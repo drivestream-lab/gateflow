@@ -11,7 +11,7 @@
 | Wave | Goal | Status | Evidence |
 |------|------|--------|----------|
 | W0 | Membership schema + identity JWT session | **human_approved** | Board [#245](https://github.com/drivestream-lab/gateflow/issues/245); PR [#249](https://github.com/drivestream-lab/gateflow/pull/249) accept tip `3da2d02` label `wave-accepted` (+ Pass-2 tip `f28afde`); Ground-Report W0 **pass**; Learning-Extract W0 `items: []` |
-| W1 | Identity directory + grant/detach | not started | Board [#246](https://github.com/drivestream-lab/gateflow/issues/246) |
+| W1 | Identity directory + grant/detach | implemented — not `human_approved` until `wave-acceptance` | Board [#246](https://github.com/drivestream-lab/gateflow/issues/246) |
 | W2 | Delete 014 doors + wipe collaborator | not started | Board [#247](https://github.com/drivestream-lab/gateflow/issues/247) |
 | W3 | Enter programme + isolation + as-built | not started | Board [#248](https://github.com/drivestream-lab/gateflow/issues/248) |
 
@@ -22,3 +22,12 @@
 | Identity columns + memberships | REQ-21 | `user_identity_schema`, `programme_membership_schema`, Alembic `9713e795e01c` | `test_user_identity_repository`, `test_programme_membership_repository` | — | Human applies `run_postgres_migration.sh` |
 | Session epoch + no programme claim | REQ-12, REQ-14, REQ-16 | middleware + `require_role` / `require_programme_scope` + mint | `test_auth_middleware`, `test_auth_dependencies`, `test_auth_identity_service` | `verify_jwt_login` | ADR-019 Option B |
 | Login snapshot `{grants: []}` + email | REQ-03, REQ-18 | `AuthIdentityService.login` | `test_auth_identity_service` | `verify_jwt_login` | Enter/grant is W1; enter-programme is W3 |
+
+## W1 capability detail
+
+| Capability | Spec | Code | Unit | Live verify | Notes |
+|------------|------|------|------|-------------|-------|
+| Enter / list / search identities | REQ-01, REQ-02, REQ-03, REQ-04, REQ-05, REQ-25, REQ-29, REQ-30 | `IdentityDirectoryService`, `identity_routes` | `test_identity_directory_service`, `test_identity_routes` | `verify_identity_directory` | Role is `tenant_admin`; password omitted |
+| Grant / detach / membership views | REQ-06, REQ-07, REQ-08, REQ-09, REQ-10, REQ-11, REQ-24, REQ-28 | directory service + `/programmes/{id}/grants` | `test_identity_directory_service` | `verify_identity_directory` | No JWT mint; 014 attach door still mounted |
+| Suspend / unsuspend / password-set | REQ-12, REQ-13, REQ-14 | directory service increments `session_epoch` | `test_identity_directory_service` | `verify_identity_directory` | ADR-019 kill switch |
+| Wrong actor | REQ-22 | `require_directory_admin` | `test_identity_routes` | `verify_identity_directory` | 403 `wrong actor` |
