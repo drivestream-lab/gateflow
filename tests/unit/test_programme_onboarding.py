@@ -87,6 +87,9 @@ def _service(
     programme_repo = MagicMock()
     programme_row = MagicMock()
     programme_row.id = uuid4()
+    programme_row.meta_org = "drivestream-lab"
+    programme_row.meta_repo = "prayog-meta"
+    programme_row.meta_ref = None
     programme_repo.get_by_tenant_id = AsyncMock(return_value=programme_row)
     programme_repo.update_repo_catalogue = AsyncMock()
     svc = CatalogueConnectionService(
@@ -124,6 +127,37 @@ async def test_connect_upserts_single_connection(tenant_id, resolved, tmp_path: 
     repo.upsert_programme_connection.assert_awaited_once()
     assert resp.connection.org == "drivestream-lab"
     assert "pat" not in resp.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_connect_defaults_to_programme_meta(tenant_id, resolved, tmp_path: Path) -> None:
+    """Empty body: org/repo/ref resolve from the programme's onboarded meta."""
+    ws = str(tmp_path)
+    svc, repo, git, _ = _service(auth=(ws, "ghp_x"))
+    resp = await svc.connect_programme(tenant_id, ProgrammeConnectRequest(), resolved=resolved)
+    git.resolve_workspace.assert_awaited_once()
+    credential = git.resolve_workspace.await_args.args[0]
+    assert credential.org == "drivestream-lab"
+    assert credential.repo == "prayog-meta"
+    assert git.resolve_workspace.await_args.kwargs.get("ref") is None
+    repo.upsert_programme_connection.assert_awaited_once()
+    assert resp.connection.org == "drivestream-lab"
+
+
+@pytest.mark.asyncio
+async def test_connect_rejects_meta_mismatch(tenant_id, resolved, tmp_path: Path) -> None:
+    """Caller-supplied org/repo must be the programme's meta repo, never arbitrary."""
+    ws = str(tmp_path)
+    svc, repo, git, _ = _service(auth=(ws, "ghp_x"))
+    with pytest.raises(UnprocessableEntityError) as exc:
+        await svc.connect_programme(
+            tenant_id,
+            ProgrammeConnectRequest(org="other-org", repo="other-repo"),
+            resolved=resolved,
+        )
+    assert exc.value.details["reason"] == "programme_meta_mismatch"
+    git.resolve_workspace.assert_not_awaited()
+    repo.upsert_programme_connection.assert_not_awaited()
 
 
 @pytest.mark.asyncio

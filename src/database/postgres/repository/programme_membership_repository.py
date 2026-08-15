@@ -8,8 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.postgres.repository.base_repository import BasePostgresRepository
 from src.database.postgres.schema.programme_membership_schema import ProgrammeMembershipSchema
+from src.database.postgres.schema.programme_schema import ProgrammeSchema
 from src.di.qualified_types import PostgresSessionFactory
-from src.models.programme_membership_models import ProgrammeMembershipReadModel
+from src.models.programme_membership_models import (
+    GrantedProgrammeReadModel,
+    ProgrammeMembershipReadModel,
+)
 
 
 class ProgrammeMembershipRepository(BasePostgresRepository[ProgrammeMembershipSchema]):
@@ -63,6 +67,36 @@ class ProgrammeMembershipRepository(BasePostgresRepository[ProgrammeMembershipSc
         )
         result = await session.execute(stmt)
         return [self._to_read_model(row) for row in result.scalars().all()]
+
+    async def list_by_identity_with_programme(
+        self, session: AsyncSession, identity_id: UUID
+    ) -> list[GrantedProgrammeReadModel]:
+        """Grants for an identity joined with the programme tenant binding + name."""
+        stmt = (
+            select(
+                ProgrammeMembershipSchema.id,
+                ProgrammeMembershipSchema.identity_id,
+                ProgrammeMembershipSchema.programme_id,
+                ProgrammeSchema.tenant_id,
+                ProgrammeSchema.name,
+            )
+            .join(
+                ProgrammeSchema,
+                ProgrammeSchema.id == ProgrammeMembershipSchema.programme_id,
+            )
+            .where(ProgrammeMembershipSchema.identity_id == identity_id)
+        )
+        result = await session.execute(stmt)
+        return [
+            GrantedProgrammeReadModel(
+                id=row.id,
+                identity_id=row.identity_id,
+                programme_id=row.programme_id,
+                tenant_id=row.tenant_id,
+                programme_name=row.name,
+            )
+            for row in result.all()
+        ]
 
     async def list_by_programme(
         self, session: AsyncSession, programme_id: UUID

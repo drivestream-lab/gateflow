@@ -771,6 +771,18 @@ class ForgeClient(BaseInfraService):
             f"/repos/{owner}/{repo}/issues",
             params=params,
         )
+        # 404 = repo missing or token cannot see it; 410 = issues disabled.
+        # Read path: empty list, not transport failure (initiative list is
+        # runs ∪ EPICs — a missing board must not 503 the whole composition).
+        if response.status_code in {404, 410}:
+            logger.warning(
+                "ForgeClient board issues unavailable",
+                owner=owner,
+                repo=repo,
+                status_code=response.status_code,
+                operation="board_find_issues_by_labels",
+            )
+            return []
         response.raise_for_status()
         data = response.json()
         issues = [item for item in data if "pull_request" not in item]

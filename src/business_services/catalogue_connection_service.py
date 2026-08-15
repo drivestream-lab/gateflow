@@ -84,15 +84,29 @@ class CatalogueConnectionService(BaseBusinessService):
         resolved: TenantResolvedContext,
     ) -> ProgrammeConnectResponse:
         self._assert_tenant_match(tenant_id, resolved)
-        org = request.org.strip()
-        repo = request.repo.strip()
-        ref = request.ref.strip() if request.ref is not None and request.ref.strip() else None
 
         async with self._postgres_service.transaction() as session:
+            programme = await self._programme_repository.get_by_tenant_id(session, tenant_id)
             auth = await self._tenant_repository.get_tenant_workspace_auth(session, tenant_id)
-            if auth is None:
-                raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
-            workspace_root, pat = auth
+
+        if programme is None:
+            raise NotFoundError(resource_type="programme", resource_id=tenant_id)
+        if auth is None:
+            raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
+        workspace_root, pat = auth
+
+        # Connect targets the programme's onboarded meta repo; caller-supplied
+        # values (legacy) must match it, never an arbitrary repo.
+        org = request.org.strip() if request.org and request.org.strip() else programme.meta_org
+        repo = (
+            request.repo.strip() if request.repo and request.repo.strip() else programme.meta_repo
+        )
+        ref = request.ref.strip() if request.ref and request.ref.strip() else programme.meta_ref
+        if org != programme.meta_org or repo != programme.meta_repo:
+            raise UnprocessableEntityError(
+                message="Connect target must be the programme's onboarded meta repo",
+                details={"reason": "programme_meta_mismatch", "org": org, "repo": repo},
+            )
 
         credential = TenantWorkspaceCredential(
             tenant_id=tenant_id,

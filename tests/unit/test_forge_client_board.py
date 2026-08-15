@@ -15,6 +15,27 @@ def _forge_client() -> ForgeClient:
 
 
 @pytest.mark.asyncio
+async def test_find_issues_by_labels_404_is_empty() -> None:
+    client = _forge_client()
+    missing = MagicMock()
+    missing.status_code = 404
+    missing.raise_for_status = MagicMock(side_effect=AssertionError("must not raise on 404"))
+    http = MagicMock()
+    http.get = AsyncMock(return_value=missing)
+    client._client = http
+    client._initialized = True
+
+    issues = await client.find_issues_by_labels(
+        "acme",
+        "widget",
+        labels=["gateflow/type:EPIC"],
+        state="all",
+    )
+    assert issues == []
+    missing.raise_for_status.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_create_issue_posts_json() -> None:
     client = _forge_client()
     http = MagicMock()

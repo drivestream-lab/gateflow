@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.models.identity_status_types import IdentityStatusType
-from src.models.programme_membership_models import ProgrammeMembershipReadModel
+from src.models.programme_membership_models import GrantedProgrammeReadModel
 from src.models.role_types import RoleType
 
 
@@ -38,9 +38,9 @@ class LoginResponse(BaseModel):
 
     access_token: str = Field(description="Gateflow-issued user JWT")
     token_type: str = Field(default="bearer", description="Bearer token type")
-    grants: list[ProgrammeMembershipReadModel] = Field(
+    grants: list[GrantedProgrammeReadModel] = Field(
         default_factory=list,
-        description="Programmes this identity may enter (empty when none granted)",
+        description="Programmes this identity may enter, with tenant binding (empty when none)",
     )
 
 
@@ -62,7 +62,7 @@ class AuthSessionSnapshot(BaseModel):
     email: str
     status: IdentityStatusType
     role: RoleType
-    grants: list[ProgrammeMembershipReadModel] = Field(default_factory=list)
+    grants: list[GrantedProgrammeReadModel] = Field(default_factory=list)
     entered_programme_id: Optional[UUID] = Field(
         default=None,
         description="Programme entered this request; omitted on GET /me",

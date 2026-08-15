@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 from src.business_services.initiative_readout_service import InitiativeReadoutService
-from src.exceptions.app_exceptions import NotFoundError
+from src.exceptions.app_exceptions import NotFoundError, ServiceUnavailableError
 from src.models.board_models import BoardTicketListResponse, BoardTicketResource
 from src.models.checkpoint_models import (
     CheckpointPrRef,
@@ -221,6 +221,24 @@ async def test_list_initiatives_unions_runs_and_board_epics() -> None:
     assert item.current_stage == InitiativeStageType.NOT_STARTED
     assert item.in_flight_run is None
     assert item.prd_approval == PrdApprovalStateType.UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_list_initiatives_board_unavailable_still_returns_runs() -> None:
+    run = _run(UUID("22222222-2222-2222-2222-222222222222"), initiative_id="INIT-NO-BOARD")
+    harness = _build_service(runs=[run], epic_tickets=BoardTicketListResponse(tickets=[]))
+    harness.service._board_service.list_tickets = AsyncMock(
+        side_effect=ServiceUnavailableError(
+            service_name="github",
+            message="Forge board list failed",
+        )
+    )
+
+    result = await harness.service.list_initiatives(org="acme", repo="widget")
+
+    assert len(result.initiatives) == 1
+    assert result.initiatives[0].initiative_id == "INIT-NO-BOARD"
+    assert result.initiatives[0].epic_ticket_id is None
 
 
 @pytest.mark.asyncio
