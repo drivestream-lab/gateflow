@@ -83,22 +83,27 @@ class LaunchpadStatusClient(BaseInfraService):
     def build_status_argv(
         self,
         *,
-        repo_workspace: str,
         meta_config_dir: str,
-        org: str,
+        workspace: str,
         repo: str,
     ) -> list[str]:
-        """Construct inspect-only argv (no apply). Raises if forbidden tokens slip in."""
+        """Construct inspect-only service-mode argv (Launchpad >= 0.5.34).
+
+        Operator path ``launchpad --client <id> status …`` is unchanged on the
+        Launchpad side; Gateflow always uses service-mode so VM deploys do not
+        depend on ``~/.config/launchpad``.
+        """
         cli = self._settings.launchpad_cli_path.strip() or "launchpad"
         argv = [
             cli,
             "status",
+            "--no-client",
             "--config-dir",
             meta_config_dir,
+            "--workspace",
+            workspace,
             "--repo",
-            f"{org}/{repo}",
-            "--meta",
-            repo_workspace,
+            repo,
         ]
         self._assert_inspect_only(argv)
         return argv
@@ -110,8 +115,12 @@ class LaunchpadStatusClient(BaseInfraService):
         meta_config_dir: str,
         org: str,
         repo: str,
+        pat: str,
     ) -> LaunchpadStatusVerdict:
-        """Ask Launchpad status only — never apply (REQ-17/18/20)."""
+        """Ask Launchpad status only — never apply (REQ-17/18/20).
+
+        ``pat`` is injected as child-process ``GITHUB_TOKEN`` only — never argv.
+        """
         if not self._binary_available():
             logger.error(
                 "Launchpad status tool unavailable",
@@ -143,14 +152,23 @@ class LaunchpadStatusClient(BaseInfraService):
                 org=org,
                 repo=repo,
             )
+        cleaned_pat = pat.strip()
+        if not cleaned_pat:
+            raise LaunchpadStatusError(
+                "Programme PAT is required for Launchpad status inspect",
+                reason="programme_pat_missing",
+                org=org,
+                repo=repo,
+            )
+        config_dir = self._resolve_config_dir(meta_path)
+        workspace = self._resolve_workspace_root(repo_path)
 
         argv = self.build_status_argv(
-            repo_workspace=str(repo_path.resolve()),
-            meta_config_dir=str(meta_path.resolve()),
-            org=org,
+            meta_config_dir=str(config_dir.resolve()),
+            workspace=str(workspace.resolve()),
             repo=repo,
         )
-        code, stderr = await self._run(argv)
+        code, stderr = await self._run(argv, github_token=cleaned_pat)
         if code == 0:
             logger.info(
                 "Launchpad status ready",
@@ -176,6 +194,19 @@ class LaunchpadStatusClient(BaseInfraService):
             reason=reason,
             ready=False,
         )
+
+    @staticmethod
+    def _resolve_config_dir(meta_path: Path) -> Path:
+        """Launchpad ``--config-dir`` is the meta ``config/`` directory, not the checkout root."""
+        nested = meta_path / "config"
+        if nested.is_dir():
+            return nested
+        return meta_path
+
+    @staticmethod
+    def _resolve_workspace_root(repo_path: Path) -> Path:
+        """Launchpad ``--workspace`` is the parent of the repo clone directory."""
+        return repo_path.parent
 
     def _binary_available(self) -> bool:
         cli = self._settings.launchpad_cli_path.strip() or "launchpad"
@@ -208,11 +239,13 @@ class LaunchpadStatusClient(BaseInfraService):
             return "repo_not_ready:harness"
         return "repo_not_ready"
 
-    async def _run(self, argv: list[str]) -> tuple[int, str]:
+    async def _run(self, argv: list[str], *, github_token: str) -> tuple[int, str]:
+        env = {**os.environ, "GITHUB_TOKEN": github_token}
         proc = await asyncio.create_subprocess_exec(
             *argv,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=env,
         )
         _stdout, stderr_b = await proc.communicate()
         code = proc.returncode if proc.returncode is not None else 1

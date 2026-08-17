@@ -26,18 +26,53 @@ def client(tmp_path: Path) -> LaunchpadStatusClient:
     return c
 
 
-def test_build_status_argv_inspect_only(client: LaunchpadStatusClient) -> None:
+def test_build_status_argv_service_mode(client: LaunchpadStatusClient) -> None:
     argv = client.build_status_argv(
-        repo_workspace="/ws/org/repo",
-        meta_config_dir="/ws/meta/org",
-        org="org",
-        repo="repo",
+        meta_config_dir="/ws/meta/config",
+        workspace="/ws/org",
+        repo="gateflow-ops",
     )
-    assert argv[0] == "launchpad"
-    assert "status" in argv
+    assert argv == [
+        "launchpad",
+        "status",
+        "--no-client",
+        "--config-dir",
+        "/ws/meta/config",
+        "--workspace",
+        "/ws/org",
+        "--repo",
+        "gateflow-ops",
+    ]
+    assert "--meta" not in argv
     assert "apply" not in argv
-    assert "--config-dir" in argv
-    assert "--meta" in argv
+
+
+@pytest.mark.asyncio
+async def test_inspect_status_argv_and_child_token(
+    client: LaunchpadStatusClient, tmp_path: Path
+) -> None:
+    repo_ws = tmp_path / "org" / "gateflow-ops"
+    meta = tmp_path / "org" / "prayog-meta"
+    config = meta / "config"
+    repo_ws.mkdir(parents=True)
+    config.mkdir(parents=True)
+    client._binary_available = MagicMock(return_value=True)  # type: ignore[method-assign]
+    client._run = AsyncMock(return_value=(0, ""))  # type: ignore[method-assign]
+    await client.inspect_status(
+        repo_workspace=str(repo_ws),
+        meta_config_dir=str(meta),
+        org="drivestream-lab",
+        repo="gateflow-ops",
+        pat="ghp_programme_pat",
+    )
+    assert client._run.await_args is not None
+    argv = client._run.await_args.args[0]
+    assert "--no-client" in argv
+    assert "--meta" not in argv
+    assert argv[argv.index("--config-dir") + 1] == str(config.resolve())
+    assert argv[argv.index("--workspace") + 1] == str(repo_ws.parent.resolve())
+    assert argv[argv.index("--repo") + 1] == "gateflow-ops"
+    assert client._run.await_args.kwargs["github_token"] == "ghp_programme_pat"
 
 
 def test_argv_guard_rejects_apply(client: LaunchpadStatusClient) -> None:
@@ -57,8 +92,29 @@ async def test_inspect_status_tool_unavailable(
             meta_config_dir=str(tmp_path),
             org="o",
             repo="r",
+            pat="ghp_test",
         )
     assert exc_info.value.reason == "tool_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_inspect_status_rejects_blank_pat(
+    client: LaunchpadStatusClient, tmp_path: Path
+) -> None:
+    repo_ws = tmp_path / "repo"
+    meta = tmp_path / "meta"
+    repo_ws.mkdir()
+    meta.mkdir()
+    client._binary_available = MagicMock(return_value=True)  # type: ignore[method-assign]
+    with pytest.raises(LaunchpadStatusError) as exc_info:
+        await client.inspect_status(
+            repo_workspace=str(repo_ws),
+            meta_config_dir=str(meta),
+            org="o",
+            repo="r",
+            pat="   ",
+        )
+    assert exc_info.value.reason == "programme_pat_missing"
 
 
 @pytest.mark.asyncio
@@ -74,6 +130,7 @@ async def test_inspect_status_ready(client: LaunchpadStatusClient, tmp_path: Pat
         meta_config_dir=str(meta),
         org="o",
         repo="r",
+        pat="ghp_test",
     )
     assert verdict.ready is True
     assert verdict.verdict_type == LaunchpadStatusVerdictType.READY
@@ -81,3 +138,5 @@ async def test_inspect_status_ready(client: LaunchpadStatusClient, tmp_path: Pat
     argv = client._run.await_args.args[0]
     assert "apply" not in argv
     assert "status" in argv
+    assert "--no-client" in argv
+    assert argv[argv.index("--repo") + 1] == "r"

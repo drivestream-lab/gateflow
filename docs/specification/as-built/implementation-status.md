@@ -169,7 +169,7 @@
 
 | Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
 |------------|----------|------------|-------------------|-------------|-------|
-| Inspect-only status client | REQ-17, REQ-18, REQ-20 | `LaunchpadStatusClient.inspect_status` | `test_launchpad_status_client` | `verify_harness_status` | argv guard; `tool_unavailable` |
+| Inspect-only status client | REQ-17, REQ-18, REQ-20 | `LaunchpadStatusClient.inspect_status` | `test_launchpad_status_client` | `verify_harness_status` | Launchpad >= 0.5.34 service-mode: `--no-client`, `--config-dir`, `--workspace`, child `GITHUB_TOKEN`; `tool_unavailable` |
 | Status-on-select + provenance | REQ-19, REQ-21, REQ-22 | `select_repos` + `readiness_source` | `test_programme_selection` | `verify_harness_status` | after setup `ok` only |
 | On-demand refresh | REQ-23 | `POST …/repos/readiness/refresh` | unit via service | `verify_harness_status` | status-sourced only |
 | Dual gate | REQ-21, REQ-22 | wave-start + orchestrator | `test_harness_dual_gate` | filesystem verify retained | never_checked fail-closed |

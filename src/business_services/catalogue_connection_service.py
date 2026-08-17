@@ -456,6 +456,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 repo=ref.repo,
                 repo_workspace=str(target.resolve()),
                 meta_config_dir=meta_config_dir,
+                pat=pat,
             )
             results.append(status_result)
 
@@ -475,6 +476,7 @@ class CatalogueConnectionService(BaseBusinessService):
         repo: str,
         repo_workspace: str,
         meta_config_dir: str,
+        pat: str,
     ) -> ProgrammeRepoAdmitResult:
         """Inspect-only status after successful setup; isolates failures (REQ-17/19/20)."""
         try:
@@ -483,6 +485,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 meta_config_dir=meta_config_dir,
                 org=org,
                 repo=repo,
+                pat=pat,
             )
         except LaunchpadStatusError as exc:
             self.logger.warning(
@@ -573,7 +576,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 },
             )
 
-        workspace_root, _pat = auth
+        workspace_root, pat = auth
         repo_workspace = Path(workspace_root) / org / repo
         meta_config_dir = Path(workspace_root) / connection.org / connection.repo
         if not repo_workspace.is_dir():
@@ -588,6 +591,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 meta_config_dir=str(meta_config_dir.resolve()),
                 org=org,
                 repo=repo,
+                pat=pat,
             )
         except LaunchpadStatusError as exc:
             raise UnprocessableEntityError(
