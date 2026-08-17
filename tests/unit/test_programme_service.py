@@ -130,7 +130,7 @@ def test_workspace_root_on_onboard_body_rejected() -> None:
 
 @pytest.mark.asyncio
 async def test_validate_then_create_happy_path(tmp_path) -> None:
-    svc, programme_repo, tenant_repo, _ = _service()
+    svc, programme_repo, tenant_repo, git = _service()
     workspace_root = str(tmp_path / "gateflow-ws")
     tenant_id = uuid4()
     programme_id = uuid4()
@@ -162,6 +162,8 @@ async def test_validate_then_create_happy_path(tmp_path) -> None:
     assert result.programme_id == programme_id
     assert result.tenant_id == tenant_id
     assert result.repo_catalogue == candidates
+    git.resolve_workspace.assert_awaited_once()
+    assert git.resolve_workspace.await_args.kwargs.get("ref") == "develop"
     tenant_repo.create_tenant.assert_awaited_once()
     assert tenant_repo.create_tenant.await_args.kwargs["workspace_root"] == workspace_root
     programme_repo.create_programme.assert_awaited_once()
@@ -171,6 +173,8 @@ async def test_validate_then_create_happy_path(tmp_path) -> None:
     assert tenant_repo.upsert_programme_connection.await_args.kwargs["tenant_id"] == tenant_id
     assert tenant_repo.upsert_programme_connection.await_args.kwargs["org"] == "drivestream-lab"
     assert tenant_repo.upsert_programme_connection.await_args.kwargs["repo"] == "prayog-meta"
+    assert tenant_repo.upsert_programme_connection.await_args.kwargs["ref"] == "develop"
+    assert programme_repo.create_programme.await_args.kwargs["meta_ref"] == "develop"
 
 
 @pytest.mark.asyncio

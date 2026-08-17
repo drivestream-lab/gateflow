@@ -5,6 +5,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+DEFAULT_WORKSPACE_REF = "develop"
+
+
+def resolve_workspace_ref(ref: str | None) -> str:
+    """Explicit ref wins; omitted/blank means origin/develop."""
+    cleaned = ref.strip() if ref is not None and ref.strip() else ""
+    return cleaned or DEFAULT_WORKSPACE_REF
+
 
 class WorkspaceResolveModeType(str, Enum):
     """Closed vocabulary for clone-vs-fetch outcome (TDD §8)."""

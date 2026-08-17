@@ -49,7 +49,10 @@ from src.models.programme_selection_models import (
     ProgrammeSelectRequest,
     ProgrammeSelectResponse,
 )
-from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+from src.models.tenant_git_workspace_models import (
+    TenantWorkspaceCredential,
+    resolve_workspace_ref,
+)
 from src.models.tenant_models import TenantRepoProbeFailure, TenantRepoRef, TenantResolvedContext
 
 
@@ -101,7 +104,9 @@ class CatalogueConnectionService(BaseBusinessService):
         repo = (
             request.repo.strip() if request.repo and request.repo.strip() else programme.meta_repo
         )
-        ref = request.ref.strip() if request.ref and request.ref.strip() else programme.meta_ref
+        ref = resolve_workspace_ref(
+            request.ref.strip() if request.ref and request.ref.strip() else programme.meta_ref
+        )
         if org != programme.meta_org or repo != programme.meta_repo:
             raise UnprocessableEntityError(
                 message="Connect target must be the programme's onboarded meta repo",
@@ -245,6 +250,7 @@ class CatalogueConnectionService(BaseBusinessService):
             )
 
         workspace_root, pat = auth
+        ref = resolve_workspace_ref(connection.ref or programme.meta_ref)
         credential = TenantWorkspaceCredential(
             tenant_id=tenant_id,
             workspace_root=workspace_root,
@@ -253,7 +259,7 @@ class CatalogueConnectionService(BaseBusinessService):
             repo=connection.repo,
         )
         try:
-            await self._git_client.resolve_workspace(credential, ref=connection.ref)
+            await self._git_client.resolve_workspace(credential, ref=ref)
         except TenantGitWorkspaceError as exc:
             self.logger.error(
                 "Programme catalogue refresh git failed",
@@ -291,7 +297,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 tenant_id=tenant_id,
                 org=connection.org,
                 repo=connection.repo,
-                ref=connection.ref,
+                ref=ref,
             )
             await self._programme_repository.update_repo_catalogue(
                 session, programme.id, candidates

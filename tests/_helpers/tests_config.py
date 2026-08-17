@@ -119,7 +119,7 @@ class ProgrammeVerifyConfig(BaseModel):
     )
     org: str = Field(default="drivestream-lab")
     repo: str = Field(default="prayog-meta")
-    ref: str = Field(default="", description="Optional git ref; empty → default branch")
+    ref: str = Field(default="", description="Optional git ref; empty → origin/develop")
     programme_id: str = Field(
         default="",
         description="Reuse existing programme when set (agent catalogue, …)",
