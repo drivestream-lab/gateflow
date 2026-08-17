@@ -27,6 +27,8 @@
 
 **INIT-GATEFLOW-017 status:** W0–W3 **human_approved** at wave-acceptance — PRs [#249](https://github.com/drivestream-lab/gateflow/pull/249), [#250](https://github.com/drivestream-lab/gateflow/pull/250), [#251](https://github.com/drivestream-lab/gateflow/pull/251), [#253](https://github.com/drivestream-lab/gateflow/pull/253) @ `e0d7a24` label `wave-accepted` (+ Pass-2 tip `4b0aca4`); Ground-Report W3 **pass**; Learning-Extract W3 empty items. Detail: [`Implementation-Status-INIT-GATEFLOW-017.md`](Implementation-Status-INIT-GATEFLOW-017.md). Merge/publish at `wave-signoff` only.
 
+**INIT-GATEFLOW-019 status:** local backfill — Gate 1 **skipped**. W0 CAP-D **coded** on `fix/session-grant-tenant-binding`. W1–W2 **implemented (unit)** including meta-PR onboard / admitted set (not wave-accepted). Detail: [`Implementation-Status-INIT-GATEFLOW-019.md`](Implementation-Status-INIT-GATEFLOW-019.md). Consumer: gateflow-ops 019. Human must apply the `programme_meta_prs` Alembic revision.
+
 ## Capability matrix (INIT-GATEFLOW-015 W0 — full RunOutcomeType + lane payload)
 
 | Capability | Spec | Code | Unit | Live verify | Notes |
@@ -106,7 +108,7 @@
 |------------|------|------|------|-------------|-------|
 | JWT-only Appendix-C edge | REQ-04,29,32,33 | `app.py` public_paths + `require_role` | flipped programme/tenant token tests | `verify_jwt_cutover` | Old doors refused (delete = W3) |
 | Programme / role scope | REQ-23,24,30,31 | `require_programme_scope` | `test_auth_dependencies` | `verify_cross_programme_isolation` | ADR-016 run.tenant_id |
-| Per-programme ForgeClient | REQ-25 | `ForgeClientFactory` | `test_forge_client_factory` | — | ADR-015 |
+| Per-programme ForgeClient | REQ-25 | `ForgeClientFactory.for_programme` / `for_tenant` / `for_repo` | `test_forge_client_factory` | — | ADR-015 — business Forge callers use `programmes.github_pat`, not env singleton |
 | Catalogue-only agent dispatch | REQ-26,41 | SlotValidator + CursorAgentRunner | slot/cursor units | — | No env key |
 | Webhooks signature-only | REQ-28 | `github_routes` unchanged | webhook ingress units | — | Still public |
 

@@ -13,6 +13,8 @@ from src.api.v1.programme_admin_routes import (
     programme_router as programme_admin_router,
 )
 from src.api.v1.catalogue_connection_routes import router as catalogue_connection_router
+from src.api.v1.meta_pr_picker_routes import router as meta_pr_picker_router
+from src.api.v1.runner_catalogue_routes import router as runner_catalogue_router
 from src.api.v1.runs_routes import router as runs_router
 from src.api.v1.tenant_routes import router as tenant_router
 from src.api.v1.waves_routes import router as waves_router
@@ -27,6 +29,8 @@ api_router.include_router(board_router, tags=["Board"])
 api_router.include_router(checkpoints_router, tags=["Checkpoints"])
 api_router.include_router(tenant_router, tags=["Tenants"])
 api_router.include_router(catalogue_connection_router, tags=["CatalogueConnection"])
+api_router.include_router(meta_pr_picker_router, tags=["MetaPrPicker"])
+api_router.include_router(runner_catalogue_router, tags=["Runners"])
 api_router.include_router(identity_router)
 api_router.include_router(programme_admin_router)
 api_router.include_router(agent_catalogue_router)

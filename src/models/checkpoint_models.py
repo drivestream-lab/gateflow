@@ -131,10 +131,13 @@ class CheckpointHistoryResult(BaseModel):
     records: list[CheckpointHistoryRecord] = Field(default_factory=list)
 
 
+# Product-normative checkpoint id for meta PR CAP-01 (INIT-GATEFLOW-019).
+PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID = "prd-impact-acceptance"
+
 # Product-normative label association (PRD mapping table), validated against
 # the pin label catalog — never invent label names absent from the contract.
 CHECKPOINT_LABEL_RULES: dict[str, tuple[list[str], list[str]]] = {
-    "prd-impact-acceptance": (
+    PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID: (
         ["impact-map-lgtm"],
         ["impact-map-blocked", "impact-map-revised", "impact-map-stale"],
     ),

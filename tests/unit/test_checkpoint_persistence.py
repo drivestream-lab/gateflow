@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.business_services.workflow_engine import WorkflowEngine
 from src.models.checkpoint_models import (
     CheckpointPrRef,
@@ -92,8 +93,9 @@ def _build_service(
     run_event_repository = MagicMock()
     run_event_repository.append_event = AsyncMock()
 
+    factory, _ = mock_forge_factory(forge)
     service = CheckpointEvidenceService(
-        forge_client=forge,
+        forge_client_factory=factory,
         workflow_engine=engine,
         postgres_service=postgres,
         run_repository=run_repository,

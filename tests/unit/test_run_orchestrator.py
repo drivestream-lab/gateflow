@@ -17,6 +17,7 @@ from src.models.policy_types import AgentRunOutcomeType
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+from tests._helpers.programme_forge import mock_forge_factory
 
 
 def _gate_stop_handoff(stage: str = "loop-spec") -> dict[str, object]:
@@ -178,7 +179,7 @@ def _build_orchestrator(**overrides: Any) -> RunOrchestrator:
         "launchpad_client": launchpad_client,
         "launchpad_status_client": MagicMock(inspect_status=AsyncMock()),
         "cursor_agent_runner": cursor_agent_runner,
-        "forge_client": forge_client,
+        "forge_client_factory": mock_forge_factory(overrides.pop("forge_client", forge_client))[0],
         "forge_action_service": forge_action_service,
         "run_repository": run_repo,
         "run_event_repository": run_event_repo,
@@ -933,7 +934,7 @@ async def test_publish_stage_workspace_required_empty_fails(
 
     forge = MagicMock()
     forge.get_branch_tip_sha = AsyncMock(return_value="abc123def456")
-    orch._forge_client = forge
+    orch._forge_client_factory = mock_forge_factory(forge)[0]
     monkeypatch.setattr(
         "src.business_services.run_orchestrator.collect_commit_paths",
         lambda *_a, **_k: [],
@@ -985,7 +986,7 @@ async def test_publish_stage_workspace_optional_commits(
             paths=["docs/a.md"],
         )
     )
-    orch._forge_client = forge
+    orch._forge_client_factory = mock_forge_factory(forge)[0]
     events = MagicMock()
     events.append_event = AsyncMock()
     orch._run_event_repository = events

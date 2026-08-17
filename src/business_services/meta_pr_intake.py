@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClient, ForgeClientFactory
 from src.models.meta_pr_models import (
     GithubPullRequestDocument,
     MetaPrAcceptResult,
@@ -22,9 +22,9 @@ class MetaPrIntakeService(BaseBusinessService):
     """Parse meta PR URLs, fetch via ForgeClient, enforce initiative consistency."""
 
     @inject
-    def __init__(self, forge_client: ForgeClient) -> None:
+    def __init__(self, forge_client_factory: ForgeClientFactory) -> None:
         super().__init__()
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
 
     def parse_url(self, url: str) -> MetaPrRef:
         """Parse a GitHub PR URL; fail closed on unexpected hosts/paths."""
@@ -69,47 +69,59 @@ class MetaPrIntakeService(BaseBusinessService):
         self,
         *,
         meta_pr_url: str,
-        expected_initiative_id: str,
+        expected_initiative_id: Optional[str] = None,
+        forge_client: Optional[ForgeClient] = None,
     ) -> MetaPrAcceptResult:
         """Fetch meta PR and enforce initiative consistency (ADR-010).
+
+        When ``expected_initiative_id`` is omitted, the derived id is used.
+        A supplied id that disagrees with the derived id fails closed.
 
         Raises:
             ValueError: URL/shape/initiative fail closed (caller maps to 4xx).
             httpx.HTTPError: forge transport failure (caller maps to 503).
         """
         ref = self.parse_url(meta_pr_url)
-        pr = await self._forge_client.get_pull_request(ref.owner, ref.repo, ref.pr_number)
-        head_sha = pr.head.sha.strip()
-        if not head_sha:
-            raise ValueError(f"meta PR {ref.owner}/{ref.repo}#{ref.pr_number} missing head sha")
+        owned = forge_client is None
+        client = forge_client
+        if client is None:
+            client = await self._forge_client_factory.for_repo(ref.owner, ref.repo)
+        try:
+            pr = await client.get_pull_request(ref.owner, ref.repo, ref.pr_number)
+            head_sha = pr.head.sha.strip()
+            if not head_sha:
+                raise ValueError(f"meta PR {ref.owner}/{ref.repo}#{ref.pr_number} missing head sha")
 
-        derived = self.derive_initiative_id(pr)
-        if derived is not None and derived != expected_initiative_id:
-            raise ValueError(
-                "meta PR initiative mismatch: "
-                f"derived={derived!r} expected={expected_initiative_id!r}"
-            )
-        if derived is None:
-            raise ValueError(
-                "meta PR does not expose a derivable initiative id in title/body/labels"
-            )
+            derived = self.derive_initiative_id(pr)
+            if derived is None:
+                raise ValueError(
+                    "meta PR does not expose a derivable initiative id in title/body/labels"
+                )
+            expected = expected_initiative_id.strip() if expected_initiative_id else None
+            if expected and derived != expected:
+                raise ValueError(
+                    "meta PR initiative mismatch: " f"derived={derived!r} expected={expected!r}"
+                )
 
-        self.logger.info(
-            "Meta PR accept-gate passed",
-            meta_owner=ref.owner,
-            meta_repo=ref.repo,
-            meta_pr_number=ref.pr_number,
-            meta_head_sha=head_sha,
-            initiative_id=derived,
-        )
-        return MetaPrAcceptResult(
-            meta_pr_url=ref.source_url,
-            meta_owner=ref.owner,
-            meta_repo=ref.repo,
-            meta_pr_number=ref.pr_number,
-            meta_head_sha=head_sha,
-            derived_initiative_id=derived,
-        )
+            self.logger.info(
+                "Meta PR accept-gate passed",
+                meta_owner=ref.owner,
+                meta_repo=ref.repo,
+                meta_pr_number=ref.pr_number,
+                meta_head_sha=head_sha,
+                initiative_id=derived,
+            )
+            return MetaPrAcceptResult(
+                meta_pr_url=ref.source_url,
+                meta_owner=ref.owner,
+                meta_repo=ref.repo,
+                meta_pr_number=ref.pr_number,
+                meta_head_sha=head_sha,
+                derived_initiative_id=derived,
+            )
+        finally:
+            if owned:
+                await client.close()
 
 
 def get_meta_pr_intake_service() -> MetaPrIntakeService:

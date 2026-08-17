@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from src.business_services.board_service import BoardService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.exceptions.app_exceptions import ValidationError
 from src.models.board_models import (
     BoardTicketCreateRequest,
@@ -17,11 +18,11 @@ from src.models.board_models import (
 
 
 def _service(forge: MagicMock | None = None) -> tuple[BoardService, MagicMock]:
-    forge_client = forge or MagicMock()
+    factory, forge_client = mock_forge_factory(forge)
     postgres = MagicMock()
     tenant_repo = MagicMock()
     service = BoardService(
-        forge_client=forge_client,
+        forge_client_factory=factory,
         postgres_service=postgres,
         tenant_repository=tenant_repo,
     )
@@ -289,8 +290,9 @@ async def test_resolve_board_default_from_tenant() -> None:
     tenant_repo.get_board_default = AsyncMock(
         return_value=TenantBoardDefault(project_owner="acme-org", project_number=42)
     )
+    factory, _ = mock_forge_factory(forge)
     service = BoardService(
-        forge_client=forge,
+        forge_client_factory=factory,
         postgres_service=postgres,
         tenant_repository=tenant_repo,
     )
@@ -311,8 +313,9 @@ async def test_resolve_board_default_explicit_wins() -> None:
     forge = MagicMock()
     postgres = MagicMock()
     tenant_repo = MagicMock()
+    factory, _ = mock_forge_factory(forge)
     service = BoardService(
-        forge_client=forge,
+        forge_client_factory=factory,
         postgres_service=postgres,
         tenant_repository=tenant_repo,
     )

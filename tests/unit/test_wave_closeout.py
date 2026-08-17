@@ -14,6 +14,7 @@ from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.wave_start_service import WaveStartService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.configs.orchestration_settings import OrchestrationSettings
@@ -97,7 +98,7 @@ def _service(
     prior_run: RunModel | None = None,
     wave_pr: GithubPullRequestDocument | None = None,
     get_pr_side_effect: object | None = None,
-) -> WaveStartService:
+) -> tuple[WaveStartService, MagicMock]:
     session = MagicMock()
 
     @asynccontextmanager
@@ -168,7 +169,7 @@ def _service(
         forge.get_pull_request = AsyncMock(
             return_value=wave_pr if wave_pr is not None else _open_wave_pr()
         )
-    return WaveStartService(
+    service = WaveStartService(
         postgres_service=postgres,
         slot_validator=validator,
         workflow_engine=workflow_engine,
@@ -176,7 +177,7 @@ def _service(
         run_repository=run_repo,
         job_repository=job_repo,
         meta_pr_intake=intake,
-        forge_client=forge,
+        forge_client_factory=mock_forge_factory(forge)[0],
         board_service=MagicMock(),
         tenant_service=MagicMock(
             get_workspace_credential_for_repo=AsyncMock(
@@ -195,12 +196,19 @@ def _service(
         tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
         launchpad_client=MagicMock(sync_harness=AsyncMock()),
         launchpad_status_client=MagicMock(inspect_status=AsyncMock()),
+        programme_repository=MagicMock(
+            get_by_tenant_id=AsyncMock(return_value=None),
+            get_pat=AsyncMock(return_value=None),
+        ),
+        programme_meta_pr_repository=MagicMock(),
+        checkpoint_evidence_service=MagicMock(),
     )
+    return service, forge
 
 
 @pytest.mark.asyncio
 async def test_closeout_wave_start_ok(tmp_path: Path) -> None:
-    service = _service()
+    service, forge = _service()
     response = await service.start_closeout_wave(_closeout_req(tmp_path))
     assert response.status == "active"
     assert response.run_id
@@ -223,7 +231,7 @@ async def test_closeout_wave_start_ok(tmp_path: Path) -> None:
     assert isinstance(create, AsyncMock)
     assert create.await_args is not None
     assert create.await_args.args[1].pr_number == 42
-    get_pr = service._forge_client.get_pull_request
+    get_pr = forge.get_pull_request
     assert isinstance(get_pr, AsyncMock)
     get_pr.assert_awaited_once_with("acme", "widget", 42)
 
@@ -231,7 +239,7 @@ async def test_closeout_wave_start_ok(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_closeout_ignores_client_branch_slug_for_head(tmp_path: Path) -> None:
     """Client branch_slug must not invent a competing publish head."""
-    service = _service()
+    service, _ = _service()
     response = await service.start_closeout_wave(
         _closeout_req(tmp_path, branch_slug="closeout-start")
     )
@@ -246,14 +254,14 @@ async def test_closeout_ignores_client_branch_slug_for_head(tmp_path: Path) -> N
 
 @pytest.mark.asyncio
 async def test_closeout_rejects_closed_pr(tmp_path: Path) -> None:
-    service = _service(wave_pr=_open_wave_pr(state="closed"))
+    service, _ = _service(wave_pr=_open_wave_pr(state="closed"))
     with pytest.raises(ValidationError, match="must be open"):
         await service.start_closeout_wave(_closeout_req(tmp_path))
 
 
 @pytest.mark.asyncio
 async def test_closeout_rejects_base_mismatch(tmp_path: Path) -> None:
-    service = _service(wave_pr=_open_wave_pr(base_ref="main"))
+    service, _ = _service(wave_pr=_open_wave_pr(base_ref="main"))
     with pytest.raises(ValidationError, match="base"):
         await service.start_closeout_wave(_closeout_req(tmp_path))
 
@@ -267,7 +275,7 @@ async def test_closeout_pr_not_found(tmp_path: Path) -> None:
         request=MagicMock(),
         response=response,
     )
-    service = _service(get_pr_side_effect=err)
+    service, _ = _service(get_pr_side_effect=err)
     with pytest.raises(ValidationError, match="not found"):
         await service.start_closeout_wave(_closeout_req(tmp_path))
 
@@ -286,7 +294,7 @@ async def test_closeout_with_prior_run_id(tmp_path: Path) -> None:
         retry_counter=0,
         notify_pending=False,
     )
-    service = _service(prior_run=prior)
+    service, _ = _service(prior_run=prior)
     response = await service.start_closeout_wave(_closeout_req(tmp_path, prior_run_id=prior_id))
     assert response.run_id
     enqueue = service._job_repository.enqueue
@@ -301,7 +309,7 @@ async def test_closeout_with_prior_run_id(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_closeout_unknown_prior_run_id(tmp_path: Path) -> None:
-    service = _service(prior_run=None)
+    service, _ = _service(prior_run=None)
     with pytest.raises(ValidationError, match="prior_run_id"):
         await service.start_closeout_wave(_closeout_req(tmp_path, prior_run_id=uuid4()))
 
@@ -340,7 +348,7 @@ def test_closeout_rejects_relative_workspace(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_closeout_missing_workspace_dir(tmp_path: Path) -> None:
-    service = _service()
+    service, _ = _service()
     missing = tmp_path / "missing-ws"
     with pytest.raises(ValidationError, match="existing directory"):
         await service.start_closeout_wave(_closeout_req(tmp_path, workspace_path=str(missing)))
@@ -359,14 +367,14 @@ async def test_closeout_concurrent_409(tmp_path: Path) -> None:
         retry_counter=0,
         notify_pending=False,
     )
-    service = _service(active=active)
+    service, _ = _service(active=active)
     with pytest.raises(ConflictError):
         await service.start_closeout_wave(_closeout_req(tmp_path))
 
 
 @pytest.mark.asyncio
 async def test_closeout_dual_identity_disagree(tmp_path: Path) -> None:
-    service = _service()
+    service, _ = _service()
     with pytest.raises(ValidationError, match="disagree"):
         await service.start_closeout_wave(
             _closeout_req(tmp_path, ticket_id="INIT-ACME-001:W0", wave_id="W1")

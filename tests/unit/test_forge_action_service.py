@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 
 from src.business_services.forge_action_service import ForgeActionService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.business_services.policy_engine import PolicyEngine
 from src.business_services.workflow_engine import WorkflowEngine
 from src.exceptions.app_exceptions import UnprocessableEntityError, ValidationError
@@ -82,7 +83,7 @@ def _service(
     engine.load_pin()
     return ForgeActionService(
         postgres_service=postgres,
-        forge_client=forge_client or MagicMock(),
+        forge_client_factory=mock_forge_factory(forge_client)[0],
         board_service=board_service or MagicMock(),
         workflow_engine=engine,
         handoff_reader=handoff_reader,

@@ -23,6 +23,7 @@ from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.tenant_models import (
     TenantListResponse,
     TenantReadModel,
+    TenantRepoRef,
     TenantResolvedContext,
     TenantUserAttachRequest,
     TenantUserAttachResponse,
@@ -90,6 +91,11 @@ class TenantService(BaseBusinessService):
             if read is None:
                 raise NotFoundError(resource_type="tenant", resource_id=tenant_id)
             return read
+
+    async def list_admitted_repos(self, tenant_id: UUID) -> list[TenantRepoRef]:
+        """Admitted fleet org/repo pairs for a programme tenant."""
+        async with self._postgres_service.transaction() as session:
+            return await self._tenant_repository.list_tenant_repos(session, tenant_id)
 
     async def get_workspace_credential_for_repo(
         self,

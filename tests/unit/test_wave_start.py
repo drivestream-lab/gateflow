@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -13,6 +14,7 @@ from src.business_services.adapter_registry import AdapterRegistry
 from src.business_services.meta_pr_intake import MetaPrIntakeService
 from src.business_services.slot_validator import SlotValidator
 from src.business_services.wave_start_service import WaveStartService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.cursor_agent_settings import CursorAgentSettings
 from src.configs.orchestration_settings import OrchestrationSettings
@@ -26,8 +28,24 @@ from src.models.meta_pr_models import MetaPrAcceptResult
 from src.models.run_store_models import JobModel, JobPayloadDocument, RunModel
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.board_models import BoardTicketResource
-from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
-from src.models.wave_start_models import ImplementWaveStartRequest, SpecWaveStartRequest
+from src.models.programme_meta_pr_models import ProgrammeMetaPrReadModel
+from src.models.programme_models import ProgrammeLaneDefaultsDocument, ProgrammeReadModel
+from src.models.tenant_models import TenantRepoRef
+from src.models.tenant_git_workspace_models import (
+    TenantWorkspaceCredential,
+    WorkspaceResolveModeType,
+    WorkspaceResolveResult,
+)
+from src.models.checkpoint_models import (
+    PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID,
+    CheckpointStatusResult,
+    CheckpointVerdictType,
+)
+from src.models.wave_start_models import (
+    IMPLEMENT_DEFAULT_BRANCH_SLUG,
+    ImplementWaveStartRequest,
+    SpecWaveStartRequest,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -213,7 +231,7 @@ def _service(
         run_repository=run_repo,
         job_repository=job_repo,
         meta_pr_intake=intake,
-        forge_client=MagicMock(),
+        forge_client_factory=mock_forge_factory()[0],
         board_service=board,
         tenant_service=MagicMock(
             get_workspace_credential_for_repo=AsyncMock(
@@ -225,6 +243,7 @@ def _service(
                     repo="widget",
                 )
             ),
+            list_admitted_repos=AsyncMock(return_value=[]),
             is_harness_verified=AsyncMock(return_value=False),
             mark_harness_verified=AsyncMock(),
             get_readiness_source=AsyncMock(return_value=None),
@@ -232,6 +251,36 @@ def _service(
         tenant_git_workspace_client=MagicMock(resolve_workspace=AsyncMock()),
         launchpad_client=MagicMock(sync_harness=AsyncMock()),
         launchpad_status_client=MagicMock(inspect_status=AsyncMock()),
+        programme_repository=MagicMock(
+            get_by_tenant_id=AsyncMock(return_value=None),
+            get_by_meta_org_repo=AsyncMock(return_value=None),
+            get_pat=AsyncMock(return_value=None),
+        ),
+        programme_meta_pr_repository=MagicMock(
+            get_by_programme_and_url=AsyncMock(
+                return_value=ProgrammeMetaPrReadModel(
+                    id=uuid4(),
+                    programme_id=uuid4(),
+                    html_url="https://github.com/acme/prayog-meta/pull/9",
+                    number=9,
+                    initiative_id="INIT-ACME-001",
+                    title="INIT-ACME-001",
+                )
+            ),
+            get_by_programme_and_number=AsyncMock(return_value=None),
+        ),
+        checkpoint_evidence_service=MagicMock(
+            evaluate=AsyncMock(
+                return_value=CheckpointStatusResult(
+                    checkpoint_id=PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID,
+                    owner="acme",
+                    repo="prayog-meta",
+                    pr_number=9,
+                    verdict=CheckpointVerdictType.SATISFIED,
+                    checked_at=datetime.now(timezone.utc),
+                )
+            )
+        ),
     )
 
 
@@ -454,7 +503,7 @@ async def test_spec_wave_start_ok(tmp_path: Path) -> None:
 
 def test_spec_head_branch_ignores_wave_and_slug(tmp_path: Path) -> None:
     req = _spec_req(tmp_path, wave_id="W2", branch_slug="ignored-slug")
-    assert req.head_branch() == "feature/INIT-ACME-001-spec"
+    assert req.head_branch("INIT-ACME-001") == "feature/INIT-ACME-001-spec"
     assert _implement_req().head_branch() == "feature/INIT-ACME-001-w0-unit-test"
 
 
@@ -473,11 +522,19 @@ def test_spec_requires_meta_pr_url(tmp_path: Path) -> None:
         )
 
 
-def test_spec_requires_workspace_path(tmp_path: Path) -> None:
-    with pytest.raises(PydanticValidationError):
-        SpecWaveStartRequest.model_validate(
-            {k: v for k, v in _spec_req(tmp_path).model_dump().items() if k != "workspace_path"}
-        )
+def test_spec_allows_omitted_workspace_path(tmp_path: Path) -> None:
+    req = SpecWaveStartRequest.model_validate(
+        {k: v for k, v in _spec_req(tmp_path).model_dump().items() if k != "workspace_path"}
+    )
+    assert req.workspace_path is None
+
+
+def test_implement_omitted_branch_slug_defaults() -> None:
+    body = _implement_req().model_dump()
+    del body["branch_slug"]
+    req = ImplementWaveStartRequest.model_validate(body)
+    assert req.branch_slug == IMPLEMENT_DEFAULT_BRANCH_SLUG
+    assert req.head_branch() == "feature/INIT-ACME-001-w0-implement"
 
 
 @pytest.mark.asyncio
@@ -675,3 +732,246 @@ async def test_implement_mismatch_422_zero_enqueue(tmp_path: Path) -> None:
     enqueue = service._job_repository.enqueue
     assert isinstance(enqueue, AsyncMock)
     assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_cap01_not_satisfied_422_zero_enqueue(tmp_path: Path) -> None:
+    service = _service()
+    service._checkpoint_evidence.evaluate = AsyncMock(
+        return_value=CheckpointStatusResult(
+            checkpoint_id=PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID,
+            owner="acme",
+            repo="prayog-meta",
+            pr_number=9,
+            verdict=CheckpointVerdictType.NOT_SATISFIED,
+            checked_at=datetime.now(timezone.utc),
+            stale_reason="stale — new commits since approval",
+        )
+    )
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(_spec_req(tmp_path))
+    assert exc_info.value.details.get("reason") == "cap01_not_satisfied"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_not_onboarded_422_zero_enqueue(tmp_path: Path) -> None:
+    service = _service()
+    tenant_id = uuid4()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=tenant_id,
+            workspace_root=str(tmp_path),
+            pat="secret-pat",
+            org="acme",
+            repo="widget",
+        )
+    )
+    service._programme_repository.get_by_tenant_id = AsyncMock(
+        return_value=ProgrammeReadModel(
+            id=uuid4(),
+            name="acme",
+            tenant_id=tenant_id,
+            workspace_root=str(tmp_path),
+            meta_org="acme",
+            meta_repo="prayog-meta",
+            lane_defaults=ProgrammeLaneDefaultsDocument(),
+        )
+    )
+    service._programme_meta_pr_repository.get_by_programme_and_url = AsyncMock(return_value=None)
+    service._programme_meta_pr_repository.get_by_programme_and_number = AsyncMock(return_value=None)
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(_spec_req(tmp_path))
+    assert exc_info.value.details.get("reason") == "meta_pr_not_onboarded"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_paths_unregistered_422_zero_enqueue(tmp_path: Path) -> None:
+    service = _service()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(return_value=None)
+    req = _spec_req(tmp_path, workspace_path=None, meta_workspace_path=None)
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(req)
+    assert exc_info.value.details.get("reason") == "unregistered_repo"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_paths_resolves_app_and_meta(tmp_path: Path) -> None:
+    service = _service()
+    tenant_id = uuid4()
+    cred = TenantWorkspaceCredential(
+        tenant_id=tenant_id,
+        workspace_root=str(tmp_path),
+        pat="secret-pat",
+        org="acme",
+        repo="widget",
+    )
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(return_value=cred)
+    app_resolved = str(tmp_path / "acme" / "widget")
+    meta_resolved = str(tmp_path / "acme" / "prayog-meta")
+    service._tenant_git_workspace_client.resolve_workspace = AsyncMock(
+        side_effect=[
+            WorkspaceResolveResult(path=app_resolved, mode=WorkspaceResolveModeType.CLONED),
+            WorkspaceResolveResult(path=meta_resolved, mode=WorkspaceResolveModeType.FETCHED),
+        ]
+    )
+    programme = ProgrammeReadModel(
+        id=uuid4(),
+        name="acme",
+        tenant_id=tenant_id,
+        workspace_root=str(tmp_path),
+        meta_org="acme",
+        meta_repo="prayog-meta",
+        lane_defaults=ProgrammeLaneDefaultsDocument(),
+    )
+    service._programme_repository.get_by_tenant_id = AsyncMock(return_value=programme)
+    service._programme_repository.get_pat = AsyncMock(return_value="programme-pat")
+    req = _spec_req(tmp_path, workspace_path=None, meta_workspace_path=None)
+    response = await service.start_spec_wave(req)
+    assert response.run_id
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_args is not None
+    raw = enqueue.await_args.args[1].payload.model_dump()
+    assert raw["workspace_path"] == app_resolved
+    assert raw["meta_workspace_path"] == meta_resolved
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_runner_empty_defaults_422(tmp_path: Path) -> None:
+    service = _service()
+    req = _spec_req(tmp_path, runner=None, model_id=None)
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(req)
+    assert exc_info.value.details.get("reason") == "empty_spec_lane_defaults"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_target_meta_repo_422(tmp_path: Path) -> None:
+    service = _service()
+    tenant_id = uuid4()
+    service._tenant_service.get_workspace_credential_for_repo = AsyncMock(
+        return_value=TenantWorkspaceCredential(
+            tenant_id=tenant_id,
+            workspace_root=str(tmp_path),
+            pat="secret-pat",
+            org="acme",
+            repo="prayog-meta",
+        )
+    )
+    service._programme_repository.get_by_tenant_id = AsyncMock(
+        return_value=ProgrammeReadModel(
+            id=uuid4(),
+            name="acme",
+            tenant_id=tenant_id,
+            workspace_root=str(tmp_path),
+            meta_org="acme",
+            meta_repo="prayog-meta",
+            lane_defaults=ProgrammeLaneDefaultsDocument(),
+        )
+    )
+    req = _spec_req(tmp_path, org="acme", repo="prayog-meta")
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(req)
+    assert exc_info.value.details.get("reason") == "spec_target_is_meta_repo"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_org_repo_derives_single_admitted(tmp_path: Path) -> None:
+    service = _service()
+    tenant_id = uuid4()
+    programme = ProgrammeReadModel(
+        id=uuid4(),
+        name="acme",
+        tenant_id=tenant_id,
+        workspace_root=str(tmp_path),
+        meta_org="acme",
+        meta_repo="prayog-meta",
+        lane_defaults=ProgrammeLaneDefaultsDocument(),
+    )
+    service._programme_repository.get_by_meta_org_repo = AsyncMock(return_value=programme)
+    service._tenant_service.list_admitted_repos = AsyncMock(
+        return_value=[TenantRepoRef(org="acme", repo="widget")]
+    )
+    req = _spec_req(tmp_path, org=None, repo=None)
+    response = await service.start_spec_wave(req)
+    assert response.run_id is not None
+    create = service._run_repository.create_run
+    assert isinstance(create, AsyncMock)
+    assert create.await_args is not None
+    created = create.await_args.args[1]
+    assert created.org == "acme"
+    assert created.repo == "widget"
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_org_repo_ambiguous_422(tmp_path: Path) -> None:
+    service = _service()
+    tenant_id = uuid4()
+    service._programme_repository.get_by_meta_org_repo = AsyncMock(
+        return_value=ProgrammeReadModel(
+            id=uuid4(),
+            name="acme",
+            tenant_id=tenant_id,
+            workspace_root=str(tmp_path),
+            meta_org="acme",
+            meta_repo="prayog-meta",
+            lane_defaults=ProgrammeLaneDefaultsDocument(),
+        )
+    )
+    service._tenant_service.list_admitted_repos = AsyncMock(
+        return_value=[
+            TenantRepoRef(org="acme", repo="widget"),
+            TenantRepoRef(org="acme", repo="ops"),
+        ]
+    )
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(_spec_req(tmp_path, org=None, repo=None))
+    assert exc_info.value.details.get("reason") == "ambiguous_app_repo"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_omitted_org_repo_no_admitted_422(tmp_path: Path) -> None:
+    service = _service()
+    service._programme_repository.get_by_meta_org_repo = AsyncMock(
+        return_value=ProgrammeReadModel(
+            id=uuid4(),
+            name="acme",
+            tenant_id=uuid4(),
+            workspace_root=str(tmp_path),
+            meta_org="acme",
+            meta_repo="prayog-meta",
+            lane_defaults=ProgrammeLaneDefaultsDocument(),
+        )
+    )
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(_spec_req(tmp_path, org=None, repo=None))
+    assert exc_info.value.details.get("reason") == "no_admitted_repo"
+    enqueue = service._job_repository.enqueue
+    assert isinstance(enqueue, AsyncMock)
+    assert enqueue.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_spec_incomplete_org_repo_422(tmp_path: Path) -> None:
+    service = _service()
+    with pytest.raises(UnprocessableEntityError) as exc_info:
+        await service.start_spec_wave(_spec_req(tmp_path, org="acme", repo=None))
+    assert exc_info.value.details.get("reason") == "incomplete_app_repo"

@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
+from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.implement_ticket_gate import (
     assert_dual_identity_agreement,
     assert_implement_ticket_id_well_formed,
@@ -25,6 +26,10 @@ from src.business_services.tenant_service import TenantService
 from src.business_services.trigger_router import API_TRIGGER_EVENT
 from src.business_services.workflow_engine import WorkflowEngine
 from src.configs.orchestration_settings import OrchestrationSettings
+from src.database.postgres.repository.programme_meta_pr_repository import (
+    ProgrammeMetaPrRepository,
+)
+from src.database.postgres.repository.programme_repository import ProgrammeRepository
 from src.database.postgres.repository.run_store_repository import JobRepository, RunRepository
 from src.exceptions.app_exceptions import (
     ConflictError,
@@ -32,7 +37,7 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
     ValidationError,
 )
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClient, ForgeClientFactory
 from src.infra_services.launchpad_client import HarnessReadinessError, LaunchpadClient
 from src.infra_services.launchpad_status_client import (
     LaunchpadStatusClient,
@@ -44,7 +49,15 @@ from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceError,
 )
 from src.models.board_models import BoardTicketStatusUpdateRequest
+from src.models.checkpoint_models import (
+    PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID,
+    CheckpointPrRef,
+    CheckpointVerdictType,
+)
+from src.models.lane_types import LaneType
 from src.models.meta_pr_models import MetaPrAcceptResult
+from src.models.programme_models import LaneRunnerDefault, ProgrammeReadModel
+from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
 from src.models.pr_branch_naming import branch_slug_from_head_ref
 from src.models.policy_types import WavePreconditionIdType
 from src.models.programme_readiness_models import ReadinessSourceType
@@ -52,6 +65,9 @@ from src.models.run_store_models import JobCreate, RunCreate, RunUpdate
 from src.models.run_store_types import JobStatusType, RunStatusType
 from src.models.wave_start_models import (
     CLOSEOUT_START_NODE,
+    SPEC_DEFAULT_BRANCH_SLUG,
+    SPEC_DEFAULT_START_NODE,
+    SPEC_DEFAULT_WAVE_ID,
     CloseoutWaveStartRequest,
     ImplementWaveStartRequest,
     SpecWaveStartRequest,
@@ -74,12 +90,15 @@ class WaveStartService(BaseBusinessService):
         run_repository: RunRepository,
         job_repository: JobRepository,
         meta_pr_intake: MetaPrIntakeService,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
         board_service: BoardService,
         tenant_service: TenantService,
         tenant_git_workspace_client: TenantGitWorkspaceClient,
         launchpad_client: LaunchpadClient,
         launchpad_status_client: LaunchpadStatusClient,
+        programme_repository: ProgrammeRepository,
+        programme_meta_pr_repository: ProgrammeMetaPrRepository,
+        checkpoint_evidence_service: CheckpointEvidenceService,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -89,12 +108,15 @@ class WaveStartService(BaseBusinessService):
         self._run_repository = run_repository
         self._job_repository = job_repository
         self._meta_pr_intake = meta_pr_intake
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
         self._board_service = board_service
         self._tenant_service = tenant_service
         self._tenant_git_workspace_client = tenant_git_workspace_client
         self._launchpad_client = launchpad_client
         self._launchpad_status_client = launchpad_status_client
+        self._programme_repository = programme_repository
+        self._programme_meta_pr_repository = programme_meta_pr_repository
+        self._checkpoint_evidence = checkpoint_evidence_service
         self._orchestration = OrchestrationSettings.get_instance()
 
     async def start_implement_wave(self, request: ImplementWaveStartRequest) -> WaveStartResponse:
@@ -299,61 +321,357 @@ class WaveStartService(BaseBusinessService):
             ) from exc
         return resolved.path
 
-    async def start_spec_wave(self, request: SpecWaveStartRequest) -> WaveStartResponse:
-        """Spec-lane start: meta accept-gate + dual workspace path checks."""
-        self._require_existing_directory(request.workspace_path, field="workspace_path")
-        self._require_existing_directory(request.meta_workspace_path, field="meta_workspace_path")
+    async def _resolve_spec_app_target(self, request: SpecWaveStartRequest) -> tuple[str, str]:
+        """Use supplied app org/repo, or the single admitted fleet repo for the meta programme."""
+        supplied_org = (request.org or "").strip()
+        supplied_repo = (request.repo or "").strip()
+        if bool(supplied_org) != bool(supplied_repo):
+            raise UnprocessableEntityError(
+                message="org and repo must both be supplied or both omitted",
+                details={"reason": "incomplete_app_repo"},
+            )
         try:
-            meta_accept = await self._meta_pr_intake.accept(
-                meta_pr_url=request.meta_pr_url,
-                expected_initiative_id=request.initiative_id,
-            )
-        except PydanticValidationError as exc:
-            self.logger.warning(
-                "Meta PR accept-gate rejected invalid payload",
-                meta_pr_url=request.meta_pr_url,
-                error=str(exc),
-            )
-            raise ValidationError(
-                message=f"meta PR payload invalid: {exc}",
-                field_errors={"meta_pr_url": "invalid pull request payload"},
-            ) from exc
+            ref = self._meta_pr_intake.parse_url(request.meta_pr_url)
         except ValueError as exc:
-            self.logger.warning(
-                "Meta PR accept-gate validation failed",
-                meta_pr_url=request.meta_pr_url,
-                initiative_id=request.initiative_id,
-                error=str(exc),
-            )
             raise ValidationError(
                 message=str(exc),
                 field_errors={"meta_pr_url": str(exc)},
             ) from exc
-        except httpx.HTTPError as exc:
-            self.logger.error("Meta PR accept-gate forge failure", error=str(exc), exc_info=True)
-            raise ServiceUnavailableError(
-                service_name="forge",
-                message="Unable to resolve meta_pr_url for spec accept-gate",
+        try:
+            async with self._postgres_service.transaction() as session:
+                programme = await self._programme_repository.get_by_meta_org_repo(
+                    session, org=ref.owner, repo=ref.repo
+                )
+        except ValueError as exc:
+            raise UnprocessableEntityError(
+                message=str(exc),
+                details={"reason": "ambiguous_programme_meta"},
             ) from exc
+        if programme is None:
+            if supplied_org and supplied_repo:
+                return supplied_org, supplied_repo
+            raise UnprocessableEntityError(
+                message="No programme matches the meta PR repository",
+                details={
+                    "reason": "programme_not_found_for_meta",
+                    "meta_org": ref.owner,
+                    "meta_repo": ref.repo,
+                },
+            )
+        admitted = await self._tenant_service.list_admitted_repos(programme.tenant_id)
+        app_repos = [
+            row
+            for row in admitted
+            if not (row.org == programme.meta_org and row.repo == programme.meta_repo)
+        ]
+        if supplied_org and supplied_repo:
+            if not any(row.org == supplied_org and row.repo == supplied_repo for row in app_repos):
+                raise UnprocessableEntityError(
+                    message="org/repo is not an admitted fleet repo for this programme",
+                    details={
+                        "reason": "not_admitted_repo",
+                        "org": supplied_org,
+                        "repo": supplied_repo,
+                    },
+                )
+            return supplied_org, supplied_repo
+        if len(app_repos) == 0:
+            raise UnprocessableEntityError(
+                message="Programme has no admitted app repo; admit one on Fleet",
+                details={"reason": "no_admitted_repo"},
+            )
+        if len(app_repos) > 1:
+            raise UnprocessableEntityError(
+                message="Multiple admitted app repos; specify org and repo",
+                details={
+                    "reason": "ambiguous_app_repo",
+                    "repos": [f"{row.org}/{row.repo}" for row in app_repos],
+                },
+            )
+        return app_repos[0].org, app_repos[0].repo
 
-        ticket = (
-            str(request.ticket_id).strip()
-            if request.ticket_id is not None and str(request.ticket_id).strip()
-            else f"{request.initiative_id}:{request.wave_id}"
+    def _require_resolved_spec_target(self, request: SpecWaveStartRequest) -> tuple[str, str]:
+        org = request.org
+        repo = request.repo
+        if org is None or repo is None:
+            raise UnprocessableEntityError(
+                message="org and repo must both be supplied or both omitted",
+                details={"reason": "incomplete_app_repo"},
+            )
+        return org, repo
+
+    async def _refuse_spec_target_is_meta(self, *, org: str, repo: str) -> None:
+        """REQ-07 — spec org/repo is the app repo, never the programme meta."""
+        programme = await self._find_programme_for_app_repo(org, repo)
+        if programme is None:
+            return
+        if org == programme.meta_org and repo == programme.meta_repo:
+            raise UnprocessableEntityError(
+                message="spec org/repo must be an app repo, not the programme meta repo",
+                details={
+                    "org": org,
+                    "repo": repo,
+                    "reason": "spec_target_is_meta_repo",
+                },
+            )
+
+    async def _require_meta_pr_onboarded(self, programme_id: UUID, meta_pr_url: str) -> None:
+        """Spec start requires an admitted meta PR when a programme is bound."""
+        try:
+            ref = self._meta_pr_intake.parse_url(meta_pr_url)
+        except ValueError:
+            return
+        async with self._postgres_service.transaction() as session:
+            by_url = await self._programme_meta_pr_repository.get_by_programme_and_url(
+                session, programme_id=programme_id, html_url=meta_pr_url.strip()
+            )
+            by_number = await self._programme_meta_pr_repository.get_by_programme_and_number(
+                session, programme_id=programme_id, number=ref.pr_number
+            )
+        if by_url is None and by_number is None:
+            raise UnprocessableEntityError(
+                message="Meta PR is not onboarded for this programme",
+                details={"reason": "meta_pr_not_onboarded"},
+            )
+
+    async def _find_programme_for_app_repo(
+        self, org: str, repo: str
+    ) -> Optional[ProgrammeReadModel]:
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org, repo=repo
         )
-        return await self._enqueue_wave(
-            request,
-            initiative_id=request.initiative_id,
-            wave_id=request.wave_id,
-            issue_number=request.issue_number,
-            ticket=ticket,
-            workspace_path=request.workspace_path,
-            meta_accept=meta_accept,
-            meta_workspace_path=request.meta_workspace_path,
-            prior_run_id=None,
-            lane="spec",
-            head_ref=request.head_branch(),
+        if credential is None:
+            return None
+        async with self._postgres_service.transaction() as session:
+            return await self._programme_repository.get_by_tenant_id(session, credential.tenant_id)
+
+    async def _resolve_spec_workspace_paths(self, request: SpecWaveStartRequest) -> tuple[str, str]:
+        """Honor explicit existing dirs; resolve omitted paths via tenant/programme."""
+        app_path = request.workspace_path
+        meta_path = request.meta_workspace_path
+        if app_path:
+            self._require_existing_directory(app_path, field="workspace_path")
+        if meta_path:
+            self._require_existing_directory(meta_path, field="meta_workspace_path")
+        if app_path and meta_path:
+            return app_path, meta_path
+
+        org, repo = self._require_resolved_spec_target(request)
+        credential = await self._tenant_service.get_workspace_credential_for_repo(
+            org=org,
+            repo=repo,
         )
+        if credential is None:
+            raise UnprocessableEntityError(
+                message=(
+                    "workspace paths omitted and org/repo is not Tenant-registered; "
+                    "refusing to guess a workspace"
+                ),
+                details={
+                    "org": org,
+                    "repo": repo,
+                    "reason": "unregistered_repo",
+                },
+            )
+        if not app_path:
+            try:
+                resolved = await self._tenant_git_workspace_client.resolve_workspace(credential)
+            except TenantGitWorkspaceError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={
+                        "org": exc.org,
+                        "repo": exc.repo,
+                        "reason": exc.reason,
+                    },
+                ) from exc
+            app_path = resolved.path
+        if not meta_path:
+            programme, pat = await self._load_programme_pat(credential.tenant_id)
+            meta_credential = TenantWorkspaceCredential(
+                tenant_id=programme.tenant_id,
+                workspace_root=programme.workspace_root,
+                pat=pat,
+                org=programme.meta_org,
+                repo=programme.meta_repo,
+            )
+            try:
+                resolved_meta = await self._tenant_git_workspace_client.resolve_workspace(
+                    meta_credential
+                )
+            except TenantGitWorkspaceError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={
+                        "org": exc.org,
+                        "repo": exc.repo,
+                        "reason": exc.reason,
+                    },
+                ) from exc
+            meta_path = resolved_meta.path
+        return app_path, meta_path
+
+    async def _load_programme_pat(self, tenant_id: UUID) -> tuple[ProgrammeReadModel, str]:
+        async with self._postgres_service.transaction() as session:
+            programme = await self._programme_repository.get_by_tenant_id(session, tenant_id)
+            if programme is None:
+                raise UnprocessableEntityError(
+                    message="No programme for tenant; cannot resolve spec workspaces",
+                    details={"tenant_id": str(tenant_id), "reason": "programme_missing"},
+                )
+            pat = await self._programme_repository.get_pat(session, programme.id)
+            if pat is None or not pat.strip():
+                raise UnprocessableEntityError(
+                    message="Programme PAT missing; cannot resolve meta workspace",
+                    details={"reason": "programme_pat_missing"},
+                )
+            return programme, pat
+
+    async def _resolve_spec_runner_model(self, request: SpecWaveStartRequest) -> tuple[str, str]:
+        runner = request.runner
+        model_id = request.model_id
+        if runner and model_id:
+            return runner, model_id
+        org, repo = self._require_resolved_spec_target(request)
+        defaults = await self._spec_lane_defaults(org=org, repo=repo)
+        resolved_runner = runner or (defaults.runner_id.strip() if defaults else "")
+        resolved_model = model_id or (
+            defaults.model_id.strip() if defaults is not None and defaults.model_id else ""
+        )
+        if not resolved_runner or not resolved_model:
+            raise UnprocessableEntityError(
+                message="lane_defaults[spec] is empty; refusing to invent runner or model",
+                details={
+                    "reason": "empty_spec_lane_defaults",
+                    "org": org,
+                    "repo": repo,
+                },
+            )
+        return resolved_runner, resolved_model
+
+    async def _spec_lane_defaults(self, *, org: str, repo: str) -> Optional[LaneRunnerDefault]:
+        programme = await self._find_programme_for_app_repo(org, repo)
+        if programme is None:
+            return None
+        return programme.lane_defaults.defaults.get(LaneType.SPEC)
+
+    async def _require_spec_cap01(
+        self,
+        meta_accept: MetaPrAcceptResult,
+        *,
+        forge_client: Optional[ForgeClient] = None,
+    ) -> None:
+        result = await self._checkpoint_evidence.evaluate(
+            PRD_IMPACT_ACCEPTANCE_CHECKPOINT_ID,
+            CheckpointPrRef(
+                owner=meta_accept.meta_owner,
+                repo=meta_accept.meta_repo,
+                number=meta_accept.meta_pr_number,
+            ),
+            forge_client=forge_client,
+        )
+        if result.verdict != CheckpointVerdictType.SATISFIED:
+            raise UnprocessableEntityError(
+                message="CAP-01 prd-impact-acceptance is not satisfied",
+                details={
+                    "reason": "cap01_not_satisfied",
+                    "verdict": result.verdict.value,
+                    "stale_reason": result.stale_reason,
+                    "missing_items": [m.model_dump(mode="json") for m in result.missing_items],
+                },
+            )
+
+    async def start_spec_wave(self, request: SpecWaveStartRequest) -> WaveStartResponse:
+        """Spec-lane start: resolve binds, CAP-01 fail-closed, then enqueue."""
+        org, repo = await self._resolve_spec_app_target(request)
+        request = request.model_copy(update={"org": org, "repo": repo})
+        await self._refuse_spec_target_is_meta(org=org, repo=repo)
+        workspace_path, meta_workspace_path = await self._resolve_spec_workspace_paths(request)
+        programme = await self._find_programme_for_app_repo(org, repo)
+        if programme is not None:
+            await self._require_meta_pr_onboarded(programme.id, request.meta_pr_url)
+        programme_forge: Optional[ForgeClient] = None
+        if programme is not None:
+            programme_forge = await self._forge_client_factory.for_programme(programme.id)
+        try:
+            try:
+                meta_accept = await self._meta_pr_intake.accept(
+                    meta_pr_url=request.meta_pr_url,
+                    expected_initiative_id=request.initiative_id,
+                    forge_client=programme_forge,
+                )
+            except PydanticValidationError as exc:
+                self.logger.warning(
+                    "Meta PR accept-gate rejected invalid payload",
+                    meta_pr_url=request.meta_pr_url,
+                    error=str(exc),
+                )
+                raise ValidationError(
+                    message=f"meta PR payload invalid: {exc}",
+                    field_errors={"meta_pr_url": "invalid pull request payload"},
+                ) from exc
+            except ValueError as exc:
+                self.logger.warning(
+                    "Meta PR accept-gate validation failed",
+                    meta_pr_url=request.meta_pr_url,
+                    initiative_id=request.initiative_id,
+                    error=str(exc),
+                )
+                raise ValidationError(
+                    message=str(exc),
+                    field_errors={"meta_pr_url": str(exc)},
+                ) from exc
+            except httpx.HTTPError as exc:
+                self.logger.error(
+                    "Meta PR accept-gate forge failure", error=str(exc), exc_info=True
+                )
+                raise ServiceUnavailableError(
+                    service_name="forge",
+                    message="Unable to resolve meta_pr_url for spec accept-gate",
+                ) from exc
+
+            initiative_id = meta_accept.derived_initiative_id
+            if initiative_id is None:
+                raise ValidationError(
+                    message="meta PR accept-gate did not derive an initiative id",
+                    field_errors={"meta_pr_url": "initiative_id missing"},
+                )
+            await self._require_spec_cap01(meta_accept, forge_client=programme_forge)
+            wave_id = request.wave_id.strip() if request.wave_id else SPEC_DEFAULT_WAVE_ID
+            start_node = request.start_node or SPEC_DEFAULT_START_NODE
+            branch_slug = request.branch_slug or SPEC_DEFAULT_BRANCH_SLUG
+            runner, model_id = await self._resolve_spec_runner_model(request)
+            targeting = request.as_targeting_fields(
+                initiative_id=initiative_id,
+                wave_id=wave_id,
+                branch_slug=branch_slug,
+                start_node=start_node,
+                runner=runner,
+                model_id=model_id,
+                org=org,
+                repo=repo,
+            )
+            ticket = (
+                str(request.ticket_id).strip()
+                if request.ticket_id is not None and str(request.ticket_id).strip()
+                else f"{initiative_id}:{wave_id}"
+            )
+            return await self._enqueue_wave(
+                targeting,
+                initiative_id=initiative_id,
+                wave_id=wave_id,
+                issue_number=request.issue_number,
+                ticket=ticket,
+                workspace_path=workspace_path,
+                meta_accept=meta_accept,
+                meta_workspace_path=meta_workspace_path,
+                prior_run_id=None,
+                lane="spec",
+                head_ref=request.head_branch(initiative_id),
+            )
+        finally:
+            if programme_forge is not None:
+                await programme_forge.close()
 
     async def start_closeout_wave(self, request: CloseoutWaveStartRequest) -> WaveStartResponse:
         """Pass-2 closeout start: fixed Enter-at learning-extract; required PR bind."""
@@ -397,11 +715,14 @@ class WaveStartService(BaseBusinessService):
     async def _resolve_closeout_pr_head(self, request: CloseoutWaveStartRequest) -> str:
         """Resolve publish head from the open wave PR (SSOT for Pass-2)."""
         try:
-            pr = await self._forge_client.get_pull_request(
-                request.org,
-                request.repo,
-                request.pr_number,
-            )
+            async with self._forge_client_factory.session_for_repo(
+                request.org, request.repo
+            ) as forge:
+                pr = await forge.get_pull_request(
+                    request.org,
+                    request.repo,
+                    request.pr_number,
+                )
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code if exc.response is not None else None
             if status == 404:

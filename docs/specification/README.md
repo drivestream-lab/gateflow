@@ -22,6 +22,9 @@ Verify: `verify_spec_lane` / `verify_implement_lane` (Pass-1). Product smoke: `v
 combined create+attach+JWT; login snapshot + select-programme; CAP-01…04 /
 REQ-01–REQ-29. Meta PRD / impact map **not filed** — not feasibility-ready.)
 
+**Local backfill (019, Gate 1 skipped):** [`product/INIT-GATEFLOW-019-gateflow.md`](product/INIT-GATEFLOW-019-gateflow.md)
+(Lane start binds — meta PR picker, operator-shaped spec start, ground `c575356`. Plan: [`reports/Implementation-Plan-INIT-GATEFLOW-019.md`](reports/Implementation-Plan-INIT-GATEFLOW-019.md). Consumer is gateflow-ops 019.)
+
 **Active initiative (015 spec draft):** [`product/INIT-GATEFLOW-015-gateflow.md`](product/INIT-GATEFLOW-015-gateflow.md)
 (Skill efficacy, factory effectiveness, and delivery-copilot productivity
 metrics — CAP-01 outcome-persistence prerequisite fix (`stage_completed` +

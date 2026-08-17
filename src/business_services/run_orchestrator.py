@@ -36,7 +36,7 @@ from src.database.postgres.repository.run_store_repository import (
 )
 from src.exceptions.app_exceptions import UnprocessableEntityError, ValidationError
 from src.infra_services.cursor_agent_runner import CursorAgentRunner
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClientFactory
 from src.infra_services.launchpad_client import (
     HarnessReadinessError,
     LaunchpadClient,
@@ -102,7 +102,7 @@ class RunOrchestrator(BaseBusinessService):
         launchpad_client: LaunchpadClient,
         launchpad_status_client: LaunchpadStatusClient,
         cursor_agent_runner: CursorAgentRunner,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
         forge_action_service: ForgeActionService,
         run_repository: RunRepository,
         run_event_repository: RunEventRepository,
@@ -125,7 +125,7 @@ class RunOrchestrator(BaseBusinessService):
         self._launchpad_client = launchpad_client
         self._launchpad_status_client = launchpad_status_client
         self._cursor_agent_runner = cursor_agent_runner
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
         self._forge_action_service = forge_action_service
         self._run_repository = run_repository
         self._run_event_repository = run_event_repository
@@ -1172,7 +1172,8 @@ class RunOrchestrator(BaseBusinessService):
 
         head = self._require_run_head_branch(run=run, payload=payload)
         try:
-            remote_tip = await self._forge_client.get_branch_tip_sha(run.org, run.repo, branch=head)
+            async with self._forge_client_factory.session_for_repo(run.org, run.repo) as forge:
+                remote_tip = await forge.get_branch_tip_sha(run.org, run.repo, branch=head)
         except Exception as tip_exc:
             self.logger.error(
                 "Failed to resolve run head tip for stage publish",
@@ -1211,14 +1212,15 @@ class RunOrchestrator(BaseBusinessService):
 
         message = f"chore(gateflow): stage {node_id} workspace publish"
         try:
-            result = await self._forge_client.commit_paths_to_branch(
-                run.org,
-                run.repo,
-                branch=head,
-                workspace_path=workspace_path,
-                paths=paths,
-                message=message,
-            )
+            async with self._forge_client_factory.session_for_repo(run.org, run.repo) as forge:
+                result = await forge.commit_paths_to_branch(
+                    run.org,
+                    run.repo,
+                    branch=head,
+                    workspace_path=workspace_path,
+                    paths=paths,
+                    message=message,
+                )
         except Exception as exc:
             self.logger.error(
                 "Stage forge commit failed",
@@ -1346,7 +1348,8 @@ class RunOrchestrator(BaseBusinessService):
                     wave_id=str(wave_id),
                 )
             try:
-                await self._forge_client.get_branch_tip_sha(org, repo, branch=head)
+                async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                    await forge.get_branch_tip_sha(org, repo, branch=head)
             except Exception as exc:
                 raise ValueError("continuation branch not found on remote") from exc
             self.logger.info(
@@ -1371,12 +1374,13 @@ class RunOrchestrator(BaseBusinessService):
             )
             return head, BranchResolveModeType.CONTINUATION
 
-        await self._forge_client.ensure_branch_from_base(
-            org,
-            repo,
-            branch=head,
-            base=base,
-        )
+        async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+            await forge.ensure_branch_from_base(
+                org,
+                repo,
+                branch=head,
+                base=base,
+            )
         self.logger.info(
             "Resolved new-wave head from live base tip",
             org=org,
@@ -1389,7 +1393,8 @@ class RunOrchestrator(BaseBusinessService):
 
     async def _remote_branch_exists(self, org: str, repo: str, branch: str) -> bool:
         try:
-            tip = await self._forge_client.get_branch_tip_sha(org, repo, branch=branch)
+            async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                tip = await forge.get_branch_tip_sha(org, repo, branch=branch)
         except Exception:
             return False
         return bool(str(tip).strip())

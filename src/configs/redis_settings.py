@@ -23,6 +23,7 @@ class RedisSettings(BaseSettings):
     - REDIS_POOL_MIN_SIZE: Minimum connection pool size
     - REDIS_POOL_MAX_SIZE: Maximum connection pool size
     - REDIS_DEFAULT_TTL: Default TTL for cache items in seconds
+    - REDIS_META_PR_PICKER_TTL: TTL for meta PR picker GitHub + CAP-01 cache
     """
 
     PREFIX = "REDIS"
@@ -48,6 +49,11 @@ class RedisSettings(BaseSettings):
 
     # Cache settings
     default_ttl: int = Field(default=3600, description="Default TTL for cache items in seconds")
+    meta_pr_picker_ttl: int = Field(
+        default=36_000,
+        description="TTL in seconds for meta PR picker GitHub + CAP-01 cache (default 10 hours)",
+        ge=1,
+    )
 
     @computed_field
     @property

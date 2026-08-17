@@ -35,6 +35,8 @@ def configure_container() -> Injector:
     from src.business_services.job_worker_service import JobWorkerService
     from src.business_services.learning_ingest_service import LearningIngestService
     from src.business_services.meta_pr_intake import MetaPrIntakeService
+    from src.business_services.meta_pr_picker_service import MetaPrPickerService
+    from src.business_services.runner_catalogue_service import RunnerCatalogueService
     from src.business_services.metrics_emitter import MetricsEmitter
     from src.business_services.notifier import Notifier
     from src.business_services.skill_efficacy_service import SkillEfficacyService
@@ -122,6 +124,8 @@ def configure_container() -> Injector:
             PlatformAgentCatalogueService,
             CatalogueConnectionService,
             CheckpointEvidenceService,
+            MetaPrPickerService,
+            RunnerCatalogueService,
             ForgeActionService,
             LearningIngestService,
             RunOrchestrator,

@@ -10,7 +10,7 @@ from typing import Optional
 from injector import inject
 
 from src.business_services.base_business_service import BaseBusinessService
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClientFactory
 from src.models.control_plane_models import RunEventComment
 from src.models.policy_types import RunEventNameType
 
@@ -27,9 +27,9 @@ class Notifier(BaseBusinessService):
     """Post FR-11 run-event comments; failures return notify_pending without raising."""
 
     @inject
-    def __init__(self, forge_client: ForgeClient) -> None:
+    def __init__(self, forge_client_factory: ForgeClientFactory) -> None:
         super().__init__()
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
 
     @staticmethod
     def posts_run_event_to_pr(event: RunEventNameType) -> bool:
@@ -75,7 +75,8 @@ class Notifier(BaseBusinessService):
 
         body = self.format_run_event_comment(event)
         try:
-            comment_id = await self._forge_client.post_comment(org, repo, issue_number, body)
+            async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                comment_id = await forge.post_comment(org, repo, issue_number, body)
             self.logger.info(
                 "Run event comment posted",
                 run_id=str(event.run_id),
@@ -118,7 +119,8 @@ class Notifier(BaseBusinessService):
             ]
         )
         try:
-            await self._forge_client.post_comment(org, repo, issue_number, body)
+            async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                await forge.post_comment(org, repo, issue_number, body)
             return False
         except Exception as exc:
             self.logger.error(
