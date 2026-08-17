@@ -1,6 +1,8 @@
 """ForgeClient — outbound GitHub comments/PR/board ops with forbidden-op guards (ADR-003)."""
 
 import base64
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any, NamedTuple, Optional, Sequence
 from uuid import UUID
@@ -11,6 +13,7 @@ from injector import inject
 from src.configs.app_settings import AppSettings, Environment
 from src.configs.github_settings import GithubSettings
 from src.database.postgres.repository.programme_repository import ProgrammeRepository
+from src.database.postgres.repository.tenant_repository import TenantRepository
 from src.exceptions.app_exceptions import NotFoundError, UnprocessableEntityError
 from src.infra_services.base_infra_service import BaseInfraService
 from src.infra_services.github_token_provider import GithubTokenProvider, ProgrammePatTokenProvider
@@ -478,6 +481,44 @@ class ForgeClient(BaseInfraService):
         )
         return document
 
+    async def list_pull_requests(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        state: str = "all",
+        per_page: int = 20,
+        page: int = 1,
+    ) -> list[GithubPullRequestDocument]:
+        """List pull requests (open + merged via state=all). Read-only GitHub."""
+        client = self._require_client()
+        response = await client.get(
+            f"/repos/{owner}/{repo}/pulls",
+            params={
+                "state": state,
+                "per_page": per_page,
+                "page": page,
+                "sort": "created",
+                "direction": "desc",
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, list):
+            raise ValueError("GitHub pull-request list response must be a list")
+        documents = [GithubPullRequestDocument.model_validate(item) for item in payload]
+        logger.info(
+            "ForgeClient pull requests listed",
+            owner=owner,
+            repo=repo,
+            state=state,
+            per_page=per_page,
+            page=page,
+            count=len(documents),
+            operation="list_pull_requests",
+        )
+        return documents
+
     async def list_reviews(
         self, owner: str, repo: str, pr_number: int
     ) -> list[GithubPullRequestReviewDocument]:
@@ -771,6 +812,18 @@ class ForgeClient(BaseInfraService):
             f"/repos/{owner}/{repo}/issues",
             params=params,
         )
+        # 404 = repo missing or token cannot see it; 410 = issues disabled.
+        # Read path: empty list, not transport failure (initiative list is
+        # runs ∪ EPICs — a missing board must not 503 the whole composition).
+        if response.status_code in {404, 410}:
+            logger.warning(
+                "ForgeClient board issues unavailable",
+                owner=owner,
+                repo=repo,
+                status_code=response.status_code,
+                operation="board_find_issues_by_labels",
+            )
+            return []
         response.raise_for_status()
         data = response.json()
         issues = [item for item in data if "pull_request" not in item]
@@ -1168,9 +1221,11 @@ class ForgeClientFactory:
         self,
         postgres_service: PostgresService,
         programme_repository: ProgrammeRepository,
+        tenant_repository: TenantRepository,
     ) -> None:
         self._postgres_service = postgres_service
         self._programme_repository = programme_repository
+        self._tenant_repository = tenant_repository
 
     def for_pat(self, pat: str) -> ForgeClient:
         """Construct an uninitialized ForgeClient bound to the given Programme PAT."""
@@ -1194,6 +1249,71 @@ class ForgeClientFactory:
         client = self.for_pat(pat)
         await client.initialize()
         return client
+
+    async def for_tenant(self, tenant_id: UUID) -> ForgeClient:
+        """Resolve the tenant's programme and return its PAT-bound ForgeClient."""
+        async with self._postgres_service.transaction() as session:
+            programme = await self._programme_repository.get_by_tenant_id(session, tenant_id)
+        if programme is None:
+            raise NotFoundError(resource_type="programme", resource_id=tenant_id)
+        return await self.for_programme(programme.id)
+
+    async def for_repo(self, org: str, repo: str) -> ForgeClient:
+        """Resolve programme from an app repo or programme meta repo, then bind PAT."""
+        async with self._postgres_service.transaction() as session:
+            try:
+                credential = await self._tenant_repository.find_workspace_credential_by_org_repo(
+                    session, org=org, repo=repo
+                )
+            except ValueError as exc:
+                raise UnprocessableEntityError(
+                    message=str(exc),
+                    details={"reason": "ambiguous_tenant_repo", "org": org, "repo": repo},
+                ) from exc
+            if credential is not None:
+                programme = await self._programme_repository.get_by_tenant_id(
+                    session, credential.tenant_id
+                )
+            else:
+                try:
+                    programme = await self._programme_repository.get_by_meta_org_repo(
+                        session, org=org, repo=repo
+                    )
+                except ValueError as exc:
+                    raise UnprocessableEntityError(
+                        message=str(exc),
+                        details={"reason": "ambiguous_meta_repo", "org": org, "repo": repo},
+                    ) from exc
+        if programme is None:
+            raise UnprocessableEntityError(
+                message="No programme owns this repository for Forge access",
+                details={"reason": "programme_forge_unresolved", "org": org, "repo": repo},
+            )
+        return await self.for_programme(programme.id)
+
+    @asynccontextmanager
+    async def session_for_programme(self, programme_id: UUID) -> AsyncIterator[ForgeClient]:
+        client = await self.for_programme(programme_id)
+        try:
+            yield client
+        finally:
+            await client.close()
+
+    @asynccontextmanager
+    async def session_for_tenant(self, tenant_id: UUID) -> AsyncIterator[ForgeClient]:
+        client = await self.for_tenant(tenant_id)
+        try:
+            yield client
+        finally:
+            await client.close()
+
+    @asynccontextmanager
+    async def session_for_repo(self, org: str, repo: str) -> AsyncIterator[ForgeClient]:
+        client = await self.for_repo(org, repo)
+        try:
+            yield client
+        finally:
+            await client.close()
 
 
 def get_forge_client() -> ForgeClient:

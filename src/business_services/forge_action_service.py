@@ -25,7 +25,7 @@ from src.database.postgres.repository.run_store_repository import (
     RunRepository,
 )
 from src.exceptions.app_exceptions import NotFoundError, UnprocessableEntityError, ValidationError
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClientFactory
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import (
     BoardTicketCreateRequest,
@@ -77,7 +77,7 @@ class ForgeActionService(BaseBusinessService):
     def __init__(
         self,
         postgres_service: PostgresService,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
         board_service: BoardService,
         workflow_engine: WorkflowEngine,
         handoff_reader: HandoffReader,
@@ -86,7 +86,7 @@ class ForgeActionService(BaseBusinessService):
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
         self._board_service = board_service
         self._workflow_engine = workflow_engine
         self._handoff_reader = handoff_reader
@@ -397,17 +397,18 @@ class ForgeActionService(BaseBusinessService):
             )
         body = body_file.read_text(encoding="utf-8")
 
-        pr_number = await self._forge_client.open_draft_pr(
-            org,
-            repo,
-            title=effective.title,
-            body=body,
-            head=str(head).strip(),
-            base=str(base).strip(),
-            draft=effective.draft,
-            apply_labels=effective.apply_labels,
-            remove_labels=effective.remove_labels,
-        )
+        async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+            pr_number = await forge.open_draft_pr(
+                org,
+                repo,
+                title=effective.title,
+                body=body,
+                head=str(head).strip(),
+                base=str(base).strip(),
+                draft=effective.draft,
+                apply_labels=effective.apply_labels,
+                remove_labels=effective.remove_labels,
+            )
         self.logger.info(
             "Forge open_draft_pr executed",
             org=org,

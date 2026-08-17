@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.business_services.meta_pr_intake import MetaPrIntakeService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.models.meta_pr_models import (
     GithubPullRequestDocument,
     GithubPullRequestHead,
@@ -13,7 +14,8 @@ from src.models.meta_pr_models import (
 
 
 def _service(forge: MagicMock | None = None) -> MetaPrIntakeService:
-    return MetaPrIntakeService(forge_client=forge or MagicMock())
+    factory, _ = mock_forge_factory(forge)
+    return MetaPrIntakeService(forge_client_factory=factory)
 
 
 def test_parse_url_ok() -> None:
@@ -79,3 +81,19 @@ async def test_accept_initiative_mismatch() -> None:
             meta_pr_url="https://github.com/acme/prayog-meta/pull/9",
             expected_initiative_id="INIT-ACME-001",
         )
+
+
+@pytest.mark.asyncio
+async def test_accept_derives_initiative_when_expected_omitted() -> None:
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(
+        return_value=GithubPullRequestDocument(
+            title="INIT-ACME-001 intake",
+            body="",
+            head=GithubPullRequestHead(sha="abc123def"),
+        )
+    )
+    result = await _service(forge).accept(
+        meta_pr_url="https://github.com/acme/prayog-meta/pull/9",
+    )
+    assert result.derived_initiative_id == "INIT-ACME-001"

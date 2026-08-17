@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.business_services.merge_readout_service import MergeReadoutService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.exceptions.app_exceptions import NotFoundError
 from src.models.board_models import BoardTicketListResponse, BoardTicketResource
 from src.models.checkpoint_models import (
@@ -124,7 +125,7 @@ def _build(
         board_service=board,
         checkpoint_evidence_service=checkpoint_svc,
         wave_map_service=wave_map_svc,
-        forge_client=forge,
+        forge_client_factory=mock_forge_factory(forge)[0],
     )
 
 

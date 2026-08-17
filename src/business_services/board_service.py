@@ -20,6 +20,7 @@ from src.infra_services.forge_client import (
     BOARD_INITIATIVE_LABEL_PREFIX,
     BOARD_TYPE_LABEL_PREFIX,
     ForgeClient,
+    ForgeClientFactory,
 )
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import (
@@ -48,12 +49,12 @@ class BoardService(BaseBusinessService):
     @inject
     def __init__(
         self,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
         postgres_service: PostgresService,
         tenant_repository: TenantRepository,
     ) -> None:
         super().__init__()
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
         self._postgres_service = postgres_service
         self._tenant_repository = tenant_repository
 
@@ -108,6 +109,7 @@ class BoardService(BaseBusinessService):
 
     async def _wait_until_labels_listed(
         self,
+        forge: ForgeClient,
         org: str,
         repo: str,
         *,
@@ -118,7 +120,7 @@ class BoardService(BaseBusinessService):
         for attempt, delay_s in enumerate(_LABEL_VISIBLE_RETRY_DELAYS_S):
             if delay_s > 0:
                 await asyncio.sleep(delay_s)
-            found = await self._forge_client.find_issues_by_labels(
+            found = await forge.find_issues_by_labels(
                 org,
                 repo,
                 labels=labels,
@@ -153,13 +155,16 @@ class BoardService(BaseBusinessService):
             )
         issue_number = self._parse_ticket_id(ticket_id)
         try:
-            data = await self._forge_client.update_issue_status(
-                request.org,
-                request.repo,
-                issue_number,
-                state=request.state,
-                column=request.column,
-            )
+            async with self._forge_client_factory.session_for_repo(
+                request.org, request.repo
+            ) as forge:
+                data = await forge.update_issue_status(
+                    request.org,
+                    request.repo,
+                    issue_number,
+                    state=request.state,
+                    column=request.column,
+                )
         except ValueError as exc:
             raise ValidationError(message=str(exc)) from exc
         except RuntimeError as exc:
@@ -192,7 +197,8 @@ class BoardService(BaseBusinessService):
         """Fetch one board ticket by numeric issue id (read-only)."""
         issue_number = self._parse_ticket_id(ticket_id)
         try:
-            document = await self._forge_client.get_issue(org, repo, issue_number)
+            async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                document = await forge.get_issue(org, repo, issue_number)
         except httpx.HTTPError as exc:
             raise ServiceUnavailableError(
                 service_name="github",
@@ -214,12 +220,15 @@ class BoardService(BaseBusinessService):
             )
         issue_number = self._parse_ticket_id(ticket_id)
         try:
-            link_ref = await self._forge_client.link_pull_request(
-                request.org,
-                request.repo,
-                issue_number,
-                request.pr_number,
-            )
+            async with self._forge_client_factory.session_for_repo(
+                request.org, request.repo
+            ) as forge:
+                link_ref = await forge.link_pull_request(
+                    request.org,
+                    request.repo,
+                    issue_number,
+                    request.pr_number,
+                )
         except httpx.HTTPError as exc:
             raise ServiceUnavailableError(
                 service_name="github",
@@ -276,43 +285,53 @@ class BoardService(BaseBusinessService):
         if idempotency_key:
             target_labels.append(ForgeClient.idempotency_label(idempotency_key))
 
-        try:
-            if idempotency_key:
-                existing_by_key = await self._forge_client.find_issues_by_labels(
-                    request.org,
-                    request.repo,
-                    labels=[ForgeClient.idempotency_label(idempotency_key)],
-                    state="all",
-                )
-                if existing_by_key:
-                    ticket = self._to_ticket(existing_by_key[0], request.org, request.repo)
-                    return await self._finalize_with_project(
-                        request=request,
-                        ticket=ticket,
-                        project_owner=project_owner,
-                        project_number=project_number,
-                        created=False,
-                        idempotent_replay=True,
-                        created_resources=[],
-                        failed_resources=[],
-                        partial=False,
-                    )
+        if request.tenant_id is not None:
+            forge_session = self._forge_client_factory.session_for_tenant(request.tenant_id)
+        else:
+            forge_session = self._forge_client_factory.session_for_repo(request.org, request.repo)
 
-            existing = await self._forge_client.find_issues_by_labels(
+        try:
+            async with forge_session as forge:
+                return await self._create_ticket_with_forge(
+                    forge,
+                    request,
+                    project_owner=project_owner,
+                    project_number=project_number,
+                    type_label=type_label,
+                    initiative_label=initiative_label,
+                    target_labels=target_labels,
+                    idempotency_key=idempotency_key,
+                )
+        except httpx.HTTPError as exc:
+            raise ServiceUnavailableError(
+                service_name="github",
+                message="Forge board create failed",
+                details={"error": str(exc)},
+            ) from exc
+
+    async def _create_ticket_with_forge(
+        self,
+        forge: ForgeClient,
+        request: BoardTicketCreateRequest,
+        *,
+        project_owner: str,
+        project_number: int,
+        type_label: str,
+        initiative_label: str,
+        target_labels: list[str],
+        idempotency_key: Optional[str],
+    ) -> BoardTicketCreateResponse:
+        if idempotency_key:
+            existing_by_key = await forge.find_issues_by_labels(
                 request.org,
                 request.repo,
-                labels=[type_label, initiative_label],
+                labels=[ForgeClient.idempotency_label(idempotency_key)],
                 state="all",
             )
-            if existing:
-                ticket = self._to_ticket(existing[0], request.org, request.repo)
-                self.logger.info(
-                    "Board ticket idempotent hit",
-                    ticket_id=ticket.ticket_id,
-                    initiative_id=request.initiative_id,
-                    operation="create_ticket",
-                )
+            if existing_by_key:
+                ticket = self._to_ticket(existing_by_key[0], request.org, request.repo)
                 return await self._finalize_with_project(
+                    forge,
                     request=request,
                     ticket=ticket,
                     project_owner=project_owner,
@@ -324,68 +343,88 @@ class BoardService(BaseBusinessService):
                     partial=False,
                 )
 
-            # Multi-step: create issue body first, then apply labels (partial-failure surface).
-            created_resources: list[str] = []
-            failed_resources: list[BoardFailedResource] = []
-            body = request.body or (
-                f"gateflow board ticket\n"
-                f"type: {request.ticket_type.value}\n"
-                f"initiative_id: {request.initiative_id}\n"
+        existing = await forge.find_issues_by_labels(
+            request.org,
+            request.repo,
+            labels=[type_label, initiative_label],
+            state="all",
+        )
+        if existing:
+            ticket = self._to_ticket(existing[0], request.org, request.repo)
+            self.logger.info(
+                "Board ticket idempotent hit",
+                ticket_id=ticket.ticket_id,
+                initiative_id=request.initiative_id,
+                operation="create_ticket",
             )
-            created = await self._forge_client.create_issue(
-                request.org,
-                request.repo,
-                title=request.title,
-                body=body,
-                labels=[],
-            )
-            created_resources.append("issue")
-            issue_number = int(created["number"])
-
-            try:
-                labeled = await self._forge_client.apply_issue_labels(
-                    request.org,
-                    request.repo,
-                    issue_number,
-                    target_labels,
-                )
-                created_resources.append("labels")
-                ticket = self._to_ticket(labeled, request.org, request.repo)
-                partial = False
-                # Warm GitHub label index before returning so immediate replay hits.
-                await self._wait_until_labels_listed(
-                    request.org,
-                    request.repo,
-                    labels=[type_label, initiative_label],
-                    issue_number=issue_number,
-                )
-            except httpx.HTTPError as label_exc:
-                failed_resources.append(
-                    BoardFailedResource(resource="labels", reason=str(label_exc))
-                )
-                ticket = self._to_ticket(created, request.org, request.repo)
-                partial = True
-
             return await self._finalize_with_project(
+                forge,
                 request=request,
                 ticket=ticket,
                 project_owner=project_owner,
                 project_number=project_number,
-                created=True,
-                idempotent_replay=False,
-                created_resources=created_resources,
-                failed_resources=failed_resources,
-                partial=partial,
+                created=False,
+                idempotent_replay=True,
+                created_resources=[],
+                failed_resources=[],
+                partial=False,
             )
-        except httpx.HTTPError as exc:
-            raise ServiceUnavailableError(
-                service_name="github",
-                message="Forge board create failed",
-                details={"error": str(exc)},
-            ) from exc
+
+        created_resources: list[str] = []
+        failed_resources: list[BoardFailedResource] = []
+        body = request.body or (
+            f"gateflow board ticket\n"
+            f"type: {request.ticket_type.value}\n"
+            f"initiative_id: {request.initiative_id}\n"
+        )
+        created = await forge.create_issue(
+            request.org,
+            request.repo,
+            title=request.title,
+            body=body,
+            labels=[],
+        )
+        created_resources.append("issue")
+        issue_number = int(created["number"])
+
+        try:
+            labeled = await forge.apply_issue_labels(
+                request.org,
+                request.repo,
+                issue_number,
+                target_labels,
+            )
+            created_resources.append("labels")
+            ticket = self._to_ticket(labeled, request.org, request.repo)
+            partial = False
+            await self._wait_until_labels_listed(
+                forge,
+                request.org,
+                request.repo,
+                labels=[type_label, initiative_label],
+                issue_number=issue_number,
+            )
+        except httpx.HTTPError as label_exc:
+            failed_resources.append(BoardFailedResource(resource="labels", reason=str(label_exc)))
+            ticket = self._to_ticket(created, request.org, request.repo)
+            partial = True
+
+        return await self._finalize_with_project(
+            forge,
+            request=request,
+            ticket=ticket,
+            project_owner=project_owner,
+            project_number=project_number,
+            created=True,
+            idempotent_replay=False,
+            created_resources=created_resources,
+            failed_resources=failed_resources,
+            partial=partial,
+        )
 
     async def _finalize_with_project(
         self,
+        forge: ForgeClient,
         *,
         request: BoardTicketCreateRequest,
         ticket: BoardTicketResource,
@@ -402,7 +441,7 @@ class BoardService(BaseBusinessService):
         failures = list(failed_resources)
         is_partial = partial
         try:
-            outcome = await self._forge_client.ensure_issue_on_project(
+            outcome = await forge.ensure_issue_on_project(
                 request.org,
                 request.repo,
                 ticket.number,
@@ -428,7 +467,7 @@ class BoardService(BaseBusinessService):
                 parent_number = int(parent_raw)
                 if parent_number <= 0:
                     raise ValueError("parent_ticket_id must be a positive integer")
-                link_outcome = await self._forge_client.ensure_sub_issue(
+                link_outcome = await forge.ensure_sub_issue(
                     request.org,
                     request.repo,
                     parent_number=parent_number,
@@ -487,18 +526,11 @@ class BoardService(BaseBusinessService):
         if ticket_type is not None:
             labels.append(ForgeClient.type_label(ticket_type.value))
         try:
-            if labels:
-                issues = await self._forge_client.find_issues_by_labels(
+            async with self._forge_client_factory.session_for_repo(org, repo) as forge:
+                issues = await forge.find_issues_by_labels(
                     org,
                     repo,
                     labels=labels,
-                    state=state,
-                )
-            else:
-                issues = await self._forge_client.find_issues_by_labels(
-                    org,
-                    repo,
-                    labels=[],
                     state=state,
                 )
         except httpx.HTTPError as exc:

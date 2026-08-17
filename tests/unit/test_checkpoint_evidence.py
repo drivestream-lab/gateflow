@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.business_services.workflow_engine import WorkflowEngine
 from src.exceptions.app_exceptions import NotFoundError
 from src.models.checkpoint_models import (
@@ -34,8 +35,9 @@ def _service(forge: MagicMock | None = None) -> CheckpointEvidenceService:
     run_repository.find_run_by_pr = AsyncMock(return_value=None)
     run_event_repository = MagicMock()
     run_event_repository.append_event = AsyncMock()
+    factory, _ = mock_forge_factory(forge_client)
     return CheckpointEvidenceService(
-        forge_client=forge_client,
+        forge_client_factory=factory,
         workflow_engine=engine,
         postgres_service=postgres,
         run_repository=run_repository,
@@ -149,6 +151,22 @@ async def test_evaluate_zero_mutate_forge_calls() -> None:
     forge.apply_issue_labels.assert_not_called()
     forge.update_issue_status.assert_not_called()
     forge.open_draft_pr.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_evaluate_read_only_does_not_persist() -> None:
+    forge = MagicMock()
+    forge.get_pull_request = AsyncMock(return_value=_pr(labels=["spec-lgtm"]))
+    forge.list_reviews = AsyncMock(return_value=[_approved()])
+    svc = _service(forge)
+    svc._persist_check = AsyncMock()
+
+    result = await svc.evaluate_read_only(
+        "coding-readiness",
+        CheckpointPrRef(owner="acme", repo="widget", number=1),
+    )
+    assert result.verdict == CheckpointVerdictType.SATISFIED
+    svc._persist_check.assert_not_called()
 
 
 @pytest.mark.asyncio

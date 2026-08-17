@@ -47,7 +47,7 @@
 |------------|------|------|------|-------------|-------|
 | JWT product edge | REQ-04,29,32,33 | `app.py` public_paths + route deps | programme/tenant token tests flipped | `verify_jwt_cutover` | Old doors refused, not deleted |
 | Role / programme scope | REQ-23,24,30,31 | `require_role` / `require_programme_scope` | `test_auth_dependencies` | isolation verify | Path tenant mismatch → 403 |
-| Per-programme ForgeClient | REQ-25 | `ForgeClientFactory` + `ProgrammePatTokenProvider` | `test_forge_client_factory` | — | ADR-015 |
+| Per-programme ForgeClient | REQ-25 | `ForgeClientFactory` + `ProgrammePatTokenProvider` | `test_forge_client_factory` | — | ADR-015 — `for_tenant` / `for_repo`; business callers no longer use env singleton |
 | Tenant-scoped runs | REQ-23,24,31 | `RunSchema.tenant_id` + repo filters | metrics/run tenant_scope units | `verify_cross_programme_isolation` | Squashed Alembic `58462eaba680` |
 | Catalogue-only agents | REQ-26,41 | SlotValidator + CursorAgentRunner | slot/cursor unit tests | — | No env key gate |
 | Webhooks untouched | REQ-28 | `github_routes` inspect | webhook ingress units | — | Still signature public |

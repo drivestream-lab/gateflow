@@ -15,7 +15,10 @@ from src.exceptions.app_exceptions import (
 )
 from src.models.auth_models import AuthContext, LoginRequest, UserIdentityReadModel
 from src.models.identity_status_types import IdentityStatusType
-from src.models.programme_membership_models import ProgrammeMembershipReadModel
+from src.models.programme_membership_models import (
+    GrantedProgrammeReadModel,
+    ProgrammeMembershipReadModel,
+)
 from src.models.role_types import RoleType
 from src.utils.password_hashing import hash_password
 from tests._helpers.jwt_test_token import public_key_pem
@@ -41,10 +44,26 @@ def _identity(
     )
 
 
+def _grant(
+    *,
+    user_id,
+    programme_id=None,
+    tenant_id=None,
+    programme_name: str = "Lab",
+) -> GrantedProgrammeReadModel:
+    return GrantedProgrammeReadModel(
+        id=uuid4(),
+        identity_id=user_id,
+        programme_id=programme_id or uuid4(),
+        tenant_id=tenant_id or uuid4(),
+        programme_name=programme_name,
+    )
+
+
 def _service(
     *,
     identity: UserIdentityReadModel | None = None,
-    grants: list[ProgrammeMembershipReadModel] | None = None,
+    grants: list[GrantedProgrammeReadModel] | None = None,
     membership: ProgrammeMembershipReadModel | None = None,
 ) -> tuple[AuthIdentityService, MagicMock, MagicMock]:
     postgres = MagicMock()
@@ -59,7 +78,7 @@ def _service(
     repo.get_by_id = AsyncMock(return_value=identity)
     repo.create_identity = AsyncMock()
     memberships = MagicMock()
-    memberships.list_by_identity = AsyncMock(return_value=grants or [])
+    memberships.list_by_identity_with_programme = AsyncMock(return_value=grants or [])
     memberships.get_by_identity_and_programme = AsyncMock(return_value=membership)
     service = AuthIdentityService(
         postgres_service=postgres,
@@ -170,7 +189,8 @@ async def test_ensure_platform_admin_idempotent_reuses_row() -> None:
 async def test_login_populates_grants_from_memberships() -> None:
     user_id = uuid4()
     programme_id = uuid4()
-    grant = ProgrammeMembershipReadModel(id=uuid4(), identity_id=user_id, programme_id=programme_id)
+    tenant_id = uuid4()
+    grant = _grant(user_id=user_id, programme_id=programme_id, tenant_id=tenant_id)
     identity = _identity(
         user_id=user_id,
         credential_identifier="ta@smoke.local",
@@ -182,6 +202,8 @@ async def test_login_populates_grants_from_memberships() -> None:
         LoginRequest(credential_identifier="ta@smoke.local", password="correct-horse")
     )
     assert response.grants == [grant]
+    assert response.grants[0].tenant_id == tenant_id
+    assert response.grants[0].programme_name == "Lab"
     payload = jwt.decode(
         response.access_token,
         public_key_pem(),
@@ -195,7 +217,7 @@ async def test_login_populates_grants_from_memberships() -> None:
 @pytest.mark.asyncio
 async def test_me_returns_snapshot_without_password_or_roster() -> None:
     user_id = uuid4()
-    grant = ProgrammeMembershipReadModel(id=uuid4(), identity_id=user_id, programme_id=uuid4())
+    grant = _grant(user_id=user_id)
     identity = _identity(
         user_id=user_id,
         credential_identifier="ta@smoke.local",
@@ -209,6 +231,7 @@ async def test_me_returns_snapshot_without_password_or_roster() -> None:
     assert snapshot.id == user_id
     assert snapshot.email == "ta@smoke.local"
     assert snapshot.grants == [grant]
+    assert snapshot.grants[0].tenant_id is not None
     assert snapshot.entered_programme_id is None
     dumped = snapshot.model_dump()
     assert "password" not in dumped
@@ -220,14 +243,17 @@ async def test_me_returns_snapshot_without_password_or_roster() -> None:
 async def test_enter_programme_granted_returns_snapshot_without_remint() -> None:
     user_id = uuid4()
     programme_id = uuid4()
-    grant = ProgrammeMembershipReadModel(id=uuid4(), identity_id=user_id, programme_id=programme_id)
+    grant = _grant(user_id=user_id, programme_id=programme_id)
+    membership = ProgrammeMembershipReadModel(
+        id=grant.id, identity_id=user_id, programme_id=programme_id
+    )
     identity = _identity(
         user_id=user_id,
         credential_identifier="ta@smoke.local",
         role=RoleType.TENANT_ADMIN,
         password="secret",
     )
-    service, _repo, memberships = _service(identity=identity, grants=[grant], membership=grant)
+    service, _repo, memberships = _service(identity=identity, grants=[grant], membership=membership)
     snapshot = await service.enter_programme(
         AuthContext(user_id=user_id, role=RoleType.TENANT_ADMIN, session_epoch=0),
         programme_id,

@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from src.business_services.wave_start_service import WaveStartService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.exceptions.app_exceptions import UnprocessableEntityError
 from src.models.programme_connection_models import ProgrammeConnectionReadModel
 from src.models.programme_readiness_models import (
@@ -63,12 +64,15 @@ def _wave_start_service(
         run_repository=MagicMock(),
         job_repository=MagicMock(),
         meta_pr_intake=MagicMock(),
-        forge_client=MagicMock(),
+        forge_client_factory=mock_forge_factory()[0],
         board_service=MagicMock(),
         tenant_service=tenant,
         tenant_git_workspace_client=MagicMock(),
         launchpad_client=fs,
         launchpad_status_client=status,
+        programme_repository=MagicMock(),
+        programme_meta_pr_repository=MagicMock(),
+        checkpoint_evidence_service=MagicMock(),
     )
     return svc, tenant, fs, status
 

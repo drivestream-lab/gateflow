@@ -15,7 +15,7 @@ from src.business_services.checkpoint_evidence_service import CheckpointEvidence
 from src.business_services.wave_map_service import WaveMapService
 from src.database.postgres.repository.run_store_repository import RunRepository
 from src.exceptions.app_exceptions import NotFoundError
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClientFactory
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import BoardTicketResource, BoardTicketType
 from src.models.checkpoint_models import CheckpointPrRef, CheckpointVerdictType
@@ -39,7 +39,7 @@ class MergeReadoutService(BaseBusinessService):
         board_service: BoardService,
         checkpoint_evidence_service: CheckpointEvidenceService,
         wave_map_service: WaveMapService,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -47,7 +47,7 @@ class MergeReadoutService(BaseBusinessService):
         self._board_service = board_service
         self._checkpoint_evidence = checkpoint_evidence_service
         self._wave_map_service = wave_map_service
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
 
     async def get_merge_readout(
         self,
@@ -97,7 +97,8 @@ class MergeReadoutService(BaseBusinessService):
             _WAVE_SIGNOFF,
             CheckpointPrRef(owner=pr_owner, repo=pr_repo, number=pr_number),
         )
-        pr = await self._forge_client.get_pull_request(pr_owner, pr_repo, pr_number)
+        async with self._forge_client_factory.session_for_repo(pr_owner, pr_repo) as forge:
+            pr = await forge.get_pull_request(pr_owner, pr_repo, pr_number)
 
         if checkpoint.verdict == CheckpointVerdictType.COULD_NOT_VERIFY:
             merge_state = MergeConfirmStateType.COULD_NOT_VERIFY

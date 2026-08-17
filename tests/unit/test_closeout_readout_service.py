@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.business_services.closeout_readout_service import CloseoutReadoutService
+from tests._helpers.programme_forge import mock_forge_factory
 from src.exceptions.app_exceptions import NotFoundError
 from src.models.board_models import BoardTicketListResponse, BoardTicketResource
 from src.models.closeout_readout_models import (
@@ -179,7 +180,7 @@ def _build_service(
         run_event_repository=run_event_repository,
         learning_repository=learning_repository,
         board_service=board_service,
-        forge_client=forge_client,
+        forge_client_factory=mock_forge_factory(forge_client)[0],
     )
 
 

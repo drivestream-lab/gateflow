@@ -64,6 +64,8 @@ make check && make test
 # .venv/bin/python -m tests.verify.verify_catalogue_refresh    # INIT-013 W4 catalogue refresh
 # .venv/bin/python -m tests.verify.verify_repo_selection       # select/deselect + setup workspace (JWT)
 # .venv/bin/python -m tests.verify.verify_jwt_login            # INIT-014 W0 seed + JWT login
+# .venv/bin/python -m tests.verify.verify_meta_pr_picker       # INIT-019 W1 meta PR picker
+# .venv/bin/python -m tests.verify.verify_spec_start_binds     # INIT-019 W2 spec start binds
 # .venv/bin/python -m tests.verify.verify_identity_directory   # INIT-017 W1 enter/grant/detach
 # .venv/bin/python -m tests.verify.verify_dead_doors_deleted   # INIT-017 W2 014/012 doors gone
 # .venv/bin/python -m tests.verify.verify_cross_programme_isolation  # INIT-017 W3 enter + isolation
@@ -907,3 +909,31 @@ set -a && source .env && set +a
 | Zero production callers (REQ-27 / G5) | N/A | `test_delete_branch_dormant` |
 
 Human wave-acceptance: **unit-only** — `make check` / `make test` (dormancy guard included). No live verify script this wave (`verify_command` N/A). Do not wire `delete_branch` into walkers/routes this INIT.
+
+## Feature map (INIT-GATEFLOW-019 W0 — ground CAP-D)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Grant `tenant_id` + `programme_name` (REQ-12) | `verify_jwt_login` (human) | `test_auth_identity_service` |
+| Auto-connect + connect=meta (REQ-13/14) | existing onboarding | `test_programme_service`, `test_programme_onboarding` |
+| List without board; Forge 404 empty (REQ-15/16) | — | `test_initiative_readout`, `test_forge_client_board` |
+
+## Feature map (INIT-GATEFLOW-019 W1 — meta PR picker)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| INIT-* meta PR list, last 10 (REQ-01) | `verify_meta_pr_picker` | `test_meta_pr_picker`, `test_list_caps_at_last_ten_init_prs` |
+| CAP-01 per row, no persist; Redis GitHub slice; hard refresh (REQ-02) | `verify_meta_pr_picker` | `test_list_cache_hit_skips_github_and_rejoins`, `test_list_refresh_bypasses_cache_and_rewrites` |
+| Spec-run join per repo (REQ-03) | `verify_meta_pr_picker` | `test_list_joins_spec_runs_per_repo` |
+| Onboard + admitted-set list (REQ-18–20) | `verify_meta_pr_picker` | `test_onboard_*`, `test_list_onboarded_skips_github_list` |
+
+## Feature map (INIT-GATEFLOW-019 W2 — spec start binds)
+
+| Capability | Verify script | Pytest |
+|------------|---------------|--------|
+| Resolve/omit paths; derive or refuse app org/repo (REQ-04/07) | `verify_spec_start_binds` | `test_spec_omitted_paths_*`, `test_spec_omitted_org_repo_*`, `test_spec_target_meta_repo_422` |
+| Omit start_node/slug/initiative; lane defaults (REQ-05/06/08) | `verify_spec_start_binds` | `test_spec_allows_omitted_workspace_path`, `test_spec_omitted_runner_empty_defaults_422`, `test_accept_derives_initiative_when_expected_omitted` |
+| CAP-01 fail-closed (REQ-09) | `verify_spec_start_binds` | `test_spec_cap01_not_satisfied_422_zero_enqueue` |
+| Spec start requires onboard (REQ-21) | `verify_spec_start_binds` | `test_spec_not_onboarded_422_zero_enqueue` |
+| Runner + Cursor models (REQ-17) | `verify_spec_start_binds` | `test_runner_catalogue` |
+| Implement slug default `implement` (REQ-10) | — | `test_implement_omitted_branch_slug_defaults` |

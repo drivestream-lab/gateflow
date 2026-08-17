@@ -120,6 +120,28 @@ class ProgrammeRepository(BasePostgresRepository[ProgrammeSchema]):
             return None
         return row.github_pat
 
+    async def get_by_meta_org_repo(
+        self,
+        session: AsyncSession,
+        *,
+        org: str,
+        repo: str,
+    ) -> Optional[ProgrammeReadModel]:
+        """Return the programme whose meta repo is ``org/repo``, or None."""
+        stmt = select(ProgrammeSchema).where(
+            ProgrammeSchema.meta_org == org,
+            ProgrammeSchema.meta_repo == repo,
+        )
+        result = await session.execute(stmt)
+        rows = list(result.scalars().all())
+        if not rows:
+            return None
+        if len(rows) > 1:
+            raise ValueError(
+                f"Ambiguous programme meta repo {org}/{repo}: multiple programmes match"
+            )
+        return self._to_read_model(rows[0])
+
     async def list_programmes(self, session: AsyncSession) -> list[ProgrammeReadModel]:
         stmt = select(ProgrammeSchema).order_by(ProgrammeSchema.created_at.desc())
         result = await session.execute(stmt)

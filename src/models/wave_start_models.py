@@ -18,6 +18,10 @@ from src.models.run_store_models import JobPayloadDocument
 
 # Fixed Pass-2 Enter-at (ADR-010 §6 / INIT-GATEFLOW-007). Client must not choose.
 CLOSEOUT_START_NODE = "learning-extract"
+SPEC_DEFAULT_START_NODE = "spec-draft"
+SPEC_DEFAULT_WAVE_ID = "W0"
+SPEC_DEFAULT_BRANCH_SLUG = "spec"
+IMPLEMENT_DEFAULT_BRANCH_SLUG = "implement"
 
 
 class WaveStartTargetingFields(BaseModel):
@@ -109,6 +113,15 @@ class ImplementWaveStartRequest(WaveStartTargetingFields):
         description="When true, ignore harness_verified cache and re-probe (REQ-22)",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _default_branch_slug(cls, data: object) -> object:
+        if isinstance(data, dict):
+            raw = data.get("branch_slug")
+            if raw is None or (isinstance(raw, str) and not raw.strip()):
+                data = {**data, "branch_slug": IMPLEMENT_DEFAULT_BRANCH_SLUG}
+        return data
+
     @field_validator("ticket_id")
     @classmethod
     def _ticket_id(cls, value: str) -> str:
@@ -118,24 +131,80 @@ class ImplementWaveStartRequest(WaveStartTargetingFields):
         return cleaned
 
 
-class SpecWaveStartRequest(WaveStartTargetingFields):
-    """POST /api/v1/waves/spec/start body (ADR-010 spec intake)."""
+class SpecWaveStartRequest(BaseModel):
+    """POST /api/v1/waves/spec/start body (ADR-010 spec intake / INIT-019).
 
-    workspace_path: str = Field(
-        description="Absolute app coding workspace path (write root)",
+    Paths, ``start_node``, ``branch_slug``, ``initiative_id``, runner/model,
+    and ``org``/``repo`` may be omitted; the service resolves them. App
+    ``org``/``repo`` come from the programme's admitted fleet when omitted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    org: Optional[str] = Field(
+        default=None,
+        description="App org; derived from the single admitted fleet repo when omitted",
+    )
+    repo: Optional[str] = Field(
+        default=None,
+        description="App repo; derived from the single admitted fleet repo when omitted",
     )
     meta_pr_url: str = Field(
         description="prayog-meta (or programme) PR URL for accept-gate intake",
     )
-    meta_workspace_path: str = Field(
-        description="Absolute checkout path of prayog-meta (read intake)",
+    initiative_id: Optional[str] = Field(
+        default=None,
+        description="Optional; derived from the meta PR when omitted",
+    )
+    wave_id: str = Field(
+        default=SPEC_DEFAULT_WAVE_ID,
+        description="Wave id for ticket bind (default W0); ignored for spec head",
+    )
+    branch_slug: Optional[str] = Field(
+        default=None,
+        description="Ignored for spec head; payload default is spec when omitted",
+    )
+    base_branch: str = Field(description="PR base branch (merge target)")
+    start_node: Optional[str] = Field(
+        default=None,
+        description="Optional Enter-at; pin default spec-draft when omitted",
+    )
+    runner: Optional[str] = Field(
+        default=None,
+        description="Optional; lane_defaults[spec] when omitted",
+    )
+    model_id: Optional[str] = Field(
+        default=None,
+        description="Optional; lane_defaults[spec] when omitted",
+    )
+    node_dispatch: dict[str, NodeDispatchSpec] = Field(
+        default_factory=dict,
+        description="Optional per-node runner/model overrides; else inherit start defaults",
+    )
+    workspace_path: Optional[str] = Field(
+        default=None,
+        description="Optional absolute app workspace; resolved when omitted",
+    )
+    meta_workspace_path: Optional[str] = Field(
+        default=None,
+        description="Optional absolute meta checkout; resolved when omitted",
     )
     ticket_id: Optional[str] = Field(
         default=None,
         description="Optional ticket; defaults to initiative:wave for bind",
     )
+    pr_number: Optional[int] = Field(default=None)
+    issue_number: Optional[int] = Field(default=None)
 
-    @field_validator("workspace_path", "meta_pr_url", "meta_workspace_path")
+    @field_validator("org", "repo")
+    @classmethod
+    def _optional_org_repo(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+    @field_validator("meta_pr_url")
     @classmethod
     def _required_non_empty(cls, value: str) -> str:
         cleaned = value.strip()
@@ -143,17 +212,90 @@ class SpecWaveStartRequest(WaveStartTargetingFields):
             raise ValueError("must be non-empty")
         return cleaned
 
-    @model_validator(mode="after")
-    def _require_absolute_workspaces(self) -> "SpecWaveStartRequest":
-        if not self.workspace_path.startswith("/"):
-            raise ValueError("workspace_path must be an absolute path")
-        if not self.meta_workspace_path.startswith("/"):
-            raise ValueError("meta_workspace_path must be an absolute path")
-        return self
+    @field_validator("initiative_id")
+    @classmethod
+    def _initiative_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return validate_initiative_id(cleaned)
 
-    def head_branch(self) -> str:
+    @field_validator("wave_id")
+    @classmethod
+    def _wave_id(cls, value: str) -> str:
+        normalize_wave_token(value)
+        return value.strip()
+
+    @field_validator("branch_slug")
+    @classmethod
+    def _branch_slug(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return validate_branch_slug(cleaned)
+
+    @field_validator("start_node", "runner", "model_id")
+    @classmethod
+    def _optional_non_empty(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return cleaned
+
+    @field_validator("workspace_path", "meta_workspace_path")
+    @classmethod
+    def _optional_absolute_path(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if not cleaned.startswith("/"):
+            raise ValueError("must be an absolute path")
+        return cleaned
+
+    @field_validator("base_branch")
+    @classmethod
+    def _base_branch(cls, value: str) -> str:
+        return validate_base_branch(value)
+
+    def head_branch(self, initiative_id: str) -> str:
         """Spec Draft PR head — initiative only; wave_id/branch_slug ignored for head."""
-        return build_spec_head_branch(self.initiative_id)
+        return build_spec_head_branch(initiative_id)
+
+    def as_targeting_fields(
+        self,
+        *,
+        initiative_id: str,
+        wave_id: str,
+        branch_slug: str,
+        start_node: str,
+        runner: str,
+        model_id: str,
+        org: str,
+        repo: str,
+    ) -> WaveStartTargetingFields:
+        """Project resolved spec defaults into shared targeting for enqueue."""
+        return WaveStartTargetingFields(
+            initiative_id=initiative_id,
+            wave_id=wave_id,
+            branch_slug=branch_slug,
+            base_branch=self.base_branch,
+            start_node=start_node,
+            runner=runner,
+            model_id=model_id,
+            node_dispatch=dict(self.node_dispatch),
+            org=org,
+            repo=repo,
+            pr_number=self.pr_number,
+            issue_number=self.issue_number,
+        )
 
 
 class CloseoutWaveStartRequest(BaseModel):

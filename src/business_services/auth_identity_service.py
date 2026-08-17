@@ -26,7 +26,7 @@ from src.models.auth_models import (
     UserIdentityReadModel,
 )
 from src.models.identity_status_types import IdentityStatusType
-from src.models.programme_membership_models import ProgrammeMembershipReadModel
+from src.models.programme_membership_models import GrantedProgrammeReadModel
 from src.models.role_types import RoleType
 from src.utils.password_hashing import hash_password, verify_password
 
@@ -57,7 +57,7 @@ class AuthIdentityService(BaseBusinessService):
     def _to_snapshot(
         self,
         identity: UserIdentityReadModel,
-        grants: list[ProgrammeMembershipReadModel],
+        grants: list[GrantedProgrammeReadModel],
         *,
         entered_programme_id: UUID | None = None,
     ) -> AuthSessionSnapshot:
@@ -139,7 +139,7 @@ class AuthIdentityService(BaseBusinessService):
             return identity, token
 
     async def login(self, request: LoginRequest) -> LoginResponse:
-        """Verify credentials and return a Gateflow-issued JWT plus empty grant snapshot."""
+        """Verify credentials; return a user JWT plus grants with tenant bindings."""
         if not _is_email(request.credential_identifier):
             raise UnprocessableEntityError(
                 message="Identifier must be an email",
@@ -164,7 +164,7 @@ class AuthIdentityService(BaseBusinessService):
                 role=identity.role,
                 session_epoch=identity.session_epoch,
             )
-            grants = await self._memberships.list_by_identity(session, identity.id)
+            grants = await self._memberships.list_by_identity_with_programme(session, identity.id)
             self.logger.info(
                 "Login succeeded",
                 user_id=str(identity.id),
@@ -182,7 +182,7 @@ class AuthIdentityService(BaseBusinessService):
                     message="Identity not found for token",
                     details={"reason": "unknown identity", "user_id": str(auth.user_id)},
                 )
-            grants = await self._memberships.list_by_identity(session, identity.id)
+            grants = await self._memberships.list_by_identity_with_programme(session, identity.id)
             self.logger.info(
                 "Session snapshot",
                 user_id=str(identity.id),
@@ -212,7 +212,7 @@ class AuthIdentityService(BaseBusinessService):
                     message="Caller is not granted the requested programme",
                     details={"reason": "not granted", "programme_id": str(programme_id)},
                 )
-            grants = await self._memberships.list_by_identity(session, identity.id)
+            grants = await self._memberships.list_by_identity_with_programme(session, identity.id)
             self.logger.info(
                 "Entered programme",
                 user_id=str(identity.id),

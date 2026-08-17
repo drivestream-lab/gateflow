@@ -21,9 +21,9 @@ from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.board_service import BoardService
 from src.business_services.checkpoint_evidence_service import CheckpointEvidenceService
 from src.business_services.meta_pr_intake import MetaPrIntakeService
-from src.exceptions.app_exceptions import NotFoundError
+from src.exceptions.app_exceptions import NotFoundError, ServiceUnavailableError
 from src.infra_services.postgres_service import PostgresService
-from src.models.board_models import BoardTicketResource, BoardTicketType
+from src.models.board_models import BoardTicketListResponse, BoardTicketResource, BoardTicketType
 from src.models.checkpoint_models import CheckpointPrRef, CheckpointVerdictType
 from src.models.initiative_readout_models import (
     InitiativeListItem,
@@ -77,12 +77,21 @@ class InitiativeReadoutService(BaseBusinessService):
         runs and ``initiative_id`` labels on EPIC board tickets in ``org/repo``.
         """
         runs = await self._all_runs()
-        epic_tickets = await self._board_service.list_tickets(
-            org=org,
-            repo=repo,
-            ticket_type=BoardTicketType.EPIC,
-            state="all",
-        )
+        try:
+            epic_tickets = await self._board_service.list_tickets(
+                org=org,
+                repo=repo,
+                ticket_type=BoardTicketType.EPIC,
+                state="all",
+            )
+        except ServiceUnavailableError:
+            # REQ-09/11 style: Gateflow-owned runs still return; EPIC fields stay empty.
+            self.logger.warning(
+                "Initiative list continuing without board EPICs",
+                org=org,
+                repo=repo,
+            )
+            epic_tickets = BoardTicketListResponse(tickets=[])
         epic_by_initiative = {t.initiative_id: t for t in epic_tickets.tickets if t.initiative_id}
         runs_by_initiative = self._group_runs_by_initiative(runs)
 

@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from src.business_services.notifier import Notifier
+from tests._helpers.programme_forge import mock_forge_factory
 from src.models.control_plane_models import RunEventComment
 from src.models.policy_types import RunEventNameType
 
@@ -14,7 +15,8 @@ from src.models.policy_types import RunEventNameType
 def _notifier_with_forge() -> tuple[Notifier, MagicMock]:
     forge = MagicMock()
     forge.post_comment = AsyncMock(return_value="c1")
-    return Notifier(forge_client=forge), forge
+    factory, _ = mock_forge_factory(forge)
+    return Notifier(forge_client_factory=factory), forge
 
 
 def test_posts_run_event_to_pr_milestones_only() -> None:

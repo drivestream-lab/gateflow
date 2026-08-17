@@ -22,7 +22,7 @@ from src.database.postgres.repository.run_store_repository import (
     StageRepository,
 )
 from src.exceptions.app_exceptions import NotFoundError
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClientFactory
 from src.infra_services.postgres_service import PostgresService
 from src.models.board_models import BoardTicketResource, BoardTicketType
 from src.models.closeout_readout_models import (
@@ -58,7 +58,7 @@ class CloseoutReadoutService(BaseBusinessService):
         run_event_repository: RunEventRepository,
         learning_repository: LearningRepository,
         board_service: BoardService,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -67,7 +67,7 @@ class CloseoutReadoutService(BaseBusinessService):
         self._run_event_repository = run_event_repository
         self._learning_repository = learning_repository
         self._board_service = board_service
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
 
     async def get_closeout_readout(
         self,
@@ -277,7 +277,8 @@ class CloseoutReadoutService(BaseBusinessService):
             )
 
         try:
-            pr = await self._forge_client.get_pull_request(run.org, run.repo, run.pr_number)
+            async with self._forge_client_factory.session_for_repo(run.org, run.repo) as forge:
+                pr = await forge.get_pull_request(run.org, run.repo, run.pr_number)
         except (httpx.HTTPError, ValueError) as exc:
             self.logger.warning(
                 "Closeout readout PR head fetch failed",

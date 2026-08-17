@@ -10,12 +10,22 @@ from src.models.programme_catalogue_models import CatalogueCandidate
 
 
 class ProgrammeConnectRequest(BaseModel):
-    """POST …/programme/connect body."""
+    """POST …/programme/connect body.
+
+    org/repo/ref default to the programme's onboarded meta location — callers
+    (tenant_admin) are not expected to know or re-supply them.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    org: str = Field(min_length=1, description="Programme meta org")
-    repo: str = Field(min_length=1, description="Programme meta repo")
+    org: Optional[str] = Field(
+        default=None,
+        description="Programme meta org (defaults to the programme's onboarded meta org)",
+    )
+    repo: Optional[str] = Field(
+        default=None,
+        description="Programme meta repo (defaults to the programme's onboarded meta repo)",
+    )
     ref: Optional[str] = Field(
         default=None,
         description="Optional git ref to checkout after clone/fetch",

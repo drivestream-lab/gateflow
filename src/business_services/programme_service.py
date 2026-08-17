@@ -141,6 +141,15 @@ class ProgrammeService(BaseBusinessService):
                 lane_defaults=ProgrammeLaneDefaultsDocument(),
                 repo_catalogue=candidates,
             )
+            # Auto-connect: the meta checkout already resolved above, so the
+            # tenant catalogue is browsable without a manual connect step.
+            await self._tenant_repository.upsert_programme_connection(
+                session,
+                tenant_id=tenant.tenant_id,
+                org=org,
+                repo=repo,
+                ref=ref,
+            )
 
         self.logger.info(
             "Programme created",

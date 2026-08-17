@@ -46,6 +46,7 @@ def _service(
     programme_repo = MagicMock()
     programme_repo.update_repo_catalogue = AsyncMock()
     tenant_repo = MagicMock()
+    tenant_repo.upsert_programme_connection = AsyncMock()
     probe = MagicMock()
     probe.verify_read_access = AsyncMock(
         return_value=PatProbeResult(ok=probe_ok, reason=probe_reason)
@@ -166,6 +167,10 @@ async def test_validate_then_create_happy_path(tmp_path) -> None:
     programme_repo.create_programme.assert_awaited_once()
     assert programme_repo.create_programme.await_args.kwargs["workspace_root"] == workspace_root
     assert programme_repo.create_programme.await_args.kwargs["repo_catalogue"] == candidates
+    tenant_repo.upsert_programme_connection.assert_awaited_once()
+    assert tenant_repo.upsert_programme_connection.await_args.kwargs["tenant_id"] == tenant_id
+    assert tenant_repo.upsert_programme_connection.await_args.kwargs["org"] == "drivestream-lab"
+    assert tenant_repo.upsert_programme_connection.await_args.kwargs["repo"] == "prayog-meta"
 
 
 @pytest.mark.asyncio

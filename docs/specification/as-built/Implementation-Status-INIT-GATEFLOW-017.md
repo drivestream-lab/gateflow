@@ -46,5 +46,5 @@
 | Capability | Spec | Code | Unit | Live verify | Notes |
 |------------|------|------|------|-------------|-------|
 | Enter programme (no remint) | REQ-16, REQ-18 | `GET /api/auth/me`, `POST /api/auth/session/programme` | `test_auth_identity_service` | `verify_cross_programme_isolation` | ADR-019 Option B; 403 `not granted` |
-| Grant snapshot on login/me | REQ-16, REQ-18, REQ-26 | `AuthIdentityService.login` / `me` | `test_auth_identity_service` | `verify_jwt_login` | No password; no factory roster |
+| Grant snapshot on login/me | REQ-16, REQ-18, REQ-26 | `AuthIdentityService.login` / `me` | `test_auth_identity_service` | `verify_jwt_login` | No password; no factory roster. Grant rows are `GrantedProgrammeReadModel` — membership fields plus `tenant_id` + `programme_name` (join on `programmes`), so tenant_admin callers can address tenant-scoped routes without a platform_admin programme read |
 | Two-programme delivery + platform_admin refuse | REQ-17, REQ-19, REQ-23 | membership + `require_tenant_resolved` | `test_auth_dependencies` | `verify_cross_programme_isolation` | Path tenant after membership (ADR-016) |

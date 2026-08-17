@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.business_services.base_business_service import BaseBusinessService
 from src.business_services.workflow_engine import WorkflowEngine
 from src.exceptions.app_exceptions import NotFoundError
-from src.infra_services.forge_client import ForgeClient
+from src.infra_services.forge_client import ForgeClient, ForgeClientFactory
 from src.infra_services.postgres_service import PostgresService
 from src.models.checkpoint_models import (
     CheckpointEvidenceClassType,
@@ -54,14 +54,14 @@ class CheckpointEvidenceService(BaseBusinessService):
     @inject
     def __init__(
         self,
-        forge_client: ForgeClient,
+        forge_client_factory: ForgeClientFactory,
         workflow_engine: WorkflowEngine,
         postgres_service: PostgresService,
         run_repository: RunRepository,
         run_event_repository: RunEventRepository,
     ) -> None:
         super().__init__()
-        self._forge_client = forge_client
+        self._forge_client_factory = forge_client_factory
         self._workflow_engine = workflow_engine
         self._postgres_service = postgres_service
         self._run_repository = run_repository
@@ -71,84 +71,107 @@ class CheckpointEvidenceService(BaseBusinessService):
         self,
         checkpoint_id: str,
         pr_ref: CheckpointPrRef,
+        *,
+        forge_client: Optional[ForgeClient] = None,
     ) -> CheckpointStatusResult:
-        """Live CAP-01 evaluation — never mutates ForgeClient write paths."""
-        checked_at = datetime.now(timezone.utc)
-        vocab = self._require_vocab(checkpoint_id)
-
-        try:
-            pr = await self._forge_client.get_pull_request(pr_ref.owner, pr_ref.repo, pr_ref.number)
-            reviews = await self._forge_client.list_reviews(
-                pr_ref.owner, pr_ref.repo, pr_ref.number
-            )
-            head_sha = pr.head.sha or ""
-            check_runs: list[GithubCheckRunDocument] = []
-            if head_sha and vocab.required_check_runs:
-                check_runs = await self._forge_client.list_check_runs(
-                    pr_ref.owner, pr_ref.repo, head_sha
-                )
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 404:
-                raise NotFoundError(
-                    resource_type="pull_request",
-                    resource_id=f"{pr_ref.owner}/{pr_ref.repo}#{pr_ref.number}",
-                ) from exc
-            self.logger.warning(
-                "Checkpoint evidence GitHub HTTP error",
-                checkpoint_id=checkpoint_id,
-                owner=pr_ref.owner,
-                repo=pr_ref.repo,
-                pr_number=pr_ref.number,
-                status_code=exc.response.status_code,
-                error_class=type(exc).__name__,
-            )
-            result = self._could_not_verify(checkpoint_id, pr_ref, checked_at, None)
-            await self._persist_check(result, initiative_id=None, wave_id=None)
-            return result
-        except (httpx.HTTPError, ValueError, RuntimeError) as exc:
-            self.logger.warning(
-                "Checkpoint evidence GitHub unreachable",
-                checkpoint_id=checkpoint_id,
-                owner=pr_ref.owner,
-                repo=pr_ref.repo,
-                pr_number=pr_ref.number,
-                error_class=type(exc).__name__,
-            )
-            result = self._could_not_verify(checkpoint_id, pr_ref, checked_at, None)
-            await self._persist_check(result, initiative_id=None, wave_id=None)
-            return result
-
-        missing = self._collect_missing(vocab, pr, reviews, check_runs)
-        stale_reason = self._detect_stale_reason(vocab, pr, reviews, head_sha)
-        verdict = (
-            CheckpointVerdictType.SATISFIED
-            if not missing and not stale_reason
-            else CheckpointVerdictType.NOT_SATISFIED
-        )
-        result = CheckpointStatusResult(
-            checkpoint_id=checkpoint_id,
-            owner=pr_ref.owner,
-            repo=pr_ref.repo,
-            pr_number=pr_ref.number,
-            verdict=verdict,
-            checked_sha=head_sha or None,
-            checked_at=checked_at,
-            missing_items=missing,
-            stale_reason=stale_reason,
-        )
-        self.logger.info(
-            "Checkpoint evidence evaluated",
-            checkpoint_id=checkpoint_id,
-            owner=pr_ref.owner,
-            repo=pr_ref.repo,
-            pr_number=pr_ref.number,
-            checked_sha=result.checked_sha,
-            verdict=result.verdict.value,
-            missing_count=len(missing),
-            stale_reason=stale_reason,
-        )
+        """Live CAP-01 evaluation — persists a ``checkpoint_check`` when a run exists."""
+        result = await self._evaluate_live(checkpoint_id, pr_ref, forge_client=forge_client)
         await self._persist_check(result, initiative_id=None, wave_id=None)
         return result
+
+    async def evaluate_read_only(
+        self,
+        checkpoint_id: str,
+        pr_ref: CheckpointPrRef,
+        *,
+        forge_client: Optional[ForgeClient] = None,
+    ) -> CheckpointStatusResult:
+        """Live CAP-01 evaluation with no ``checkpoint_check`` persist (list/read paths)."""
+        return await self._evaluate_live(checkpoint_id, pr_ref, forge_client=forge_client)
+
+    async def _evaluate_live(
+        self,
+        checkpoint_id: str,
+        pr_ref: CheckpointPrRef,
+        *,
+        forge_client: Optional[ForgeClient] = None,
+    ) -> CheckpointStatusResult:
+        """Fetch GitHub evidence and compute a verdict. Does not persist."""
+        checked_at = datetime.now(timezone.utc)
+        vocab = self._require_vocab(checkpoint_id)
+        owned = forge_client is None
+        client = forge_client
+        if client is None:
+            client = await self._forge_client_factory.for_repo(pr_ref.owner, pr_ref.repo)
+
+        try:
+            try:
+                pr = await client.get_pull_request(pr_ref.owner, pr_ref.repo, pr_ref.number)
+                reviews = await client.list_reviews(pr_ref.owner, pr_ref.repo, pr_ref.number)
+                head_sha = pr.head.sha or ""
+                check_runs: list[GithubCheckRunDocument] = []
+                if head_sha and vocab.required_check_runs:
+                    check_runs = await client.list_check_runs(pr_ref.owner, pr_ref.repo, head_sha)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code == 404:
+                    raise NotFoundError(
+                        resource_type="pull_request",
+                        resource_id=f"{pr_ref.owner}/{pr_ref.repo}#{pr_ref.number}",
+                    ) from exc
+                self.logger.warning(
+                    "Checkpoint evidence GitHub HTTP error",
+                    checkpoint_id=checkpoint_id,
+                    owner=pr_ref.owner,
+                    repo=pr_ref.repo,
+                    pr_number=pr_ref.number,
+                    status_code=exc.response.status_code,
+                    error_class=type(exc).__name__,
+                )
+                return self._could_not_verify(checkpoint_id, pr_ref, checked_at, None)
+            except (httpx.HTTPError, ValueError, RuntimeError) as exc:
+                self.logger.warning(
+                    "Checkpoint evidence GitHub unreachable",
+                    checkpoint_id=checkpoint_id,
+                    owner=pr_ref.owner,
+                    repo=pr_ref.repo,
+                    pr_number=pr_ref.number,
+                    error_class=type(exc).__name__,
+                )
+                return self._could_not_verify(checkpoint_id, pr_ref, checked_at, None)
+
+            missing = self._collect_missing(vocab, pr, reviews, check_runs)
+            stale_reason = self._detect_stale_reason(vocab, pr, reviews, head_sha)
+            verdict = (
+                CheckpointVerdictType.SATISFIED
+                if not missing and not stale_reason
+                else CheckpointVerdictType.NOT_SATISFIED
+            )
+            result = CheckpointStatusResult(
+                checkpoint_id=checkpoint_id,
+                owner=pr_ref.owner,
+                repo=pr_ref.repo,
+                pr_number=pr_ref.number,
+                verdict=verdict,
+                checked_sha=head_sha or None,
+                checked_at=checked_at,
+                missing_items=missing,
+                stale_reason=stale_reason,
+            )
+            self.logger.info(
+                "Checkpoint evidence evaluated",
+                checkpoint_id=checkpoint_id,
+                owner=pr_ref.owner,
+                repo=pr_ref.repo,
+                pr_number=pr_ref.number,
+                checked_sha=result.checked_sha,
+                verdict=result.verdict.value,
+                missing_count=len(missing),
+                stale_reason=stale_reason,
+            )
+            return result
+        finally:
+            if owned:
+                await client.close()
 
     async def list_history(
         self,

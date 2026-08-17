@@ -69,6 +69,8 @@ class GithubPullRequestDocument(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    number: Optional[int] = Field(default=None, description="GitHub pull-request number")
+    html_url: Optional[str] = Field(default=None, description="Canonical GitHub HTML URL")
     title: str = Field(default="")
     body: Optional[str] = Field(default=None)
     state: str = Field(default="", description="open | closed")
