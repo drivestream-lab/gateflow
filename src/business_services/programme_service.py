@@ -29,7 +29,10 @@ from src.models.programme_models import (
     ProgrammeOnboardRequest,
     ProgrammeReadModel,
 )
-from src.models.tenant_git_workspace_models import TenantWorkspaceCredential
+from src.models.tenant_git_workspace_models import (
+    TenantWorkspaceCredential,
+    resolve_workspace_ref,
+)
 
 
 class ProgrammeService(BaseBusinessService):
@@ -56,7 +59,7 @@ class ProgrammeService(BaseBusinessService):
         """PAT probe + meta clone/parse before any durable Programme/Tenant write."""
         org = request.meta_org.strip()
         repo = request.meta_repo.strip()
-        ref = request.meta_ref.strip() if request.meta_ref and request.meta_ref.strip() else None
+        ref = resolve_workspace_ref(request.meta_ref)
         workspace_root = self._orchestration.workspace_root
         pat = request.github_pat
 
@@ -209,7 +212,9 @@ class ProgrammeService(BaseBusinessService):
             repo=programme.meta_repo,
         )
         try:
-            await self._git_client.resolve_workspace(credential, ref=programme.meta_ref)
+            await self._git_client.resolve_workspace(
+                credential, ref=resolve_workspace_ref(programme.meta_ref)
+            )
         except TenantGitWorkspaceError as exc:
             self.logger.error(
                 "Programme catalogue refresh git failed",

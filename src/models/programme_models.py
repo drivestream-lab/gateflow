@@ -37,7 +37,10 @@ class ProgrammeOnboardRequest(BaseModel):
     name: str = Field(min_length=1, description="Display name for the Programme")
     meta_org: str = Field(min_length=1, description="Meta repository org")
     meta_repo: str = Field(min_length=1, description="Meta repository name")
-    meta_ref: Optional[str] = Field(default=None, description="Optional git ref")
+    meta_ref: Optional[str] = Field(
+        default=None,
+        description="Git ref to sync; omitted means origin/develop",
+    )
     github_pat: str = Field(min_length=1, description="Programme-owned GitHub PAT")
 
     @model_validator(mode="before")

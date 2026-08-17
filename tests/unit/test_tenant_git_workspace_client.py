@@ -13,8 +13,10 @@ from src.infra_services.tenant_git_workspace_client import (
     TenantGitWorkspaceError,
 )
 from src.models.tenant_git_workspace_models import (
+    DEFAULT_WORKSPACE_REF,
     TenantWorkspaceCredential,
     WorkspaceResolveModeType,
+    resolve_workspace_ref,
 )
 
 
@@ -53,12 +55,16 @@ async def test_resolve_clones_when_path_missing(tmp_path: Path) -> None:
 
     with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)) as clone:
         with patch.object(client, "_git_fetch", new=AsyncMock()) as fetch:
-            result = await client.resolve_workspace(cred)
+            with patch.object(client, "_checkout_ref", new=AsyncMock()) as checkout:
+                result = await client.resolve_workspace(cred)
 
     assert result.mode == WorkspaceResolveModeType.CLONED
     assert result.path == str(target.resolve())
     clone.assert_awaited_once()
     fetch.assert_not_awaited()
+    checkout.assert_awaited_once()
+    assert checkout.await_args is not None
+    assert checkout.await_args.kwargs["ref"] == DEFAULT_WORKSPACE_REF
 
 
 @pytest.mark.asyncio
@@ -71,12 +77,16 @@ async def test_resolve_fetches_when_valid_checkout_exists(tmp_path: Path) -> Non
 
     with patch.object(client, "_git_clone", new=AsyncMock()) as clone:
         with patch.object(client, "_git_fetch", new=AsyncMock()) as fetch:
-            result = await client.resolve_workspace(cred)
+            with patch.object(client, "_checkout_ref", new=AsyncMock()) as checkout:
+                result = await client.resolve_workspace(cred)
 
     assert result.mode == WorkspaceResolveModeType.FETCHED
     assert result.path == str(target.resolve())
     fetch.assert_awaited_once()
     clone.assert_not_awaited()
+    checkout.assert_awaited_once()
+    assert checkout.await_args is not None
+    assert checkout.await_args.kwargs["ref"] == DEFAULT_WORKSPACE_REF
 
 
 @pytest.mark.asyncio
@@ -142,12 +152,13 @@ async def test_per_repo_lock_serializes_concurrent_resolves(tmp_path: Path) -> N
 
     with patch.object(client, "_git_clone", new=AsyncMock(side_effect=slow_clone)):
         with patch.object(client, "_git_fetch", new=AsyncMock(side_effect=slow_fetch)):
-            t1 = asyncio.create_task(client.resolve_workspace(cred))
-            t2 = asyncio.create_task(client.resolve_workspace(cred))
-            await asyncio.sleep(0.05)
-            assert max_active == 1
-            gate.set()
-            results = await asyncio.gather(t1, t2)
+            with patch.object(client, "_checkout_ref", new=AsyncMock()):
+                t1 = asyncio.create_task(client.resolve_workspace(cred))
+                t2 = asyncio.create_task(client.resolve_workspace(cred))
+                await asyncio.sleep(0.05)
+                assert max_active == 1
+                gate.set()
+                results = await asyncio.gather(t1, t2)
 
     assert all(
         r.mode in {WorkspaceResolveModeType.CLONED, WorkspaceResolveModeType.FETCHED}
@@ -192,7 +203,7 @@ async def test_resolve_with_ref_checks_out_after_clone(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_resolve_without_ref_skips_checkout(tmp_path: Path) -> None:
+async def test_resolve_without_ref_syncs_origin_develop(tmp_path: Path) -> None:
     client = TenantGitWorkspaceClient()
     await client.initialize()
     cred = _cred(tmp_path)
@@ -206,7 +217,16 @@ async def test_resolve_without_ref_skips_checkout(tmp_path: Path) -> None:
         with patch.object(client, "_checkout_ref", new=AsyncMock()) as checkout:
             await client.resolve_workspace(cred)
 
-    checkout.assert_not_awaited()
+    checkout.assert_awaited_once()
+    assert checkout.await_args is not None
+    assert checkout.await_args.kwargs["ref"] == DEFAULT_WORKSPACE_REF
+
+
+def test_resolve_workspace_ref_defaults_to_develop() -> None:
+    assert resolve_workspace_ref(None) == DEFAULT_WORKSPACE_REF
+    assert resolve_workspace_ref("") == DEFAULT_WORKSPACE_REF
+    assert resolve_workspace_ref("   ") == DEFAULT_WORKSPACE_REF
+    assert resolve_workspace_ref("main") == "main"
 
 
 @pytest.mark.asyncio

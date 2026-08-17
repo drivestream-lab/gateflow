@@ -139,8 +139,9 @@ async def test_connect_defaults_to_programme_meta(tenant_id, resolved, tmp_path:
     credential = git.resolve_workspace.await_args.args[0]
     assert credential.org == "drivestream-lab"
     assert credential.repo == "prayog-meta"
-    assert git.resolve_workspace.await_args.kwargs.get("ref") is None
+    assert git.resolve_workspace.await_args.kwargs.get("ref") == "develop"
     repo.upsert_programme_connection.assert_awaited_once()
+    assert repo.upsert_programme_connection.await_args.kwargs["ref"] == "develop"
     assert resp.connection.org == "drivestream-lab"
 
 
@@ -294,6 +295,36 @@ async def test_refresh_catalogue_resyncs_without_selection_writers(
     assert resp.connection.org == "drivestream-lab"
     assert resp.repo_catalogue == candidates
     assert "pat" not in resp.model_dump()
+
+
+@pytest.mark.asyncio
+async def test_refresh_catalogue_omitted_ref_syncs_develop(
+    tenant_id, resolved, tmp_path: Path
+) -> None:
+    conn = ProgrammeConnectionReadModel(
+        tenant_id=tenant_id,
+        org="drivestream-lab",
+        repo="prayog-meta",
+        ref=None,
+        last_synced_at=datetime.now(UTC),
+    )
+    updated = ProgrammeConnectionReadModel(
+        tenant_id=tenant_id,
+        org="drivestream-lab",
+        repo="prayog-meta",
+        ref="develop",
+        last_synced_at=datetime.now(UTC),
+    )
+    svc, repo, git, programme_repo = _service(auth=(str(tmp_path), "ghp_x"), connection=conn)
+    repo.upsert_programme_connection = AsyncMock(return_value=updated)
+    with patch(
+        "src.business_services.catalogue_connection_service.parse_candidates",
+        return_value=[],
+    ):
+        await svc.refresh_catalogue(tenant_id, resolved=resolved)
+    assert git.resolve_workspace.await_args.kwargs.get("ref") == "develop"
+    assert repo.upsert_programme_connection.await_args.kwargs["ref"] == "develop"
+    programme_repo.update_repo_catalogue.assert_awaited_once()
 
 
 @pytest.mark.asyncio
