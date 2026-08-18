@@ -1,9 +1,7 @@
-"""LaunchpadStatusClient — inspect-only Launchpad status (INIT-GATEFLOW-013 W3).
+"""LaunchpadApplyHarnessClient — service-mode apply-harness (Launchpad >= 0.5.35).
 
-ADR-013 Option B: separate from LaunchpadClient.sync_harness (filesystem).
-REQ-18: this client never includes apply/install/mutate verbs.
-REQ-20: tool_unavailable is distinct from repo not-ready.
-Launchpad >= 0.5.35: ``--format json`` on stdout.
+Setup-on-select only. Status remains inspect-only on LaunchpadStatusClient.
+Do not git-add / commit after apply (hubs are gitignored; pin/AGENTS may change).
 """
 
 from __future__ import annotations
@@ -23,30 +21,15 @@ from src.infra_services.launchpad_cli_runtime import (
 )
 from src.logging import get_logger
 from src.models.programme_readiness_models import (
+    LaunchpadApplyHarnessVerdict,
     LaunchpadCommandReport,
-    LaunchpadStatusVerdict,
-    LaunchpadStatusVerdictType,
 )
 
 logger = get_logger()
 
-# Forbidden argv tokens — never pass these to Launchpad from this client (REQ-18).
-_FORBIDDEN_ARGV = frozenset(
-    {
-        "apply",
-        "install",
-        "fix",
-        "upgrade",
-        "init",
-        "sync",
-        "write",
-        "mutate",
-    }
-)
 
-
-class LaunchpadStatusError(Exception):
-    """Named status inspect failure (mapped at business edge)."""
+class LaunchpadApplyHarnessError(Exception):
+    """Named apply-harness tool failure (mapped at business edge)."""
 
     def __init__(
         self,
@@ -62,8 +45,8 @@ class LaunchpadStatusError(Exception):
         self.repo = repo
 
 
-class LaunchpadStatusClient(BaseInfraService):
-    """Run Launchpad ``status`` against a repo workspace + programme meta config."""
+class LaunchpadApplyHarnessClient(BaseInfraService):
+    """Run Launchpad ``apply-harness --apply`` against a cloned app repo."""
 
     @inject
     def __init__(self) -> None:
@@ -74,7 +57,7 @@ class LaunchpadStatusClient(BaseInfraService):
     async def initialize(self) -> None:
         self._initialized = True
         logger.info(
-            "LaunchpadStatusClient initialized",
+            "LaunchpadApplyHarnessClient initialized",
             launchpad_cli_path=self._settings.launchpad_cli_path,
         )
 
@@ -86,18 +69,18 @@ class LaunchpadStatusClient(BaseInfraService):
             return False
         return launchpad_binary_available(self._settings.launchpad_cli_path)
 
-    def build_status_argv(
+    def build_apply_argv(
         self,
         *,
         meta_config_dir: str,
         workspace: str,
         repo: str,
     ) -> list[str]:
-        """Construct inspect-only service-mode argv (Launchpad >= 0.5.35)."""
+        """Service-mode apply argv (Launchpad >= 0.5.35). PAT never on argv."""
         cli = self._settings.launchpad_cli_path.strip() or "launchpad"
         argv = [
             cli,
-            "status",
+            "apply-harness",
             "--no-client",
             "--config-dir",
             meta_config_dir,
@@ -105,13 +88,14 @@ class LaunchpadStatusClient(BaseInfraService):
             workspace,
             "--repo",
             repo,
+            "--apply",
             "--format",
             "json",
         ]
-        self._assert_inspect_only(argv)
+        self._assert_apply_argv(argv)
         return argv
 
-    async def inspect_status(
+    async def apply_harness(
         self,
         *,
         repo_workspace: str,
@@ -119,20 +103,17 @@ class LaunchpadStatusClient(BaseInfraService):
         org: str,
         repo: str,
         pat: str,
-    ) -> LaunchpadStatusVerdict:
-        """Ask Launchpad status only — never apply (REQ-17/18/20).
-
-        ``pat`` is injected as child-process ``GITHUB_TOKEN`` only — never argv.
-        """
+    ) -> LaunchpadApplyHarnessVerdict:
+        """Materialize harness on an existing clone. Never commit."""
         if not launchpad_binary_available(self._settings.launchpad_cli_path):
             logger.error(
-                "Launchpad status tool unavailable",
+                "Launchpad apply-harness tool unavailable",
                 reason="tool_unavailable",
                 org=org,
                 repo=repo,
                 launchpad_cli_path=self._settings.launchpad_cli_path,
             )
-            raise LaunchpadStatusError(
+            raise LaunchpadApplyHarnessError(
                 "Launchpad CLI is unavailable or not executable",
                 reason="tool_unavailable",
                 org=org,
@@ -142,23 +123,23 @@ class LaunchpadStatusClient(BaseInfraService):
         repo_path = Path(repo_workspace)
         meta_path = Path(meta_config_dir)
         if not repo_path.is_dir():
-            raise LaunchpadStatusError(
-                "Repo workspace path is missing for status inspect",
+            raise LaunchpadApplyHarnessError(
+                "Repo workspace path is missing for apply-harness",
                 reason="workspace_path_missing",
                 org=org,
                 repo=repo,
             )
         if not meta_path.is_dir():
-            raise LaunchpadStatusError(
-                "Programme meta config dir is missing for status inspect",
+            raise LaunchpadApplyHarnessError(
+                "Programme meta config dir is missing for apply-harness",
                 reason="meta_config_missing",
                 org=org,
                 repo=repo,
             )
         cleaned_pat = pat.strip()
         if not cleaned_pat:
-            raise LaunchpadStatusError(
-                "Programme PAT is required for Launchpad status inspect",
+            raise LaunchpadApplyHarnessError(
+                "Programme PAT is required for Launchpad apply-harness",
                 reason="programme_pat_missing",
                 org=org,
                 repo=repo,
@@ -166,7 +147,7 @@ class LaunchpadStatusClient(BaseInfraService):
         config_dir = resolve_launchpad_config_dir(meta_path)
         workspace = resolve_launchpad_workspace_root(repo_path)
 
-        argv = self.build_status_argv(
+        argv = self.build_apply_argv(
             meta_config_dir=str(config_dir.resolve()),
             workspace=str(workspace.resolve()),
             repo=repo,
@@ -176,66 +157,59 @@ class LaunchpadStatusClient(BaseInfraService):
             report = LaunchpadCommandReport.from_stdout(stdout)
         except (ValueError, ValidationError) as exc:
             logger.warning(
-                "Launchpad status JSON parse failed",
+                "Launchpad apply-harness JSON parse failed",
                 org=org,
                 repo=repo,
                 exit_code=code,
                 error_type=type(exc).__name__,
             )
-            raise LaunchpadStatusError(
-                "Launchpad status JSON stdout could not be parsed",
+            raise LaunchpadApplyHarnessError(
+                "Launchpad apply-harness JSON stdout could not be parsed",
                 reason="json_parse_failed",
                 org=org,
                 repo=repo,
             ) from exc
 
-        failing = report.failing_check_ids()
-        if report.is_ready_for_gateflow():
+        if code == 0 and report.ok:
             logger.info(
-                "Launchpad status ready",
+                "Launchpad apply-harness ok",
                 org=org,
                 repo=repo,
-                evaluator="launchpad_status",
-                exit_code=code,
-                advisory_failures=", ".join(failing) if failing else None,
             )
-            return LaunchpadStatusVerdict(
-                verdict_type=LaunchpadStatusVerdictType.READY,
-                ready=True,
-            )
+            return LaunchpadApplyHarnessVerdict(ok=True)
 
-        reason = report.named_not_ready_reason()
+        reason = report.named_apply_reason()
         logger.warning(
-            "Launchpad status not ready",
+            "Launchpad apply-harness failed",
             org=org,
             repo=repo,
             reason=reason,
             exit_code=code,
-            failing_checks=", ".join(failing) if failing else None,
+            failing_checks=", ".join(report.failing_check_ids()) or None,
         )
-        return LaunchpadStatusVerdict(
-            verdict_type=LaunchpadStatusVerdictType.NOT_READY,
-            reason=reason,
-            ready=False,
-        )
+        return LaunchpadApplyHarnessVerdict(ok=False, reason=reason)
 
     @staticmethod
-    def _assert_inspect_only(argv: list[str]) -> None:
-        tokens = {t.lower().lstrip("-") for t in argv[1:]}
-        banned = tokens & _FORBIDDEN_ARGV
-        if banned:
-            raise LaunchpadStatusError(
-                f"Forbidden Launchpad argv tokens: {sorted(banned)}",
+    def _assert_apply_argv(argv: list[str]) -> None:
+        lowered = [t.lower() for t in argv[1:]]
+        if "apply-harness" not in lowered:
+            raise LaunchpadApplyHarnessError(
+                "Launchpad argv must include apply-harness subcommand",
                 reason="argv_guard",
             )
-        if "status" not in {t.lower() for t in argv[1:]}:
-            raise LaunchpadStatusError(
-                "Launchpad argv must include status subcommand",
+        if "--apply" not in {t.lower() for t in argv[1:]}:
+            raise LaunchpadApplyHarnessError(
+                "Launchpad apply-harness argv must include --apply",
+                reason="argv_guard",
+            )
+        if "--token" in lowered or any(t.startswith("--token=") for t in lowered):
+            raise LaunchpadApplyHarnessError(
+                "Launchpad argv must not include a token flag",
                 reason="argv_guard",
             )
 
 
-def get_launchpad_status_client() -> LaunchpadStatusClient:
+def get_launchpad_apply_harness_client() -> LaunchpadApplyHarnessClient:
     from src.di.dependency_container import provide_service
 
-    return provide_service(LaunchpadStatusClient)
+    return provide_service(LaunchpadApplyHarnessClient)

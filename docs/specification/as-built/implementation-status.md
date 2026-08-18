@@ -159,8 +159,9 @@
 
 | Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
 |------------|----------|------------|-------------------|-------------|-------|
-| Setup-on-select | REQ-14 | `select_repos` → `TenantGitWorkspaceClient.resolve_workspace` | `test_programme_selection` | `verify_repo_selection` | Same request as admit; ADR-010 layout |
-| Setup isolation | REQ-15 | per-repo try/except `TenantGitWorkspaceError` | `test_select_setup_isolation_mixed_batch` | unit (unsafe live) | Peer admits proceed; membership kept |
+| Setup-on-select | REQ-14 | `select_repos` → `TenantGitWorkspaceClient.resolve_workspace` then `LaunchpadApplyHarnessClient.apply_harness` | `test_programme_selection` | `verify_repo_selection` | Same request as admit; ADR-010 layout; Launchpad >= 0.5.35 `apply-harness --apply --format json`; Gateflow does not commit |
+| Sub-projects initialized | REQ-14 | `TenantGitWorkspaceClient._git_submodule_update` after checkout | `test_tenant_git_workspace_client` (`test_resolve_inits_submodules_*`) | `verify_repo_selection` (clone present) | `git submodule update --init --recursive` when `.gitmodules` exists; same PAT as clone; named `submodule_failed:*` |
+| Setup isolation | REQ-15 | per-repo try/except `TenantGitWorkspaceError` / apply fail | `test_select_setup_isolation_mixed_batch`, `test_select_apply_failure_*` | unit (unsafe live) | Peer admits proceed; membership kept; apply fail → `setup_failed`, status skipped |
 | Per-repo setup results | REQ-16 | `ProgrammeRepoAdmitOutcomeType` `ok` / `setup_failed` | `test_programme_selection` | `verify_repo_selection` | Named `reason` on failure |
 
 **INIT-GATEFLOW-013 W2 status:** **human_approved** at wave-acceptance — Draft PR [#207](https://github.com/drivestream-lab/gateflow/pull/207) @ `96be30f` label `wave-accepted` (+ Pass-2 Learning/Ground on tip); Ground-Report W2 **pass**. Board [#202](https://github.com/drivestream-lab/gateflow/issues/202). Launchpad status readiness is W3. Merge/publish at `wave-signoff` only.
@@ -169,8 +170,8 @@
 
 | Capability | Spec REF | Code entry | Unit / in-process | Live verify | Notes |
 |------------|----------|------------|-------------------|-------------|-------|
-| Inspect-only status client | REQ-17, REQ-18, REQ-20 | `LaunchpadStatusClient.inspect_status` | `test_launchpad_status_client` | `verify_harness_status` | Launchpad >= 0.5.34 service-mode: `--no-client`, `--config-dir`, `--workspace`, child `GITHUB_TOKEN`; `tool_unavailable` |
-| Status-on-select + provenance | REQ-19, REQ-21, REQ-22 | `select_repos` + `readiness_source` | `test_programme_selection` | `verify_harness_status` | after setup `ok` only |
+| Inspect-only status client | REQ-17, REQ-18, REQ-20 | `LaunchpadStatusClient.inspect_status` | `test_launchpad_status_client` | `verify_harness_status` | Launchpad >= 0.5.35: `--no-client`, `--format json` on stdout; `tool_unavailable` / `json_parse_failed`. Gateflow ready ignores advisory `board`/`forge` (Launchpad may exit 1). Blocking fail → `repo_not_ready:{id}`. REQ-18 exception: admit may `apply-harness`; this client never apply |
+| Status-on-select + provenance | REQ-19, REQ-21, REQ-22 | `select_repos` + `readiness_source` | `test_programme_selection` | `verify_harness_status` | after successful apply only; refresh/wave-start are status-only |
 | On-demand refresh | REQ-23 | `POST …/repos/readiness/refresh` | unit via service | `verify_harness_status` | status-sourced only |
 | Dual gate | REQ-21, REQ-22 | wave-start + orchestrator | `test_harness_dual_gate` | filesystem verify retained | never_checked fail-closed |
 
