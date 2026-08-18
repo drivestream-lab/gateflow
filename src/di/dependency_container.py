@@ -64,6 +64,7 @@ def configure_container() -> Injector:
     from src.infra_services.cursor_agent_runner import CursorAgentRunner
     from src.infra_services.forge_client import ForgeClient
     from src.infra_services.github_pat_probe import GithubPatProbe
+    from src.infra_services.launchpad_apply_harness_client import LaunchpadApplyHarnessClient
     from src.infra_services.launchpad_client import LaunchpadClient
     from src.infra_services.launchpad_status_client import LaunchpadStatusClient
     from src.infra_services.stub_agent_runners import ClaudeCodeAgentRunner, OpenCodeAgentRunner
@@ -92,6 +93,7 @@ def configure_container() -> Injector:
             TenantGitWorkspaceClient,
             LaunchpadClient,
             LaunchpadStatusClient,
+            LaunchpadApplyHarnessClient,
             CursorAgentRunner,
             OpenCodeAgentRunner,
             ClaudeCodeAgentRunner,

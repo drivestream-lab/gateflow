@@ -100,6 +100,7 @@ def _service(
         github_pat_probe=probe,
         run_repository=run_repo,
         launchpad_status_client=MagicMock(inspect_status=AsyncMock()),
+        launchpad_apply_harness_client=MagicMock(apply_harness=AsyncMock()),
     )
     return svc, repo, git, programme_repo
 

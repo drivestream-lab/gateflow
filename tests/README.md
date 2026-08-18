@@ -751,6 +751,8 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` (API
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Setup-on-select via `resolve_workspace` (REQ-14) | `verify_repo_selection` | `test_programme_selection` |
+| Submodule init after checkout when `.gitmodules` present (REQ-14) | secondary (`verify_repo_selection` clone) | `test_tenant_git_workspace_client` |
+| Admit `apply-harness --apply` after clone (Launchpad >= 0.5.35) | `verify_repo_selection` | `test_launchpad_apply_harness_client`, `test_programme_selection` |
 | Per-repo setup isolation + `setup_failed` reason (REQ-15, REQ-16) | mixed-fail unit (unsafe live) | `test_programme_selection` |
 | Select outcome `ok` / workspace under `{root}/{org}/{repo}` | `verify_repo_selection` | `test_programme_selection` |
 
@@ -761,10 +763,11 @@ Human live-verify: `.venv/bin/python -m tests.verify.verify_repo_selection` — 
 | Capability | Verify script | Pytest |
 |------------|---------------|--------|
 | Inspect-only `LaunchpadStatusClient` (REQ-17/18/20) | `verify_harness_status` | `test_launchpad_status_client` |
+| Status not-ready reason from JSON checks (REQ-16) | `verify_harness_status` | `test_launchpad_status_client` (`test_inspect_status_not_ready_*`) |
 | Status-on-select + refresh (REQ-19/21/23) | `verify_harness_status` | `test_programme_selection` |
 | Dual gate provenance (REQ-21/22) | legacy `verify_harness_readiness` | `test_harness_dual_gate` |
 
-Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_status` (Launchpad CLI + readiness_source DDL). Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`.
+Human live-verify: `.venv/bin/python -m tests.verify.verify_harness_status` (Launchpad CLI **0.5.35+** + readiness_source DDL). Ops: `OPS-NOTE-INIT-GATEFLOW-013-launchpad-cli.md`.
 
 ## Feature map (INIT-GATEFLOW-013 W4 — catalogue refresh)
 

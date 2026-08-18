@@ -31,6 +31,23 @@ FILE_TEXT_FORMAT = (
     "{time:YYYY-MM-DD HH:mm:ss.SSS} | " "{level: <8} | " "{name}:{function}:{line} | " "{message}"
 )
 
+_BOUND_EXTRA_KEYS = frozenset({"service", "environment", "correlation_id"})
+
+
+def _text_format_with_extras(template: str):
+    """Keep message static; append log kwargs so local text logs are greppable."""
+
+    def formatter(record: Any) -> str:
+        parts: list[str] = []
+        for key, value in record["extra"].items():
+            if key in _BOUND_EXTRA_KEYS or value is None:
+                continue
+            parts.append(f"{key}={value}")
+        suffix = (" | " + " ".join(parts)) if parts else ""
+        return template + suffix + "\n"
+
+    return formatter
+
 
 def _flat_json_line(record: Any, service: str, environment: str) -> str:
     """One flat JSON object per line; record is loguru's runtime dict-like record."""
@@ -207,7 +224,7 @@ def setup_logging(settings: Optional[Any] = None) -> None:
                 retention="30 days",
                 compression="gz",
                 level=log_level,
-                format=FILE_TEXT_FORMAT,
+                format=_text_format_with_extras(FILE_TEXT_FORMAT),
                 backtrace=True,
                 diagnose=is_development,
                 enqueue=True,
@@ -217,7 +234,7 @@ def setup_logging(settings: Optional[Any] = None) -> None:
                 logger.add(
                     stdout_sink.write,
                     level=log_level,
-                    format=TEXT_FORMAT,
+                    format=_text_format_with_extras(TEXT_FORMAT),
                     backtrace=True,
                     diagnose=is_development,
                     enqueue=True,

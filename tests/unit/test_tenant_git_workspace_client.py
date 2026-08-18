@@ -253,3 +253,114 @@ async def test_checkout_branch_invokes_origin_tracking(tmp_path: Path) -> None:
     assert captured
     assert "checkout" in captured[0]
     assert "origin/feature/INIT-ACME-001-w2-x" in captured[0]
+
+
+@pytest.mark.asyncio
+async def test_resolve_inits_submodules_after_checkout(tmp_path: Path) -> None:
+    """REQ-14: committed sub-projects are initialized after checkout."""
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+    order: list[str] = []
+
+    async def fake_clone(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = pat
+        path.mkdir(parents=True, exist_ok=True)
+        _init_remote_like_checkout(path, org=org, repo=repo)
+        (path / ".gitmodules").write_text(
+            '[submodule "prayog-skills"]\n\tpath = prayog-skills\n',
+            encoding="utf-8",
+        )
+
+    async def fake_checkout(path: Path, *, ref: str, org: str, repo: str) -> None:
+        _ = path, ref, org, repo
+        order.append("checkout")
+
+    async def fake_submodules(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = path, pat, org, repo
+        order.append("submodule")
+
+    with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)):
+        with patch.object(client, "_checkout_ref", new=AsyncMock(side_effect=fake_checkout)):
+            with patch.object(
+                client, "_git_submodule_update", new=AsyncMock(side_effect=fake_submodules)
+            ):
+                await client.resolve_workspace(cred)
+
+    assert order == ["checkout", "submodule"]
+
+
+@pytest.mark.asyncio
+async def test_resolve_skips_submodules_when_gitmodules_absent(tmp_path: Path) -> None:
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+
+    async def fake_clone(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = pat
+        path.mkdir(parents=True, exist_ok=True)
+        _init_remote_like_checkout(path, org=org, repo=repo)
+
+    with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)):
+        with patch.object(client, "_checkout_ref", new=AsyncMock()):
+            with patch.object(client, "_run_git", new=AsyncMock()) as run_git:
+                await client.resolve_workspace(cred)
+
+    run_git.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolve_fetch_inits_submodules(tmp_path: Path) -> None:
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+    target = tmp_path / "acme" / "widget"
+    _init_remote_like_checkout(target, org="acme", repo="widget")
+    (target / ".gitmodules").write_text(
+        '[submodule "prayog-skills"]\n\tpath = prayog-skills\n',
+        encoding="utf-8",
+    )
+    captured: list[list[str]] = []
+
+    async def fake_run(argv: list[str]) -> tuple[int, str]:
+        captured.append(list(argv))
+        return 0, ""
+
+    with patch.object(client, "_git_fetch", new=AsyncMock()):
+        with patch.object(client, "_checkout_ref", new=AsyncMock()):
+            with patch.object(client, "_run_git", side_effect=fake_run):
+                await client.resolve_workspace(cred)
+
+    assert captured
+    assert "submodule" in captured[0]
+    assert "--init" in captured[0]
+    assert "--recursive" in captured[0]
+    header = next(arg for arg in captured[0] if arg.startswith("http.extraHeader="))
+    assert "REDACTED" not in header
+    assert "Basic" in header
+
+
+@pytest.mark.asyncio
+async def test_submodule_failure_is_named(tmp_path: Path) -> None:
+    client = TenantGitWorkspaceClient()
+    await client.initialize()
+    cred = _cred(tmp_path)
+
+    async def fake_clone(path: Path, *, pat: str, org: str, repo: str) -> None:
+        _ = pat
+        path.mkdir(parents=True, exist_ok=True)
+        _init_remote_like_checkout(path, org=org, repo=repo)
+        (path / ".gitmodules").write_text(
+            '[submodule "prayog-skills"]\n\tpath = prayog-skills\n',
+            encoding="utf-8",
+        )
+
+    with patch.object(client, "_git_clone", new=AsyncMock(side_effect=fake_clone)):
+        with patch.object(client, "_checkout_ref", new=AsyncMock()):
+            with patch.object(
+                client, "_run_git", new=AsyncMock(return_value=(1, "Authentication failed"))
+            ):
+                with pytest.raises(TenantGitWorkspaceError) as exc_info:
+                    await client.resolve_workspace(cred)
+
+    assert exc_info.value.reason == "submodule_failed:auth"

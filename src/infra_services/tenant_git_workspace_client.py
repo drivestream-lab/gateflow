@@ -1,6 +1,7 @@
 """Clone/fetch tenant workspaces via subprocess git + stored PAT (INIT-GATEFLOW-012 W1).
 
 FF-04: git CLI only — no Python git package. TF-01: serialize per org+repo.
+REQ-14: after checkout, initialize committed submodules when ``.gitmodules`` is present.
 """
 
 import asyncio
@@ -130,36 +131,37 @@ class TenantGitWorkspaceClient(BaseInfraService):
                     repo=repo,
                 )
             await self._git_fetch(target, pat=pat, org=org, repo=repo)
-            await self._checkout_ref(target, ref=ref, org=org, repo=repo)
+            mode = WorkspaceResolveModeType.FETCHED
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            await self._git_clone(target, pat=pat, org=org, repo=repo)
+            mode = WorkspaceResolveModeType.CLONED
+
+        await self._checkout_ref(target, ref=ref, org=org, repo=repo)
+        await self._git_submodule_update(target, pat=pat, org=org, repo=repo)
+        if mode == WorkspaceResolveModeType.FETCHED:
             logger.info(
                 "Tenant workspace fetched",
                 tenant_id=str(tenant_id),
                 org=org,
                 repo=repo,
-                mode=WorkspaceResolveModeType.FETCHED.value,
+                mode=mode.value,
                 path=rel_path,
                 ref=ref,
             )
-            return WorkspaceResolveResult(
-                path=str(target),
-                mode=WorkspaceResolveModeType.FETCHED,
+        else:
+            logger.info(
+                "Tenant workspace cloned",
+                tenant_id=str(tenant_id),
+                org=org,
+                repo=repo,
+                mode=mode.value,
+                path=rel_path,
+                ref=ref,
             )
-
-        target.parent.mkdir(parents=True, exist_ok=True)
-        await self._git_clone(target, pat=pat, org=org, repo=repo)
-        await self._checkout_ref(target, ref=ref, org=org, repo=repo)
-        logger.info(
-            "Tenant workspace cloned",
-            tenant_id=str(tenant_id),
-            org=org,
-            repo=repo,
-            mode=WorkspaceResolveModeType.CLONED.value,
-            path=rel_path,
-            ref=ref,
-        )
         return WorkspaceResolveResult(
             path=str(target),
-            mode=WorkspaceResolveModeType.CLONED,
+            mode=mode,
         )
 
     async def _checkout_ref(
@@ -258,6 +260,41 @@ class TenantGitWorkspaceClient(BaseInfraService):
                 org=org,
                 repo=repo,
             )
+
+    async def _git_submodule_update(self, target: Path, *, pat: str, org: str, repo: str) -> None:
+        """Initialize committed submodules after checkout (REQ-14 sub-projects).
+
+        Same PAT as clone/fetch (Q-9: tenant credential covers same-org HTTPS
+        submodules). No-op when ``.gitmodules`` is absent.
+        """
+        if not (target / ".gitmodules").is_file():
+            return
+        header = self._auth_extra_header(pat)
+        code, stderr = await self._run_git(
+            [
+                "git",
+                "-C",
+                str(target),
+                "-c",
+                f"http.extraHeader={header}",
+                "submodule",
+                "update",
+                "--init",
+                "--recursive",
+            ]
+        )
+        if code != 0:
+            raise TenantGitWorkspaceError(
+                "git submodule update failed for registered repo",
+                reason=f"submodule_failed:{self._classify_git_failure(stderr)}",
+                org=org,
+                repo=repo,
+            )
+        logger.info(
+            "Tenant workspace submodules initialized",
+            org=org,
+            repo=repo,
+        )
 
     async def checkout_branch(
         self,

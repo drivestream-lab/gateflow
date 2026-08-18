@@ -20,6 +20,10 @@ from src.exceptions.app_exceptions import (
     UnprocessableEntityError,
 )
 from src.infra_services.github_pat_probe import GithubPatProbe
+from src.infra_services.launchpad_apply_harness_client import (
+    LaunchpadApplyHarnessClient,
+    LaunchpadApplyHarnessError,
+)
 from src.infra_services.launchpad_status_client import (
     LaunchpadStatusClient,
     LaunchpadStatusError,
@@ -69,6 +73,7 @@ class CatalogueConnectionService(BaseBusinessService):
         github_pat_probe: GithubPatProbe,
         run_repository: RunRepository,
         launchpad_status_client: LaunchpadStatusClient,
+        launchpad_apply_harness_client: LaunchpadApplyHarnessClient,
     ) -> None:
         super().__init__()
         self._postgres_service = postgres_service
@@ -78,6 +83,7 @@ class CatalogueConnectionService(BaseBusinessService):
         self._github_pat_probe = github_pat_probe
         self._run_repository = run_repository
         self._status_client = launchpad_status_client
+        self._apply_client = launchpad_apply_harness_client
 
     async def connect_programme(
         self,
@@ -386,6 +392,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 "Select rejected by PAT probe",
                 tenant_id=str(tenant_id),
                 failure_count=len(probe_failures),
+                failures=", ".join(f"{f.org}/{f.repo}:{f.reason}" for f in probe_failures),
             )
             raise UnprocessableEntityError(
                 message="PAT failed read-access verification for one or more repos",
@@ -450,12 +457,25 @@ class CatalogueConnectionService(BaseBusinessService):
                 )
                 continue
 
+            apply_result = await self._run_apply_harness_for_repo(
+                tenant_id=tenant_id,
+                org=ref.org,
+                repo=ref.repo,
+                repo_workspace=str(target.resolve()),
+                meta_config_dir=meta_config_dir,
+                pat=pat,
+            )
+            if apply_result is not None:
+                results.append(apply_result)
+                continue
+
             status_result = await self._run_status_for_repo(
                 tenant_id=tenant_id,
                 org=ref.org,
                 repo=ref.repo,
                 repo_workspace=str(target.resolve()),
                 meta_config_dir=meta_config_dir,
+                pat=pat,
             )
             results.append(status_result)
 
@@ -467,6 +487,55 @@ class CatalogueConnectionService(BaseBusinessService):
         )
         return ProgrammeSelectResponse(results=results, active_repos=active)
 
+    async def _run_apply_harness_for_repo(
+        self,
+        *,
+        tenant_id: UUID,
+        org: str,
+        repo: str,
+        repo_workspace: str,
+        meta_config_dir: str,
+        pat: str,
+    ) -> ProgrammeRepoAdmitResult | None:
+        """Full apply-harness after clone; do not commit. None means continue to status."""
+        try:
+            verdict = await self._apply_client.apply_harness(
+                repo_workspace=repo_workspace,
+                meta_config_dir=meta_config_dir,
+                org=org,
+                repo=repo,
+                pat=pat,
+            )
+        except LaunchpadApplyHarnessError as exc:
+            self.logger.warning(
+                "Programme repo apply-harness tool failure",
+                tenant_id=str(tenant_id),
+                org=org,
+                repo=repo,
+                reason=exc.reason,
+            )
+            return ProgrammeRepoAdmitResult(
+                org=org,
+                repo=repo,
+                outcome=ProgrammeRepoAdmitOutcomeType.SETUP_FAILED,
+                reason=exc.reason,
+            )
+        if verdict.ok:
+            return None
+        self.logger.warning(
+            "Programme repo apply-harness failed",
+            tenant_id=str(tenant_id),
+            org=org,
+            repo=repo,
+            reason=verdict.reason,
+        )
+        return ProgrammeRepoAdmitResult(
+            org=org,
+            repo=repo,
+            outcome=ProgrammeRepoAdmitOutcomeType.SETUP_FAILED,
+            reason=verdict.reason or "apply_failed",
+        )
+
     async def _run_status_for_repo(
         self,
         *,
@@ -475,6 +544,7 @@ class CatalogueConnectionService(BaseBusinessService):
         repo: str,
         repo_workspace: str,
         meta_config_dir: str,
+        pat: str,
     ) -> ProgrammeRepoAdmitResult:
         """Inspect-only status after successful setup; isolates failures (REQ-17/19/20)."""
         try:
@@ -483,6 +553,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 meta_config_dir=meta_config_dir,
                 org=org,
                 repo=repo,
+                pat=pat,
             )
         except LaunchpadStatusError as exc:
             self.logger.warning(
@@ -573,7 +644,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 },
             )
 
-        workspace_root, _pat = auth
+        workspace_root, pat = auth
         repo_workspace = Path(workspace_root) / org / repo
         meta_config_dir = Path(workspace_root) / connection.org / connection.repo
         if not repo_workspace.is_dir():
@@ -588,6 +659,7 @@ class CatalogueConnectionService(BaseBusinessService):
                 meta_config_dir=str(meta_config_dir.resolve()),
                 org=org,
                 repo=repo,
+                pat=pat,
             )
         except LaunchpadStatusError as exc:
             raise UnprocessableEntityError(

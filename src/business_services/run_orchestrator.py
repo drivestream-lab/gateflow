@@ -1043,6 +1043,7 @@ class RunOrchestrator(BaseBusinessService):
                     meta_config_dir=meta_config_dir,
                     org=org,
                     repo=repo,
+                    pat=registered.pat,
                 )
             except LaunchpadStatusError as exc:
                 raise UnprocessableEntityError(

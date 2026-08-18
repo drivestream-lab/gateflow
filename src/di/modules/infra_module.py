@@ -14,6 +14,7 @@ from src.infra_services.github_token_provider import (
     GithubTokenProvider,
     PatTokenProvider,
 )
+from src.infra_services.launchpad_apply_harness_client import LaunchpadApplyHarnessClient
 from src.infra_services.launchpad_client import LaunchpadClient
 from src.infra_services.launchpad_status_client import LaunchpadStatusClient
 from src.infra_services.postgres_service import PostgresService
@@ -44,6 +45,7 @@ class InfraModule(Module):
         binder.bind(TenantGitWorkspaceClient, to=TenantGitWorkspaceClient, scope=singleton)
         binder.bind(LaunchpadClient, to=LaunchpadClient, scope=singleton)
         binder.bind(LaunchpadStatusClient, to=LaunchpadStatusClient, scope=singleton)
+        binder.bind(LaunchpadApplyHarnessClient, to=LaunchpadApplyHarnessClient, scope=singleton)
         binder.bind(CursorAgentRunner, to=CursorAgentRunner, scope=singleton)
         binder.bind(OpenCodeAgentRunner, to=OpenCodeAgentRunner, scope=singleton)
         binder.bind(ClaudeCodeAgentRunner, to=ClaudeCodeAgentRunner, scope=singleton)
